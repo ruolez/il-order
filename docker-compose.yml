@@ -1,0 +1,57 @@
+# IL-Order Docker Compose Configuration
+
+services:
+  # PostgreSQL Database (Local Storage)
+  db:
+    image: postgres:15-alpine
+    container_name: il-order-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ilorder
+      POSTGRES_PASSWORD: ilorder_secret
+      POSTGRES_DB: ilorder
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ilorder -d ilorder"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Python Flask Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: il-order-backend
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - DATABASE_URL=postgresql://ilorder:ilorder_secret@db:5432/ilorder
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+    volumes:
+      - ./backend/app:/app/app
+    ports:
+      - "5001:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Nginx Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: il-order-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
