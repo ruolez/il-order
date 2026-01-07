@@ -845,7 +845,7 @@ async function loadOrderHistory() {
 
     if (result.orders.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="6" class="loading">No orders found</td></tr>';
+        '<tr><td colspan="8" class="loading">No orders found</td></tr>';
       return;
     }
 
@@ -858,12 +858,17 @@ async function loadOrderHistory() {
         if (order.status === "exported") statusClass = "badge-success";
         if (order.status === "archived") statusClass = "badge-secondary";
 
+        const totalCost = parseFloat(order.total_cost || 0);
+        const formattedCost = `$${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
         return `
                 <tr data-id="${order.id}">
                     <td>${order.name || "Untitled"}</td>
+                    <td>${order.supplier_name || "-"}</td>
                     <td>${createdDate}</td>
                     <td>${order.item_count || 0}</td>
                     <td>${(order.total_qty || 0).toLocaleString()}</td>
+                    <td>${formattedCost}</td>
                     <td><span class="badge ${statusClass}">${order.status}</span></td>
                     <td class="action-cell">
                         <button class="action-btn view" onclick="viewOrder(${order.id})">View</button>
@@ -877,7 +882,7 @@ async function loadOrderHistory() {
       .join("");
   } catch (error) {
     console.error("Error loading order history:", error);
-    tbody.innerHTML = `<tr><td colspan="6" class="loading">Error: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading">Error: ${error.message}</td></tr>`;
   }
 }
 

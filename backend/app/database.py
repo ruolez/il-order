@@ -317,7 +317,8 @@ class PostgresManager:
             if status:
                 cursor.execute("""
                     SELECT d.*, COUNT(i.id) as item_count,
-                           COALESCE(SUM(i.final_qty), 0) as total_qty
+                           COALESCE(SUM(i.final_qty), 0) as total_qty,
+                           COALESCE(SUM(i.final_qty * i.unit_cost), 0) as total_cost
                     FROM order_drafts d
                     LEFT JOIN order_draft_items i ON d.id = i.order_draft_id
                     WHERE d.status = %s
@@ -327,7 +328,8 @@ class PostgresManager:
             else:
                 cursor.execute("""
                     SELECT d.*, COUNT(i.id) as item_count,
-                           COALESCE(SUM(i.final_qty), 0) as total_qty
+                           COALESCE(SUM(i.final_qty), 0) as total_qty,
+                           COALESCE(SUM(i.final_qty * i.unit_cost), 0) as total_cost
                     FROM order_drafts d
                     LEFT JOIN order_draft_items i ON d.id = i.order_draft_id
                     GROUP BY d.id
