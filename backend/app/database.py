@@ -683,22 +683,28 @@ class MSSQLManager:
 
         Note: PurchaseOrdersDetails_tbl may link to products via ProductID OR ProductUPC,
         so we need to check both columns to find all supplier relationships.
+
+        IMPORTANT: Always use Items_tbl.ProductUPC as the dictionary key to ensure
+        consistency with the lookup key (which also comes from Items_tbl).
         """
         with self.get_cursor() as cursor:
             cursor.execute("""
                 WITH AllProductPOs AS (
                     -- Products linked by ProductUPC
+                    -- Join to Items_tbl to get canonical UPC (ensures key matches lookup)
                     SELECT
-                        pod.ProductUPC,
+                        i.ProductUPC,
                         po.SupplierID,
                         po.PoDate
                     FROM PurchaseOrdersDetails_tbl pod
                     JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    JOIN Items_tbl i ON LTRIM(RTRIM(pod.ProductUPC)) = LTRIM(RTRIM(i.ProductUPC))
                     WHERE pod.ProductUPC IS NOT NULL
+                      AND i.ProductUPC IS NOT NULL
 
                     UNION ALL
 
-                    -- Products linked by ProductID (get UPC from Items_tbl)
+                    -- Products linked by ProductID
                     SELECT
                         i.ProductUPC,
                         po.SupplierID,
