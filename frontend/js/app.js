@@ -553,10 +553,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Close modal with Escape key
+  // Global ESC key handler for all modals
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal && modal.classList.contains("active")) {
-      closeProductModal();
+    if (e.key === "Escape") {
+      // First check for product modal
+      const productModal = document.getElementById("product-modal");
+      if (productModal && productModal.classList.contains("active")) {
+        closeProductModal();
+        return;
+      }
+
+      // Then check for any dynamically created modals
+      const dynamicModal = document.querySelector(".modal.active");
+      if (dynamicModal) {
+        dynamicModal.remove();
+        return;
+      }
+
+      // Close column selector panel if open
+      const columnPanel = document.getElementById("column-selector-panel");
+      if (columnPanel && columnPanel.classList.contains("active")) {
+        columnPanel.classList.remove("active");
+        document.querySelector(".btn-columns")?.classList.remove("active");
+      }
     }
   });
 });
@@ -1074,6 +1093,12 @@ async function viewOrder(orderId) {
                 </div>
             </div>
         `;
+    // Close modal when clicking outside
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
     document.body.appendChild(modal);
   } catch (error) {
     console.error("Error viewing order:", error);
