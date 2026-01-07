@@ -60,6 +60,9 @@ let pendingNoSupplierProducts = null; // Products with no supplier (passed from 
 // Supplier groups cache (populated by renderGroupedView)
 let cachedSupplierGroups = {};
 
+// Excluded suppliers cache (for grouped view)
+let excludedSuppliers = new Set();
+
 // Load application settings (including items per page)
 async function loadAppSettings() {
   try {
@@ -86,6 +89,99 @@ function showToast(message, type = "info") {
     toast.style.animation = "slideIn 0.3s ease reverse";
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+// Excluded suppliers API functions
+async function loadExcludedSuppliers() {
+  try {
+    const result = await api.get("/suppliers/excluded");
+    if (result.success) {
+      excludedSuppliers = new Set(result.suppliers.map((s) => s.supplier_name));
+    }
+  } catch (error) {
+    console.error("Error loading excluded suppliers:", error);
+  }
+}
+
+async function excludeSupplierFromView(supplierName) {
+  try {
+    const result = await api.post("/suppliers/exclude", {
+      supplier_name: supplierName,
+    });
+    if (result.success) {
+      excludedSuppliers.add(supplierName);
+      showToast(`${supplierName} hidden from view`, "success");
+      loadInventory(1, currentSearch);
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error excluding supplier:", error);
+    showToast(`Error: ${error.message}`, "error");
+  }
+}
+
+async function includeSupplierInView(supplierName) {
+  try {
+    const result = await api.post("/suppliers/include", {
+      supplier_name: supplierName,
+    });
+    if (result.success) {
+      excludedSuppliers.delete(supplierName);
+      showToast(`${supplierName} restored to view`, "success");
+      loadInventory(1, currentSearch);
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error including supplier:", error);
+    showToast(`Error: ${error.message}`, "error");
+  }
+}
+
+function showExcludedSuppliersModal() {
+  const modal = document.createElement("div");
+  modal.className = "modal active";
+  modal.id = "excluded-suppliers-modal";
+
+  const excludedList = Array.from(excludedSuppliers).sort();
+
+  const listHtml =
+    excludedList.length > 0
+      ? excludedList
+          .map(
+            (name) => `
+        <div class="excluded-supplier-item">
+          <span>${escapeHtml(name)}</span>
+          <button type="button" class="btn btn-small btn-outline" onclick="includeSupplierInView('${escapeHtml(name).replace(/'/g, "\\'")}'); document.getElementById('excluded-suppliers-modal').remove();">
+            Restore
+          </button>
+        </div>
+      `
+          )
+          .join("")
+      : '<p class="no-excluded-message">No suppliers are hidden</p>';
+
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>Hidden Suppliers</h2>
+        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle">These suppliers are hidden from the grouped view. Click "Restore" to show them again.</p>
+        <div class="excluded-suppliers-list">
+          ${listHtml}
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.remove();
+  });
+
+  document.body.appendChild(modal);
 }
 
 // Navigation
@@ -271,6 +367,7 @@ async function loadInventory(page = 1, search = "") {
     totalPages = Math.ceil(totalProducts / itemsPerPage);
 
     if (inventoryViewMode === 'grouped') {
+      await loadExcludedSuppliers();
       renderGroupedView(allProducts);
     } else {
       renderInventoryTable(allProducts, true);
@@ -422,6 +519,7 @@ function setInventoryView(mode) {
 
 // Render grouped view (supplier cards)
 function renderGroupedView(products) {
+  const container = document.getElementById('supplier-cards-container');
   const grid = document.getElementById('supplier-cards-grid');
 
   if (!products || products.length === 0) {
@@ -452,28 +550,53 @@ function renderGroupedView(products) {
   // Cache supplier groups for use when navigating to orders
   cachedSupplierGroups = supplierGroups;
 
-  // Sort by estimated order cost (high to low), "No Supplier" always at the end
-  const sortedSuppliers = Object.values(supplierGroups).sort((a, b) => {
+  // Separate visible and hidden suppliers
+  const visibleSuppliers = [];
+  const hiddenSuppliers = [];
+
+  Object.values(supplierGroups).forEach(group => {
+    if (excludedSuppliers.has(group.name)) {
+      hiddenSuppliers.push(group);
+    } else {
+      visibleSuppliers.push(group);
+    }
+  });
+
+  // Sort visible by estimated order cost, "No Supplier" at end
+  visibleSuppliers.sort((a, b) => {
     if (a.name === 'No Supplier') return 1;
     if (b.name === 'No Supplier') return -1;
     return b.estimatedOrderCost - a.estimatedOrderCost;
   });
 
-  // Render cards
-  grid.innerHTML = sortedSuppliers.map(group => {
+  // Build hidden suppliers indicator HTML
+  let hiddenIndicatorHtml = '';
+  if (hiddenSuppliers.length > 0) {
+    hiddenIndicatorHtml = `
+      <div class="hidden-suppliers-indicator">
+        <span>${hiddenSuppliers.length} supplier${hiddenSuppliers.length > 1 ? 's' : ''} hidden</span>
+        <button type="button" class="btn-text" onclick="showExcludedSuppliersModal()">Manage</button>
+      </div>
+    `;
+  }
+
+  // Render cards with exclude button
+  const cardsHtml = visibleSuppliers.map(group => {
     const isNoSupplier = group.name === 'No Supplier';
     const cardClass = isNoSupplier ? 'supplier-card no-supplier' : 'supplier-card';
     const currentFilter = document.getElementById('inventory-filter').value;
+    const escapedName = escapeHtml(group.name);
+    const escapedNameForJs = escapedName.replace(/'/g, "\\'");
 
     return `
-      <div class="${cardClass}" onclick="navigateToOrdersWithSupplier('${escapeHtml(group.name)}', '${currentFilter}')">
-        <div class="supplier-card-content">
+      <div class="${cardClass}">
+        <div class="supplier-card-content" onclick="navigateToOrdersWithSupplier('${escapedNameForJs}', '${currentFilter}')">
           <div class="supplier-card-name">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            ${escapeHtml(group.name)}
+            ${escapedName}
           </div>
           <div class="supplier-card-stats">
             <span class="stat">${group.products.length} products</span>
@@ -481,14 +604,34 @@ function renderGroupedView(products) {
             ${group.estimatedOrderCost > 0 ? `<span class="stat value">$${group.estimatedOrderCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} est. order</span>` : ''}
           </div>
         </div>
-        <div class="supplier-card-arrow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
+        <div class="supplier-card-actions">
+          <button type="button" class="supplier-exclude-btn" onclick="event.stopPropagation(); excludeSupplierFromView('${escapedNameForJs}')" title="Hide this supplier">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+          <div class="supplier-card-arrow" onclick="navigateToOrdersWithSupplier('${escapedNameForJs}', '${currentFilter}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
         </div>
       </div>
     `;
   }).join('');
+
+  // Insert hidden indicator before grid by replacing container inner HTML
+  const existingIndicator = container.querySelector('.hidden-suppliers-indicator');
+  if (existingIndicator) {
+    existingIndicator.remove();
+  }
+
+  grid.innerHTML = cardsHtml;
+
+  if (hiddenIndicatorHtml) {
+    grid.insertAdjacentHTML('beforebegin', hiddenIndicatorHtml);
+  }
 }
 
 // Navigate to Orders page with supplier and filter pre-selected

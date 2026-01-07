@@ -521,6 +521,60 @@ def get_suppliers():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/suppliers/excluded', methods=['GET'])
+def get_excluded_suppliers():
+    """Get list of excluded suppliers from grouped view."""
+    try:
+        excluded = pg.get_excluded_suppliers()
+        return jsonify({
+            'success': True,
+            'suppliers': [dict(s) for s in excluded],
+            'count': len(excluded)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/suppliers/exclude', methods=['POST'])
+def exclude_supplier():
+    """Add a supplier to the exclusion list."""
+    try:
+        data = request.get_json()
+        supplier_name = data.get('supplier_name')
+
+        if not supplier_name:
+            return jsonify({'success': False, 'error': 'supplier_name is required'}), 400
+
+        result_id = pg.exclude_supplier(supplier_name)
+        return jsonify({
+            'success': True,
+            'id': result_id,
+            'supplier_name': supplier_name
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/suppliers/include', methods=['POST'])
+def include_supplier():
+    """Remove a supplier from the exclusion list."""
+    try:
+        data = request.get_json()
+        supplier_name = data.get('supplier_name')
+
+        if not supplier_name:
+            return jsonify({'success': False, 'error': 'supplier_name is required'}), 400
+
+        deleted = pg.include_supplier(supplier_name)
+        return jsonify({
+            'success': True,
+            'deleted': deleted,
+            'supplier_name': supplier_name
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/products/by-supplier/<int:supplier_id>', methods=['GET'])
 def get_products_by_supplier(supplier_id):
     """Get products ordered from a specific supplier."""

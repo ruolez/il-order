@@ -75,3 +75,11 @@ CREATE TABLE IF NOT EXISTS order_draft_items (
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_order_draft_items_draft_id ON order_draft_items(order_draft_id);
 CREATE INDEX IF NOT EXISTS idx_product_overrides_upc ON product_overrides(product_upc);
+
+-- Excluded suppliers from grouped view
+CREATE TABLE IF NOT EXISTS excluded_suppliers (
+    id SERIAL PRIMARY KEY,
+    supplier_name VARCHAR(255) NOT NULL UNIQUE,
+    excluded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_excluded_suppliers_name ON excluded_suppliers(supplier_name);

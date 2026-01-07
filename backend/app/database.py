@@ -116,6 +116,18 @@ class PostgresManager:
                     END IF;
                 END $$;
             """)
+            # Migration: Create excluded_suppliers table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS excluded_suppliers (
+                    id SERIAL PRIMARY KEY,
+                    supplier_name VARCHAR(255) NOT NULL UNIQUE,
+                    excluded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_excluded_suppliers_name
+                ON excluded_suppliers(supplier_name)
+            """)
             cursor.close()
 
     @contextmanager
@@ -298,6 +310,44 @@ class PostgresManager:
                 ORDER BY product_upc
             """)
             return cursor.fetchall()
+
+    # Excluded suppliers methods (for grouped view)
+    def get_excluded_suppliers(self) -> List[Dict[str, Any]]:
+        """Get all excluded suppliers."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT id, supplier_name, excluded_at
+                FROM excluded_suppliers
+                ORDER BY supplier_name
+            """)
+            return cursor.fetchall()
+
+    def get_excluded_supplier_names(self) -> set:
+        """Get set of excluded supplier names for filtering."""
+        with self.get_cursor() as cursor:
+            cursor.execute("SELECT supplier_name FROM excluded_suppliers")
+            rows = cursor.fetchall()
+            return {row['supplier_name'] for row in rows}
+
+    def exclude_supplier(self, supplier_name: str) -> Optional[int]:
+        """Add a supplier to the exclusion list."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO excluded_suppliers (supplier_name)
+                VALUES (%s)
+                ON CONFLICT (supplier_name) DO NOTHING
+                RETURNING id
+            """, (supplier_name,))
+            result = cursor.fetchone()
+            return result['id'] if result else None
+
+    def include_supplier(self, supplier_name: str) -> bool:
+        """Remove a supplier from the exclusion list."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM excluded_suppliers WHERE supplier_name = %s
+            """, (supplier_name,))
+            return cursor.rowcount > 0
 
     # Order draft methods
     def create_order_draft(self, name: str = None, supplier_id: int = None, supplier_name: str = None) -> int:
