@@ -258,10 +258,14 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-            # Sort by last_supplier if requested (Python-level since not in SQL)
+            # Sort by last_supplier or status if requested (Python-level since not in SQL)
             if sort_by == 'last_supplier':
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
+            elif sort_by == 'status':
+                # Sort by needs_reorder: True (Reorder) first when asc, False (OK) first when desc
+                reverse_sort = sort_order == 'desc'
+                filtered.sort(key=lambda x: (not x.get('needs_reorder', False)), reverse=reverse_sort)
 
             # Apply pagination to filtered results (unless no_pagination)
             total_count = len(filtered)
@@ -271,8 +275,8 @@ def get_products():
                 enriched = filtered[offset:offset + limit]
         else:
             # "all" filter - use SQL-level pagination for maximum speed
-            # Exception: when sorting by last_supplier or no_pagination, we need to fetch all and sort in Python
-            use_python_pagination = sort_by == 'last_supplier' or no_pagination
+            # Exception: when sorting by last_supplier, status, or no_pagination, we need to fetch all and sort in Python
+            use_python_pagination = sort_by in ('last_supplier', 'status') or no_pagination
 
             result = mssql.get_products_with_sales(
                 days=sales_period,
@@ -359,10 +363,14 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-            # Sort by last_supplier if requested, then apply pagination (unless no_pagination)
+            # Sort by last_supplier or status if requested, then apply pagination (unless no_pagination)
             if use_python_pagination:
                 reverse_sort = sort_order == 'desc'
-                all_enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
+                if sort_by == 'last_supplier':
+                    all_enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
+                elif sort_by == 'status':
+                    # Sort by needs_reorder: True (Reorder) first when asc, False (OK) first when desc
+                    all_enriched.sort(key=lambda x: (not x.get('needs_reorder', False)), reverse=reverse_sort)
                 total_count = len(all_enriched)
                 if no_pagination:
                     enriched = all_enriched
@@ -1237,8 +1245,8 @@ def export_inventory_excel():
         ws['E2'] = f"Total Units: {total_units:,}"
         ws['G2'] = f"Est. Cost: ${total_cost:,.2f}"
 
-        # Headers
-        headers = ['UPC', 'Description', 'On Hand', 'Case Qty', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        # Headers (same as order export)
+        headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col_idx, value=header)
             cell.font = header_font
@@ -1257,7 +1265,6 @@ def export_inventory_excel():
                 item.get('upc', ''),
                 item.get('description', ''),
                 item.get('on_hand', 0),
-                item.get('case_qty', 1),
                 item.get('threshold', 0),
                 item.get('suggested_qty', 0),
                 order_qty,
@@ -1269,20 +1276,20 @@ def export_inventory_excel():
             for col_idx, value in enumerate(row_data, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
                 cell.border = thin_border
-                if col_idx in [9, 10]:  # Unit Cost, Total
+                if col_idx in [8, 9]:  # Unit Cost, Total
                     cell.number_format = '$#,##0.00'
 
         # Totals row
         summary_row = len(items) + 6
-        ws.cell(row=summary_row, column=6, value="TOTALS:").font = Font(bold=True)
-        ws.cell(row=summary_row, column=7, value=total_units).font = Font(bold=True)
-        ws.cell(row=summary_row, column=10, value=total_cost).font = Font(bold=True)
-        ws.cell(row=summary_row, column=10).number_format = '$#,##0.00'
+        ws.cell(row=summary_row, column=5, value="TOTALS:").font = Font(bold=True)
+        ws.cell(row=summary_row, column=6, value=total_units).font = Font(bold=True)
+        ws.cell(row=summary_row, column=9, value=total_cost).font = Font(bold=True)
+        ws.cell(row=summary_row, column=9).number_format = '$#,##0.00'
 
         # Column widths
-        col_widths = [15, 40, 10, 10, 10, 13, 11, 8, 11, 11]
+        col_widths = [15, 40, 12, 12, 14, 12, 10, 12, 12]
         for idx, width in enumerate(col_widths):
-            ws.column_dimensions['ABCDEFGHIJ'[idx]].width = width
+            ws.column_dimensions['ABCDEFGHI'[idx]].width = width
 
         output = BytesIO()
         wb.save(output)
@@ -1337,8 +1344,8 @@ def export_inventory_pdf():
         elements.append(Paragraph(summary_text, summary_style))
         elements.append(Spacer(1, 0.2*inch))
 
-        # Table headers
-        headers = ['UPC', 'Description', 'On Hand', 'Case Qty', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        # Table headers (same as order export)
+        headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
         table_data = [headers]
 
         # Table rows
@@ -1349,9 +1356,8 @@ def export_inventory_pdf():
 
             row = [
                 item.get('upc', '') or '',
-                (item.get('description', '') or '')[:30],
+                (item.get('description', '') or '')[:35],
                 str(int(item.get('on_hand', 0))),
-                str(int(item.get('case_qty', 1))),
                 str(int(item.get('threshold', 0))),
                 str(int(item.get('suggested_qty', 0))),
                 str(int(order_qty)),
@@ -1362,11 +1368,11 @@ def export_inventory_pdf():
             table_data.append(row)
 
         # Totals row
-        totals_row = ['', '', '', '', '', 'TOTALS:', str(int(total_units)), '', '', f"${total_cost:.2f}"]
+        totals_row = ['', '', '', '', 'TOTALS:', str(int(total_units)), '', '', f"${total_cost:.2f}"]
         table_data.append(totals_row)
 
         # Column widths
-        col_widths = [1.0*inch, 2.0*inch, 0.6*inch, 0.6*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.5*inch, 0.75*inch, 0.8*inch]
+        col_widths = [1.1*inch, 2.5*inch, 0.7*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch, 0.9*inch]
 
         table = Table(table_data, colWidths=col_widths)
 
