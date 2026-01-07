@@ -680,17 +680,41 @@ class MSSQLManager:
         """Get the last supplier for all products based on most recent purchase order.
 
         Returns a dict mapping ProductUPC -> supplier BusinessName.
+
+        Note: PurchaseOrdersDetails_tbl may link to products via ProductID OR ProductUPC,
+        so we need to check both columns to find all supplier relationships.
         """
         with self.get_cursor() as cursor:
             cursor.execute("""
-                WITH LatestPO AS (
+                WITH AllProductPOs AS (
+                    -- Products linked by ProductUPC
                     SELECT
                         pod.ProductUPC,
                         po.SupplierID,
-                        ROW_NUMBER() OVER (PARTITION BY pod.ProductUPC ORDER BY po.PoDate DESC) as rn
+                        po.PoDate
                     FROM PurchaseOrdersDetails_tbl pod
                     JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
                     WHERE pod.ProductUPC IS NOT NULL
+
+                    UNION ALL
+
+                    -- Products linked by ProductID (get UPC from Items_tbl)
+                    SELECT
+                        i.ProductUPC,
+                        po.SupplierID,
+                        po.PoDate
+                    FROM PurchaseOrdersDetails_tbl pod
+                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    JOIN Items_tbl i ON pod.ProductID = i.ProductID
+                    WHERE pod.ProductID IS NOT NULL
+                      AND i.ProductUPC IS NOT NULL
+                ),
+                LatestPO AS (
+                    SELECT
+                        ProductUPC,
+                        SupplierID,
+                        ROW_NUMBER() OVER (PARTITION BY ProductUPC ORDER BY PoDate DESC) as rn
+                    FROM AllProductPOs
                 )
                 SELECT lp.ProductUPC, s.BusinessName as last_supplier
                 FROM LatestPO lp
