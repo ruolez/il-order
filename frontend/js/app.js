@@ -769,12 +769,15 @@ async function viewProduct(upc) {
         override.manual_threshold || "";
       document.getElementById("override-order-qty").value =
         override.manual_order_qty || "";
+      document.getElementById("override-order-period-days").value =
+        override.manual_order_period_days || "";
       costInput.value = override.manual_unit_cost != null ? override.manual_unit_cost : "";
       document.getElementById("override-notes").value = override.notes || "";
     } else {
       document.getElementById("override-exclude").checked = false;
       document.getElementById("override-threshold").value = "";
       document.getElementById("override-order-qty").value = "";
+      document.getElementById("override-order-period-days").value = "";
       costInput.value = "";
       document.getElementById("override-notes").value = "";
     }
@@ -837,6 +840,9 @@ async function saveOverride(e) {
       : null,
     manual_order_qty: document.getElementById("override-order-qty").value
       ? parseInt(document.getElementById("override-order-qty").value)
+      : null,
+    manual_order_period_days: document.getElementById("override-order-period-days").value
+      ? parseInt(document.getElementById("override-order-period-days").value)
       : null,
     manual_unit_cost: document.getElementById("override-unit-cost").value
       ? parseFloat(document.getElementById("override-unit-cost").value)

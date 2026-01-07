@@ -240,24 +240,25 @@ class PostgresManager:
 
     def save_product_override(self, product_upc: str, exclude_from_dynamic: bool = False,
                               exclude_from_orders: bool = False, manual_threshold: int = None,
-                              manual_order_qty: int = None, manual_unit_cost: float = None,
-                              notes: str = None) -> int:
+                              manual_order_qty: int = None, manual_order_period_days: int = None,
+                              manual_unit_cost: float = None, notes: str = None) -> int:
         """Save or update product override."""
         with self.get_cursor() as cursor:
             cursor.execute("""
-                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_order_period_days, manual_unit_cost, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (product_upc) DO UPDATE SET
                     exclude_from_dynamic = %s,
                     exclude_from_orders = %s,
                     manual_threshold = %s,
                     manual_order_qty = %s,
+                    manual_order_period_days = %s,
                     manual_unit_cost = %s,
                     notes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING id
-            """, (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes,
-                  exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes))
+            """, (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_order_period_days, manual_unit_cost, notes,
+                  exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_order_period_days, manual_unit_cost, notes))
             result = cursor.fetchone()
             return result['id']
 

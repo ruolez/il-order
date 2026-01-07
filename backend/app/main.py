@@ -214,7 +214,10 @@ def get_products():
                     unit_qty2 = 1
 
                 if needs_reorder:
-                    projected_need = daily_avg * order_period_days
+                    effective_order_period = order_period_days
+                    if override and override.get('manual_order_period_days'):
+                        effective_order_period = override['manual_order_period_days']
+                    projected_need = daily_avg * effective_order_period
                     cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
                     suggested_qty = int(cases_needed * unit_qty2)
                     if override and override.get('manual_order_qty'):
@@ -318,7 +321,10 @@ def get_products():
                     unit_qty2 = 1
 
                 if needs_reorder:
-                    projected_need = daily_avg * order_period_days
+                    effective_order_period = order_period_days
+                    if override and override.get('manual_order_period_days'):
+                        effective_order_period = override['manual_order_period_days']
+                    projected_need = daily_avg * effective_order_period
                     cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
                     suggested_qty = int(cases_needed * unit_qty2)
                     if override and override.get('manual_order_qty'):
@@ -425,6 +431,7 @@ def save_product_override(upc):
             exclude_from_orders=data.get('exclude_from_orders', False),
             manual_threshold=data.get('manual_threshold'),
             manual_order_qty=data.get('manual_order_qty'),
+            manual_order_period_days=data.get('manual_order_period_days'),
             manual_unit_cost=data.get('manual_unit_cost'),
             notes=data.get('notes')
         )
@@ -662,7 +669,10 @@ def get_needs_reorder():
 
             if needs_reorder:
                 daily_avg = sales_data['daily_average']
-                projected_need = daily_avg * order_period_days
+                effective_order_period = order_period_days
+                if override and override.get('manual_order_period_days'):
+                    effective_order_period = override['manual_order_period_days']
+                projected_need = daily_avg * effective_order_period
                 cases_needed = -(-projected_need // unit_qty2)
                 suggested_qty = int(cases_needed * unit_qty2)
 
