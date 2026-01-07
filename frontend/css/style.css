@@ -125,17 +125,18 @@ body {
 
 .nav-links {
   display: flex;
-  gap: var(--spacing-xs);
+  gap: 0;
 }
 
 .nav-link {
-  padding: 6px 12px;
+  padding: 6px 40px;
   text-decoration: none;
   color: var(--color-fg-default);
   font-weight: 500;
   font-size: 14px;
   border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
+  text-align: center;
 }
 
 .nav-link:hover {
