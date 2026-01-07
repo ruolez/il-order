@@ -45,8 +45,8 @@ let showExcludedProducts = false;
 // Sorting state
 let inventorySortBy = "description";
 let inventorySortOrder = "asc";
-let ordersSortBy = null; // null = use default server sort
-let ordersSortOrder = "asc";
+let ordersSortBy = "suggested_qty";
+let ordersSortOrder = "desc";
 
 // View mode state
 let inventoryViewMode = localStorage.getItem('inventoryViewMode') || 'table';
