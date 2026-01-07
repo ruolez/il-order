@@ -2,280 +2,285 @@
 
 // API helper functions
 const api = {
-    async get(endpoint) {
-        const response = await fetch(`/api${endpoint}`);
-        return response.json();
-    },
+  async get(endpoint) {
+    const response = await fetch(`/api${endpoint}`);
+    return response.json();
+  },
 
-    async post(endpoint, data) {
-        const response = await fetch(`/api${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        return response.json();
-    },
+  async post(endpoint, data) {
+    const response = await fetch(`/api${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
 
-    async delete(endpoint) {
-        const response = await fetch(`/api${endpoint}`, {
-            method: 'DELETE'
-        });
-        return response.json();
-    }
+  async delete(endpoint) {
+    const response = await fetch(`/api${endpoint}`, {
+      method: "DELETE",
+    });
+    return response.json();
+  },
 };
 
 // Pagination state
-let itemsPerPage = 100;  // Default, will be loaded from settings
+let itemsPerPage = 100; // Default, will be loaded from settings
 let currentPage = 1;
 let totalPages = 1;
 let totalProducts = 0;
-let currentSearch = '';
+let currentSearch = "";
 let pendingFilter = null;
 let showExcludedProducts = false;
 
 // Load application settings (including items per page)
 async function loadAppSettings() {
-    try {
-        const result = await api.get('/settings');
-        if (result.success && result.settings) {
-            if (result.settings.items_per_page) {
-                itemsPerPage = parseInt(result.settings.items_per_page, 10);
-            }
-        }
-    } catch (error) {
-        console.error('Error loading app settings:', error);
+  try {
+    const result = await api.get("/settings");
+    if (result.success && result.settings) {
+      if (result.settings.items_per_page) {
+        itemsPerPage = parseInt(result.settings.items_per_page, 10);
+      }
     }
+  } catch (error) {
+    console.error("Error loading app settings:", error);
+  }
 }
 
 // Toast notifications
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
 
-    setTimeout(() => {
-        toast.style.animation = 'slideIn 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+  setTimeout(() => {
+    toast.style.animation = "slideIn 0.3s ease reverse";
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 // Navigation
 function navigateTo(pageName) {
-    // Update active nav link
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.toggle('active', link.dataset.page === pageName);
-    });
+  // Update active nav link
+  document.querySelectorAll(".nav-link").forEach((link) => {
+    link.classList.toggle("active", link.dataset.page === pageName);
+  });
 
-    // Show active page
-    document.querySelectorAll('.page').forEach(page => {
-        page.classList.toggle('active', page.id === `page-${pageName}`);
-    });
+  // Show active page
+  document.querySelectorAll(".page").forEach((page) => {
+    page.classList.toggle("active", page.id === `page-${pageName}`);
+  });
 
-    // Load page-specific data
-    switch (pageName) {
-        case 'dashboard':
-            loadDashboard();
-            break;
-        case 'inventory':
-            loadAppSettings().then(() => loadInventory());
-            break;
-        case 'orders':
-            loadOrderPage();
-            break;
-        case 'history':
-            loadOrderHistory();
-            break;
-        case 'settings':
-            loadSettings();
-            break;
-    }
+  // Load page-specific data
+  switch (pageName) {
+    case "dashboard":
+      loadDashboard();
+      break;
+    case "inventory":
+      loadAppSettings().then(() => loadInventory());
+      break;
+    case "orders":
+      loadOrderPage();
+      break;
+    case "history":
+      loadOrderHistory();
+      break;
+    case "settings":
+      loadSettings();
+      break;
+  }
 }
 
 // Navigate to inventory with a specific filter pre-selected
 function navigateToInventoryWithFilter(filter) {
-    pendingFilter = filter;
-    navigateTo('inventory');
+  pendingFilter = filter;
+  navigateTo("inventory");
 }
 
 // Initialize navigation event listeners
-document.addEventListener('DOMContentLoaded', async () => {
-    // Load app settings first (includes items per page)
-    await loadAppSettings();
+document.addEventListener("DOMContentLoaded", async () => {
+  // Load app settings first (includes items per page)
+  await loadAppSettings();
 
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            navigateTo(link.dataset.page);
-        });
+  document.querySelectorAll(".nav-link").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigateTo(link.dataset.page);
     });
+  });
 
-    // Load initial page
-    loadDashboard();
+  // Load initial page
+  loadDashboard();
 });
 
 // Dashboard
 async function loadDashboard() {
-    try {
-        const result = await api.get('/analysis/summary');
+  try {
+    const result = await api.get("/analysis/summary");
 
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-
-        const summary = result.summary;
-
-        if (!summary.configured) {
-            document.getElementById('dashboard-stats').style.display = 'none';
-            document.getElementById('not-configured-message').style.display = 'block';
-            document.getElementById('dashboard-updated').textContent = '';
-            return;
-        }
-
-        document.getElementById('dashboard-stats').style.display = 'grid';
-        document.getElementById('not-configured-message').style.display = 'none';
-
-        document.getElementById('stat-total').textContent = summary.total_products.toLocaleString();
-        document.getElementById('stat-reorder').textContent = summary.needs_reorder.toLocaleString();
-        document.getElementById('stat-healthy').textContent = summary.healthy.toLocaleString();
-
-        // Update timestamp
-        const now = new Date();
-        document.getElementById('dashboard-updated').textContent = `Updated: ${now.toLocaleTimeString()}`;
-
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-        document.getElementById('dashboard-stats').style.display = 'none';
-        document.getElementById('not-configured-message').style.display = 'block';
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    const summary = result.summary;
+
+    if (!summary.configured) {
+      document.getElementById("dashboard-stats").style.display = "none";
+      document.getElementById("not-configured-message").style.display = "block";
+      document.getElementById("dashboard-updated").textContent = "";
+      return;
+    }
+
+    document.getElementById("dashboard-stats").style.display = "grid";
+    document.getElementById("not-configured-message").style.display = "none";
+
+    document.getElementById("stat-total").textContent =
+      summary.total_products.toLocaleString();
+    document.getElementById("stat-reorder").textContent =
+      summary.needs_reorder.toLocaleString();
+    document.getElementById("stat-healthy").textContent =
+      summary.healthy.toLocaleString();
+
+    // Update timestamp
+    const now = new Date();
+    document.getElementById("dashboard-updated").textContent =
+      `Updated: ${now.toLocaleTimeString()}`;
+  } catch (error) {
+    console.error("Error loading dashboard:", error);
+    document.getElementById("dashboard-stats").style.display = "none";
+    document.getElementById("not-configured-message").style.display = "block";
+  }
 }
 
 function refreshDashboard() {
-    const btn = document.querySelector('.refresh-section .btn');
-    btn.disabled = true;
-    btn.textContent = '↻ Refreshing...';
+  const btn = document.querySelector(".refresh-section .btn");
+  btn.disabled = true;
+  btn.textContent = "↻ Refreshing...";
 
-    loadDashboard().finally(() => {
-        btn.disabled = false;
-        btn.textContent = '↻ Refresh Analysis';
-        showToast('Analysis refreshed', 'success');
-    });
+  loadDashboard().finally(() => {
+    btn.disabled = false;
+    btn.textContent = "↻ Refresh Analysis";
+    showToast("Analysis refreshed", "success");
+  });
 }
 
 // Inventory
 let allProducts = [];
 
-async function loadInventory(page = 1, search = '') {
-    const tbody = document.getElementById('inventory-tbody');
-    tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading products...</td></tr>';
+async function loadInventory(page = 1, search = "") {
+  const tbody = document.getElementById("inventory-tbody");
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="loading">Loading products...</td></tr>';
 
-    // Apply pending filter if exists
-    if (pendingFilter) {
-        document.getElementById('inventory-filter').value = pendingFilter;
-        pendingFilter = null;
+  // Apply pending filter if exists
+  if (pendingFilter) {
+    document.getElementById("inventory-filter").value = pendingFilter;
+    pendingFilter = null;
+  }
+
+  currentPage = page;
+  currentSearch = search;
+  const offset = (page - 1) * itemsPerPage;
+  const currentFilter = document.getElementById("inventory-filter").value;
+
+  try {
+    let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}`;
+    if (search) {
+      endpoint += `&search=${encodeURIComponent(search)}`;
+    }
+    if (showExcludedProducts) {
+      endpoint += "&show_excluded=true";
     }
 
-    currentPage = page;
-    currentSearch = search;
-    const offset = (page - 1) * itemsPerPage;
-    const currentFilter = document.getElementById('inventory-filter').value;
+    const result = await api.get(endpoint);
 
-    try {
-        let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}`;
-        if (search) {
-            endpoint += `&search=${encodeURIComponent(search)}`;
-        }
-        if (showExcludedProducts) {
-            endpoint += '&show_excluded=true';
-        }
-
-        const result = await api.get(endpoint);
-
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-
-        allProducts = result.products;
-        totalProducts = result.total_count;
-        totalPages = Math.ceil(totalProducts / itemsPerPage);
-
-        renderInventoryTable(allProducts, true);  // Skip client-side filter
-        updatePagination();
-
-    } catch (error) {
-        console.error('Error loading inventory:', error);
-        tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    allProducts = result.products;
+    totalProducts = result.total_count;
+    totalPages = Math.ceil(totalProducts / itemsPerPage);
+
+    renderInventoryTable(allProducts, true); // Skip client-side filter
+    updatePagination();
+  } catch (error) {
+    console.error("Error loading inventory:", error);
+    tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+  }
 }
 
 function updatePagination() {
-    const prevBtn = document.getElementById('prev-page');
-    const nextBtn = document.getElementById('next-page');
-    const pageInfo = document.getElementById('pagination-info');
+  const prevBtn = document.getElementById("prev-page");
+  const nextBtn = document.getElementById("next-page");
+  const pageInfo = document.getElementById("pagination-info");
 
-    prevBtn.disabled = currentPage <= 1;
-    nextBtn.disabled = currentPage >= totalPages;
+  prevBtn.disabled = currentPage <= 1;
+  nextBtn.disabled = currentPage >= totalPages;
 
-    pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalProducts.toLocaleString()} products)`;
+  pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalProducts.toLocaleString()} products)`;
 }
 
 function loadPrevPage() {
-    if (currentPage > 1) {
-        loadInventory(currentPage - 1, currentSearch);
-    }
+  if (currentPage > 1) {
+    loadInventory(currentPage - 1, currentSearch);
+  }
 }
 
 function loadNextPage() {
-    if (currentPage < totalPages) {
-        loadInventory(currentPage + 1, currentSearch);
-    }
+  if (currentPage < totalPages) {
+    loadInventory(currentPage + 1, currentSearch);
+  }
 }
 
 function renderInventoryTable(products, skipFilter = false) {
-    const tbody = document.getElementById('inventory-tbody');
-    const filter = document.getElementById('inventory-filter').value;
+  const tbody = document.getElementById("inventory-tbody");
+  const filter = document.getElementById("inventory-filter").value;
 
-    // Apply client-side filter only if not already filtered by server
-    let filtered = products;
-    if (!skipFilter) {
-        if (filter === 'reorder') {
-            filtered = products.filter(p => p.needs_reorder);
-        } else if (filter === 'healthy') {
-            filtered = products.filter(p => !p.needs_reorder);
-        }
+  // Apply client-side filter only if not already filtered by server
+  let filtered = products;
+  if (!skipFilter) {
+    if (filter === "reorder") {
+      filtered = products.filter((p) => p.needs_reorder);
+    } else if (filter === "healthy") {
+      filtered = products.filter((p) => !p.needs_reorder);
     }
+  }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No products found</td></tr>';
-        return;
-    }
+  if (filtered.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="loading">No products found</td></tr>';
+    return;
+  }
 
-    tbody.innerHTML = filtered.map(product => {
-        const qtyOnHand = product.QuantOnHand || 0;
-        const threshold = product.threshold || 0;
-        const isExcluded = product.excluded || false;
+  tbody.innerHTML = filtered
+    .map((product) => {
+      const qtyOnHand = product.QuantOnHand || 0;
+      const threshold = product.threshold || 0;
+      const isExcluded = product.excluded || false;
 
-        let statusClass = 'badge-success';
-        let statusText = 'OK';
+      let statusClass = "badge-success";
+      let statusText = "OK";
 
-        if (isExcluded) {
-            statusClass = 'badge-secondary';
-            statusText = 'Excluded';
-        } else if (product.needs_reorder) {
-            statusClass = 'badge-error';
-            statusText = 'Reorder';
-        }
+      if (isExcluded) {
+        statusClass = "badge-secondary";
+        statusText = "Excluded";
+      } else if (product.needs_reorder) {
+        statusClass = "badge-error";
+        statusText = "Reorder";
+      }
 
-        const rowClass = isExcluded ? 'product-excluded' : '';
-        const excludeBtn = isExcluded
-            ? `<button class="action-btn include" onclick="toggleExclude('${product.ProductUPC}')">Include</button>`
-            : `<button class="action-btn exclude" onclick="toggleExclude('${product.ProductUPC}')">Exclude</button>`;
+      const rowClass = isExcluded ? "product-excluded" : "";
+      const excludeBtn = isExcluded
+        ? `<button class="action-btn include" onclick="toggleExclude('${product.ProductUPC}')">Include</button>`
+        : `<button class="action-btn exclude" onclick="toggleExclude('${product.ProductUPC}')">Exclude</button>`;
 
-        return `
+      return `
             <tr class="${rowClass}">
-                <td>${product.ProductUPC || '-'}</td>
-                <td>${product.ProductDescription || '-'}</td>
+                <td>${product.ProductUPC || "-"}</td>
+                <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyOnHand.toLocaleString()}</td>
                 <td>
                     ${threshold.toLocaleString()}
@@ -289,306 +294,349 @@ function renderInventoryTable(products, skipFilter = false) {
                 </td>
             </tr>
         `;
-    }).join('');
+    })
+    .join("");
 }
 
 function searchProducts() {
-    const searchTerm = document.getElementById('inventory-search').value.trim();
-    loadInventory(1, searchTerm);
+  const searchTerm = document.getElementById("inventory-search").value.trim();
+  loadInventory(1, searchTerm);
 }
 
 // Toggle product exclusion
 async function toggleExclude(upc) {
-    try {
-        const result = await api.post(`/products/${upc}/exclude`, {});
+  try {
+    const result = await api.post(`/products/${upc}/exclude`, {});
 
-        if (result.success) {
-            const action = result.excluded ? 'excluded' : 'included';
-            showToast(`Product ${action} successfully`, 'success');
-            loadInventory(currentPage, currentSearch);
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        console.error('Error toggling exclusion:', error);
-        showToast(`Error: ${error.message}`, 'error');
+    if (result.success) {
+      const action = result.excluded ? "excluded" : "included";
+      showToast(`Product ${action} successfully`, "success");
+      loadInventory(currentPage, currentSearch);
+    } else {
+      throw new Error(result.error);
     }
+  } catch (error) {
+    console.error("Error toggling exclusion:", error);
+    showToast(`Error: ${error.message}`, "error");
+  }
 }
 
 // Toggle showing excluded products
 function toggleShowExcluded() {
-    const checkbox = document.getElementById('show-excluded-checkbox');
-    showExcludedProducts = checkbox ? checkbox.checked : false;
-    loadInventory(1, currentSearch);
+  const checkbox = document.getElementById("show-excluded-checkbox");
+  showExcludedProducts = checkbox ? checkbox.checked : false;
+  loadInventory(1, currentSearch);
 }
 
 // Current product being viewed in modal
 let currentProductUpc = null;
 
 async function viewProduct(upc) {
-    currentProductUpc = upc;
-    const modal = document.getElementById('product-modal');
+  currentProductUpc = upc;
+  const modal = document.getElementById("product-modal");
 
-    try {
-        const result = await api.get(`/products/${upc}`);
+  try {
+    const result = await api.get(`/products/${upc}`);
 
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-
-        const product = result.product;
-        const salesData = result.sales_data;
-        const override = result.override;
-
-        // Populate modal fields
-        document.getElementById('modal-upc').textContent = product.ProductUPC || '-';
-        document.getElementById('modal-description').textContent = product.ProductDescription || '-';
-        document.getElementById('modal-sku').textContent = product.ProductSKU || '-';
-
-        document.getElementById('modal-qty-on-hand').textContent = (product.QuantOnHand || 0).toLocaleString();
-        document.getElementById('modal-threshold').textContent = salesData.monthly_average.toFixed(1);
-        document.getElementById('modal-monthly-avg').textContent = salesData.monthly_average.toFixed(1);
-        document.getElementById('modal-daily-avg').textContent = salesData.daily_average.toFixed(2);
-
-        document.getElementById('modal-total-sold').textContent = salesData.total_sold.toLocaleString();
-        document.getElementById('modal-invoice-count').textContent = salesData.invoice_count;
-        document.getElementById('modal-unit-cost').textContent = `$${parseFloat(product.UnitCost || 0).toFixed(2)}`;
-        document.getElementById('modal-case-qty').textContent = product.UnitQty2 || 'N/A';
-
-        // Populate override form
-        if (override) {
-            document.getElementById('override-exclude').checked = override.exclude_from_dynamic || false;
-            document.getElementById('override-threshold').value = override.manual_threshold || '';
-            document.getElementById('override-order-qty').value = override.manual_order_qty || '';
-            document.getElementById('override-notes').value = override.notes || '';
-        } else {
-            document.getElementById('override-exclude').checked = false;
-            document.getElementById('override-threshold').value = '';
-            document.getElementById('override-order-qty').value = '';
-            document.getElementById('override-notes').value = '';
-        }
-
-        // Show modal
-        modal.classList.add('active');
-
-    } catch (error) {
-        console.error('Error loading product:', error);
-        showToast(`Error loading product: ${error.message}`, 'error');
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    const product = result.product;
+    const salesData = result.sales_data;
+    const override = result.override;
+
+    // Populate modal fields
+    document.getElementById("modal-upc").textContent =
+      product.ProductUPC || "-";
+    document.getElementById("modal-description").textContent =
+      product.ProductDescription || "-";
+    document.getElementById("modal-sku").textContent =
+      product.ProductSKU || "-";
+
+    document.getElementById("modal-qty-on-hand").textContent = (
+      product.QuantOnHand || 0
+    ).toLocaleString();
+    document.getElementById("modal-threshold").textContent =
+      salesData.monthly_average.toFixed(1);
+    document.getElementById("modal-monthly-avg").textContent =
+      salesData.monthly_average.toFixed(1);
+    document.getElementById("modal-daily-avg").textContent =
+      salesData.daily_average.toFixed(2);
+
+    document.getElementById("modal-total-sold").textContent =
+      salesData.total_sold.toLocaleString();
+    document.getElementById("modal-invoice-count").textContent =
+      salesData.invoice_count;
+    document.getElementById("modal-unit-cost").textContent =
+      `$${parseFloat(product.UnitCost || 0).toFixed(2)}`;
+    document.getElementById("modal-case-qty").textContent =
+      product.UnitQty2 || "N/A";
+
+    // Populate override form
+    if (override) {
+      document.getElementById("override-exclude").checked =
+        override.exclude_from_dynamic || false;
+      document.getElementById("override-threshold").value =
+        override.manual_threshold || "";
+      document.getElementById("override-order-qty").value =
+        override.manual_order_qty || "";
+      document.getElementById("override-notes").value = override.notes || "";
+    } else {
+      document.getElementById("override-exclude").checked = false;
+      document.getElementById("override-threshold").value = "";
+      document.getElementById("override-order-qty").value = "";
+      document.getElementById("override-notes").value = "";
+    }
+
+    // Show modal
+    modal.classList.add("active");
+  } catch (error) {
+    console.error("Error loading product:", error);
+    showToast(`Error loading product: ${error.message}`, "error");
+  }
 }
 
 function closeProductModal() {
-    const modal = document.getElementById('product-modal');
-    modal.classList.remove('active');
-    currentProductUpc = null;
+  const modal = document.getElementById("product-modal");
+  modal.classList.remove("active");
+  currentProductUpc = null;
 }
 
 async function saveOverride(e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!currentProductUpc) {
-        showToast('No product selected', 'error');
-        return;
+  if (!currentProductUpc) {
+    showToast("No product selected", "error");
+    return;
+  }
+
+  const overrideData = {
+    exclude_from_dynamic: document.getElementById("override-exclude").checked,
+    manual_threshold: document.getElementById("override-threshold").value
+      ? parseInt(document.getElementById("override-threshold").value)
+      : null,
+    manual_order_qty: document.getElementById("override-order-qty").value
+      ? parseInt(document.getElementById("override-order-qty").value)
+      : null,
+    notes: document.getElementById("override-notes").value || null,
+  };
+
+  try {
+    const result = await api.post(
+      `/products/${currentProductUpc}/override`,
+      overrideData,
+    );
+
+    if (result.success) {
+      showToast("Override saved successfully", "success");
+      closeProductModal();
+      // Reload inventory to reflect changes
+      loadInventory();
+    } else {
+      throw new Error(result.error);
     }
-
-    const overrideData = {
-        exclude_from_dynamic: document.getElementById('override-exclude').checked,
-        manual_threshold: document.getElementById('override-threshold').value ?
-            parseInt(document.getElementById('override-threshold').value) : null,
-        manual_order_qty: document.getElementById('override-order-qty').value ?
-            parseInt(document.getElementById('override-order-qty').value) : null,
-        notes: document.getElementById('override-notes').value || null
-    };
-
-    try {
-        const result = await api.post(`/products/${currentProductUpc}/override`, overrideData);
-
-        if (result.success) {
-            showToast('Override saved successfully', 'success');
-            closeProductModal();
-            // Reload inventory to reflect changes
-            loadInventory();
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        console.error('Error saving override:', error);
-        showToast(`Error saving override: ${error.message}`, 'error');
-    }
+  } catch (error) {
+    console.error("Error saving override:", error);
+    showToast(`Error saving override: ${error.message}`, "error");
+  }
 }
 
 async function clearOverride() {
-    if (!currentProductUpc) {
-        showToast('No product selected', 'error');
-        return;
-    }
+  if (!currentProductUpc) {
+    showToast("No product selected", "error");
+    return;
+  }
 
-    if (!confirm('Are you sure you want to clear the override for this product?')) {
-        return;
-    }
+  if (
+    !confirm("Are you sure you want to clear the override for this product?")
+  ) {
+    return;
+  }
 
-    try {
-        const result = await api.delete(`/products/${currentProductUpc}/override`);
+  try {
+    const result = await api.delete(`/products/${currentProductUpc}/override`);
 
-        if (result.success) {
-            showToast('Override cleared', 'success');
-            closeProductModal();
-            loadInventory();
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        console.error('Error clearing override:', error);
-        showToast(`Error clearing override: ${error.message}`, 'error');
+    if (result.success) {
+      showToast("Override cleared", "success");
+      closeProductModal();
+      loadInventory();
+    } else {
+      throw new Error(result.error);
     }
+  } catch (error) {
+    console.error("Error clearing override:", error);
+    showToast(`Error clearing override: ${error.message}`, "error");
+  }
 }
 
 // Initialize modal event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    const overrideForm = document.getElementById('override-form');
-    if (overrideForm) {
-        overrideForm.addEventListener('submit', saveOverride);
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  const overrideForm = document.getElementById("override-form");
+  if (overrideForm) {
+    overrideForm.addEventListener("submit", saveOverride);
+  }
 
-    // Close modal when clicking outside
-    const modal = document.getElementById('product-modal');
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeProductModal();
-            }
-        });
-    }
-
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
-            closeProductModal();
-        }
+  // Close modal when clicking outside
+  const modal = document.getElementById("product-modal");
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeProductModal();
+      }
     });
+  }
+
+  // Close modal with Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && modal.classList.contains("active")) {
+      closeProductModal();
+    }
+  });
 });
 
 // Filter change handler
-document.addEventListener('DOMContentLoaded', () => {
-    const filterSelect = document.getElementById('inventory-filter');
-    if (filterSelect) {
-        filterSelect.addEventListener('change', () => {
-            // Reload from server with new filter
-            loadInventory(1, currentSearch);
-        });
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  const filterSelect = document.getElementById("inventory-filter");
+  if (filterSelect) {
+    filterSelect.addEventListener("change", () => {
+      // Reload from server with new filter
+      loadInventory(1, currentSearch);
+    });
+  }
 
-    // Search on Enter key
-    const searchInput = document.getElementById('inventory-search');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                searchProducts();
-            }
-        });
-    }
+  // Search on Enter key
+  const searchInput = document.getElementById("inventory-search");
+  if (searchInput) {
+    searchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        searchProducts();
+      }
+    });
+  }
 });
 
 // Orders
 async function loadOrderPage() {
-    // Load suppliers
-    try {
-        const result = await api.get('/suppliers');
+  // Load suppliers
+  try {
+    const result = await api.get("/suppliers");
 
-        if (result.success) {
-            const select = document.getElementById('supplier-select');
-            select.innerHTML = '<option value="">All Suppliers</option>';
+    if (result.success) {
+      const select = document.getElementById("supplier-select");
+      select.innerHTML = '<option value="">All Suppliers</option>';
 
-            result.suppliers.forEach(supplier => {
-                select.innerHTML += `
+      result.suppliers.forEach((supplier) => {
+        select.innerHTML += `
                     <option value="${supplier.SupplierID}">
                         ${supplier.BusinessName} (${supplier.order_count} orders)
                     </option>
                 `;
-            });
-        }
-    } catch (error) {
-        console.error('Error loading suppliers:', error);
+      });
     }
+  } catch (error) {
+    console.error("Error loading suppliers:", error);
+  }
 }
 
 async function loadNeedsReorder() {
-    const supplierId = document.getElementById('supplier-select').value;
-    const container = document.getElementById('order-items-container');
-    const tbody = document.getElementById('order-tbody');
+  const supplierId = document.getElementById("supplier-select").value;
+  const filterMode = document.getElementById("order-filter").value;
+  const container = document.getElementById("order-items-container");
+  const tbody = document.getElementById("order-tbody");
 
-    container.style.display = 'block';
-    tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading products...</td></tr>';
+  container.style.display = "block";
+  tbody.innerHTML =
+    '<tr><td colspan="9" class="loading">Loading products...</td></tr>';
 
-    try {
-        let endpoint = '/analysis/needs-reorder';
-        if (supplierId) {
-            endpoint += `?supplier_id=${supplierId}`;
-        }
+  try {
+    let endpoint = "/analysis/needs-reorder";
+    const params = [];
+    if (supplierId) params.push(`supplier_id=${supplierId}`);
+    params.push(`filter=${filterMode}`);
+    if (params.length) endpoint += "?" + params.join("&");
 
-        const result = await api.get(endpoint);
+    const result = await api.get(endpoint);
 
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-
-        if (result.products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="loading">No products need reordering</td></tr>';
-            loadedOrderProducts = [];
-            updateOrderSummary();
-            return;
-        }
-
-        loadedOrderProducts = result.products;
-
-        tbody.innerHTML = result.products.map(product => `
-            <tr data-upc="${product.ProductUPC}">
-                <td><input type="checkbox" class="order-checkbox" checked onchange="updateOrderSummary()" /></td>
-                <td>${product.ProductUPC || '-'}</td>
-                <td>${product.ProductDescription || '-'}</td>
-                <td>${(product.QuantOnHand || 0).toLocaleString()}</td>
-                <td>${product.threshold.toLocaleString()}</td>
-                <td>${product.suggested_qty.toLocaleString()}</td>
-                <td>
-                    <input type="number" class="qty-input order-qty"
-                           value="${product.suggested_qty}"
-                           min="0"
-                           data-unit-qty="${product.unit_qty2 || 1}"
-                           onchange="updateCases(this); updateOrderSummary();" />
-                </td>
-                <td class="cases-cell">${product.cases_needed}</td>
-            </tr>
-        `).join('');
-
-        document.getElementById('select-all-orders').checked = true;
-        updateOrderSummary();
-
-    } catch (error) {
-        console.error('Error loading reorder list:', error);
-        tbody.innerHTML = `<tr><td colspan="8" class="loading">Error: ${error.message}</td></tr>`;
-        loadedOrderProducts = [];
-        updateOrderSummary();
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    if (result.products.length === 0) {
+      const emptyMessage =
+        filterMode === "needs_reorder"
+          ? "No products need reordering"
+          : filterMode === "sufficient"
+            ? "No products with sufficient stock"
+            : "No products found";
+      tbody.innerHTML = `<tr><td colspan="9" class="loading">${emptyMessage}</td></tr>`;
+      loadedOrderProducts = [];
+      updateOrderSummary();
+      return;
+    }
+
+    loadedOrderProducts = result.products;
+
+    tbody.innerHTML = result.products
+      .map((product) => {
+        const needsReorder = product.status === "needs_reorder";
+        const statusBadge = needsReorder
+          ? '<span class="badge badge-error">Needs Reorder</span>'
+          : '<span class="badge badge-success">In Stock</span>';
+
+        return `
+                <tr data-upc="${product.ProductUPC}" class="${needsReorder ? "" : "row-sufficient"}">
+                    <td><input type="checkbox" class="order-checkbox" ${needsReorder ? "checked" : ""} onchange="updateOrderSummary()" /></td>
+                    <td>${statusBadge}</td>
+                    <td>${product.ProductUPC || "-"}</td>
+                    <td>${product.ProductDescription || "-"}</td>
+                    <td>${(product.QuantOnHand || 0).toLocaleString()}</td>
+                    <td>${product.threshold.toLocaleString()}</td>
+                    <td>${product.suggested_qty.toLocaleString()}</td>
+                    <td>
+                        <input type="number" class="qty-input order-qty"
+                               value="${product.suggested_qty}"
+                               min="0"
+                               data-unit-qty="${product.unit_qty2 || 1}"
+                               onchange="updateCases(this); updateOrderSummary();" />
+                    </td>
+                    <td class="cases-cell">${product.cases_needed}</td>
+                </tr>
+            `;
+      })
+      .join("");
+
+    const hasNeedsReorder = result.products.some(
+      (p) => p.status === "needs_reorder",
+    );
+    document.getElementById("select-all-orders").checked = hasNeedsReorder;
+    updateOrderSummary();
+  } catch (error) {
+    console.error("Error loading products:", error);
+    tbody.innerHTML = `<tr><td colspan="9" class="loading">Error: ${error.message}</td></tr>`;
+    loadedOrderProducts = [];
+    updateOrderSummary();
+  }
 }
 
 function updateCases(input) {
-    const qty = parseInt(input.value) || 0;
-    const unitQty = parseFloat(input.dataset.unitQty) || 1;
-    const cases = Math.ceil(qty / unitQty);
-    input.closest('tr').querySelector('.cases-cell').textContent = cases;
+  const qty = parseInt(input.value) || 0;
+  const unitQty = parseFloat(input.dataset.unitQty) || 1;
+  const cases = Math.ceil(qty / unitQty);
+  input.closest("tr").querySelector(".cases-cell").textContent = cases;
 }
 
 // Select all checkbox
-document.addEventListener('DOMContentLoaded', () => {
-    const selectAll = document.getElementById('select-all-orders');
-    if (selectAll) {
-        selectAll.addEventListener('change', (e) => {
-            document.querySelectorAll('.order-checkbox').forEach(cb => {
-                cb.checked = e.target.checked;
-            });
-            updateOrderSummary();
-        });
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  const selectAll = document.getElementById("select-all-orders");
+  if (selectAll) {
+    selectAll.addEventListener("change", (e) => {
+      document.querySelectorAll(".order-checkbox").forEach((cb) => {
+        cb.checked = e.target.checked;
+      });
+      updateOrderSummary();
+    });
+  }
 });
 
 // Store loaded order data for reference
@@ -596,134 +644,145 @@ let loadedOrderProducts = [];
 
 // Export functions
 function getOrderData() {
-    const rows = document.querySelectorAll('#order-tbody tr');
-    const items = [];
+  const rows = document.querySelectorAll("#order-tbody tr");
+  const items = [];
 
-    rows.forEach(row => {
-        const checkbox = row.querySelector('.order-checkbox');
-        if (checkbox && checkbox.checked) {
-            const qtyInput = row.querySelector('.order-qty');
-            const upc = row.dataset.upc;
-            const product = loadedOrderProducts.find(p => p.ProductUPC === upc) || {};
+  rows.forEach((row) => {
+    const checkbox = row.querySelector(".order-checkbox");
+    if (checkbox && checkbox.checked) {
+      const qtyInput = row.querySelector(".order-qty");
+      const upc = row.dataset.upc;
+      const product =
+        loadedOrderProducts.find((p) => p.ProductUPC === upc) || {};
 
-            items.push({
-                upc: upc,
-                description: row.cells[2].textContent,
-                on_hand: parseFloat(row.cells[3].textContent.replace(/,/g, '')) || 0,
-                threshold: parseFloat(row.cells[4].textContent.replace(/,/g, '')) || 0,
-                suggested_qty: parseFloat(row.cells[5].textContent.replace(/,/g, '')) || 0,
-                order_qty: parseInt(qtyInput ? qtyInput.value : 0) || 0,
-                unit_qty2: product.unit_qty2 || 1,
-                unit_cost: product.UnitCost || 0
-            });
-        }
-    });
+      items.push({
+        upc: upc,
+        description: row.cells[3].textContent,
+        on_hand: parseFloat(row.cells[4].textContent.replace(/,/g, "")) || 0,
+        threshold: parseFloat(row.cells[5].textContent.replace(/,/g, "")) || 0,
+        suggested_qty:
+          parseFloat(row.cells[6].textContent.replace(/,/g, "")) || 0,
+        order_qty: parseInt(qtyInput ? qtyInput.value : 0) || 0,
+        unit_qty2: product.unit_qty2 || 1,
+        unit_cost: product.UnitCost || 0,
+      });
+    }
+  });
 
-    return items;
+  return items;
 }
 
 async function saveOrderDraft() {
-    const items = getOrderData();
+  const items = getOrderData();
 
-    if (items.length === 0) {
-        showToast('No items selected to save', 'error');
-        return null;
+  if (items.length === 0) {
+    showToast("No items selected to save", "error");
+    return null;
+  }
+
+  const orderName = document.getElementById("order-name").value || null;
+  const supplierId = document.getElementById("supplier-select").value;
+
+  try {
+    const result = await api.post("/orders", {
+      name: orderName,
+      supplier_filter: supplierId || null,
+      items: items,
+    });
+
+    if (result.success) {
+      showToast("Order draft saved successfully", "success");
+      return result.id;
+    } else {
+      throw new Error(result.error);
     }
-
-    const orderName = document.getElementById('order-name').value || null;
-    const supplierId = document.getElementById('supplier-select').value;
-
-    try {
-        const result = await api.post('/orders', {
-            name: orderName,
-            supplier_filter: supplierId || null,
-            items: items
-        });
-
-        if (result.success) {
-            showToast('Order draft saved successfully', 'success');
-            return result.id;
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        console.error('Error saving order:', error);
-        showToast(`Error saving order: ${error.message}`, 'error');
-        return null;
-    }
+  } catch (error) {
+    console.error("Error saving order:", error);
+    showToast(`Error saving order: ${error.message}`, "error");
+    return null;
+  }
 }
 
 async function saveAndExportExcel() {
-    const orderId = await saveOrderDraft();
-    if (orderId) {
-        window.location.href = `/api/orders/${orderId}/export/excel`;
-    }
+  const orderId = await saveOrderDraft();
+  if (orderId) {
+    window.location.href = `/api/orders/${orderId}/export/excel`;
+  }
 }
 
 async function saveAndExportPDF() {
-    const orderId = await saveOrderDraft();
-    if (orderId) {
-        window.location.href = `/api/orders/${orderId}/export/pdf`;
-    }
+  const orderId = await saveOrderDraft();
+  if (orderId) {
+    window.location.href = `/api/orders/${orderId}/export/pdf`;
+  }
 }
 
 function updateOrderSummary() {
-    const rows = document.querySelectorAll('#order-tbody tr');
-    let itemCount = 0;
-    let totalQty = 0;
-    let totalCost = 0;
+  const rows = document.querySelectorAll("#order-tbody tr");
+  let itemCount = 0;
+  let totalQty = 0;
+  let totalCost = 0;
 
-    rows.forEach(row => {
-        const checkbox = row.querySelector('.order-checkbox');
-        if (checkbox && checkbox.checked) {
-            itemCount++;
-            const qtyInput = row.querySelector('.order-qty');
-            const qty = parseInt(qtyInput ? qtyInput.value : 0) || 0;
-            totalQty += qty;
+  rows.forEach((row) => {
+    const checkbox = row.querySelector(".order-checkbox");
+    if (checkbox && checkbox.checked) {
+      itemCount++;
+      const qtyInput = row.querySelector(".order-qty");
+      const qty = parseInt(qtyInput ? qtyInput.value : 0) || 0;
+      totalQty += qty;
 
-            const upc = row.dataset.upc;
-            const product = loadedOrderProducts.find(p => p.ProductUPC === upc) || {};
-            totalCost += qty * (product.UnitCost || 0);
-        }
-    });
+      const upc = row.dataset.upc;
+      const product =
+        loadedOrderProducts.find((p) => p.ProductUPC === upc) || {};
+      totalCost += qty * (product.UnitCost || 0);
+    }
+  });
 
-    document.getElementById('order-item-count').textContent = itemCount.toLocaleString();
-    document.getElementById('order-total-qty').textContent = totalQty.toLocaleString();
-    document.getElementById('order-total-cost').textContent = `$${totalCost.toFixed(2)}`;
+  document.getElementById("order-item-count").textContent =
+    itemCount.toLocaleString();
+  document.getElementById("order-total-qty").textContent =
+    totalQty.toLocaleString();
+  document.getElementById("order-total-cost").textContent =
+    `$${totalCost.toFixed(2)}`;
 }
 
 // Order History
 async function loadOrderHistory() {
-    const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading orders...</td></tr>';
+  const tbody = document.getElementById("history-tbody");
+  tbody.innerHTML =
+    '<tr><td colspan="6" class="loading">Loading orders...</td></tr>';
 
-    try {
-        const status = document.getElementById('history-filter').value;
-        let endpoint = '/orders';
-        if (status) {
-            endpoint += `?status=${status}`;
-        }
+  try {
+    const status = document.getElementById("history-filter").value;
+    let endpoint = "/orders";
+    if (status) {
+      endpoint += `?status=${status}`;
+    }
 
-        const result = await api.get(endpoint);
+    const result = await api.get(endpoint);
 
-        if (!result.success) {
-            throw new Error(result.error);
-        }
+    if (!result.success) {
+      throw new Error(result.error);
+    }
 
-        if (result.orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="loading">No orders found</td></tr>';
-            return;
-        }
+    if (result.orders.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="loading">No orders found</td></tr>';
+      return;
+    }
 
-        tbody.innerHTML = result.orders.map(order => {
-            const createdDate = order.created_at ? new Date(order.created_at).toLocaleString() : '-';
-            let statusClass = 'badge-info';
-            if (order.status === 'exported') statusClass = 'badge-success';
-            if (order.status === 'archived') statusClass = 'badge-secondary';
+    tbody.innerHTML = result.orders
+      .map((order) => {
+        const createdDate = order.created_at
+          ? new Date(order.created_at).toLocaleString()
+          : "-";
+        let statusClass = "badge-info";
+        if (order.status === "exported") statusClass = "badge-success";
+        if (order.status === "archived") statusClass = "badge-secondary";
 
-            return `
+        return `
                 <tr data-id="${order.id}">
-                    <td>${order.name || 'Untitled'}</td>
+                    <td>${order.name || "Untitled"}</td>
                     <td>${createdDate}</td>
                     <td>${order.item_count || 0}</td>
                     <td>${(order.total_qty || 0).toLocaleString()}</td>
@@ -736,29 +795,29 @@ async function loadOrderHistory() {
                     </td>
                 </tr>
             `;
-        }).join('');
-
-    } catch (error) {
-        console.error('Error loading order history:', error);
-        tbody.innerHTML = `<tr><td colspan="6" class="loading">Error: ${error.message}</td></tr>`;
-    }
+      })
+      .join("");
+  } catch (error) {
+    console.error("Error loading order history:", error);
+    tbody.innerHTML = `<tr><td colspan="6" class="loading">Error: ${error.message}</td></tr>`;
+  }
 }
 
 async function viewOrder(orderId) {
-    try {
-        const result = await api.get(`/orders/${orderId}`);
+  try {
+    const result = await api.get(`/orders/${orderId}`);
 
-        if (!result.success) {
-            throw new Error(result.error);
-        }
+    if (!result.success) {
+      throw new Error(result.error);
+    }
 
-        const order = result.order;
-        const items = result.items;
-        const summary = result.summary;
+    const order = result.order;
+    const items = result.items;
+    const summary = result.summary;
 
-        let content = `
-            <h3>${order.name || 'Untitled Order'}</h3>
-            <p>Created: ${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</p>
+    let content = `
+            <h3>${order.name || "Untitled Order"}</h3>
+            <p>Created: ${order.created_at ? new Date(order.created_at).toLocaleString() : "-"}</p>
             <p>Status: ${order.status}</p>
             <p>Items: ${summary.total_items} | Total Qty: ${summary.total_qty.toLocaleString()} | Est. Cost: $${summary.total_cost.toFixed(2)}</p>
             <hr>
@@ -771,20 +830,24 @@ async function viewOrder(orderId) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${items.map(item => `
+                    ${items
+                      .map(
+                        (item) => `
                         <tr>
                             <td>${item.product_upc}</td>
                             <td>${item.product_description}</td>
                             <td>${item.final_qty}</td>
                         </tr>
-                    `).join('')}
+                    `,
+                      )
+                      .join("")}
                 </tbody>
             </table>
         `;
 
-        const modal = document.createElement('div');
-        modal.className = 'modal active';
-        modal.innerHTML = `
+    const modal = document.createElement("div");
+    modal.className = "modal active";
+    modal.innerHTML = `
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
                     <h2>Order Details</h2>
@@ -795,38 +858,37 @@ async function viewOrder(orderId) {
                 </div>
             </div>
         `;
-        document.body.appendChild(modal);
-
-    } catch (error) {
-        console.error('Error viewing order:', error);
-        showToast(`Error loading order: ${error.message}`, 'error');
-    }
+    document.body.appendChild(modal);
+  } catch (error) {
+    console.error("Error viewing order:", error);
+    showToast(`Error loading order: ${error.message}`, "error");
+  }
 }
 
 function exportOrderExcel(orderId) {
-    window.location.href = `/api/orders/${orderId}/export/excel`;
+  window.location.href = `/api/orders/${orderId}/export/excel`;
 }
 
 function exportOrderPDF(orderId) {
-    window.location.href = `/api/orders/${orderId}/export/pdf`;
+  window.location.href = `/api/orders/${orderId}/export/pdf`;
 }
 
 async function deleteOrder(orderId) {
-    if (!confirm('Are you sure you want to delete this order?')) {
-        return;
-    }
+  if (!confirm("Are you sure you want to delete this order?")) {
+    return;
+  }
 
-    try {
-        const result = await api.delete(`/orders/${orderId}`);
+  try {
+    const result = await api.delete(`/orders/${orderId}`);
 
-        if (result.success) {
-            showToast('Order deleted', 'success');
-            loadOrderHistory();
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        console.error('Error deleting order:', error);
-        showToast(`Error deleting order: ${error.message}`, 'error');
+    if (result.success) {
+      showToast("Order deleted", "success");
+      loadOrderHistory();
+    } else {
+      throw new Error(result.error);
     }
+  } catch (error) {
+    console.error("Error deleting order:", error);
+    showToast(`Error deleting order: ${error.message}`, "error");
+  }
 }

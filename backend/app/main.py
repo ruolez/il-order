@@ -402,14 +402,14 @@ def get_products_by_supplier(supplier_id):
 
 @app.route('/api/analysis/needs-reorder', methods=['GET'])
 def get_needs_reorder():
-    """Get products that need reordering."""
+    """Get products with reorder analysis. Supports filtering by status."""
     try:
         mssql = get_mssql_manager()
         if not mssql:
             return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
 
-        # Get all products and filter to those needing reorder
         supplier_id = request.args.get('supplier_id', type=int)
+        filter_mode = request.args.get('filter', 'all')
 
         if supplier_id:
             products = mssql.get_products_by_supplier(supplier_id)
@@ -420,27 +420,23 @@ def get_needs_reorder():
         sales_period = int(settings.get('sales_period_days', 60))
         order_period_weeks = int(settings.get('order_period_weeks', 4))
 
-        needs_reorder = []
+        result_products = []
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
         excluded_upcs = pg.get_excluded_upcs()
 
-        # Get all sales data in a single query (optimized)
         all_sales_data = mssql.get_all_sales_data(sales_period)
 
         for product in products:
             upc = product['ProductUPC']
 
-            # Skip excluded products
             if upc in excluded_upcs:
                 continue
 
             override = overrides.get(upc)
 
-            # Look up sales data from batch result
             sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
             dynamic_threshold = sales_data['monthly_average']
 
-            # Determine threshold
             if override and override.get('manual_threshold') is not None:
                 threshold = override['manual_threshold']
             elif override and override.get('exclude_from_dynamic'):
@@ -449,42 +445,56 @@ def get_needs_reorder():
                 threshold = dynamic_threshold
 
             qty_on_hand = product.get('QuantOnHand') or 0
+            needs_reorder = qty_on_hand < threshold
 
-            if qty_on_hand < threshold:
-                # Calculate suggested order quantity
+            unit_qty2 = product.get('UnitQty2') or 1
+            if unit_qty2 <= 0:
+                unit_qty2 = 1
+
+            if needs_reorder:
                 daily_avg = sales_data['daily_average']
                 order_period_days = order_period_weeks * 7
                 projected_need = daily_avg * order_period_days
-
-                unit_qty2 = product.get('UnitQty2') or 1
-                if unit_qty2 <= 0:
-                    unit_qty2 = 1
-
-                # Round up to nearest case
-                cases_needed = -(-projected_need // unit_qty2)  # Ceiling division
+                cases_needed = -(-projected_need // unit_qty2)
                 suggested_qty = int(cases_needed * unit_qty2)
 
                 if override and override.get('manual_order_qty'):
                     suggested_qty = override['manual_order_qty']
+                    cases_needed = -(-suggested_qty // unit_qty2)
+            else:
+                suggested_qty = 0
+                cases_needed = 0
 
-                needs_reorder.append({
-                    **product,
-                    'threshold': round(threshold, 2),
-                    'monthly_average': round(sales_data['monthly_average'], 2),
-                    'daily_average': round(daily_avg, 2),
-                    'suggested_qty': suggested_qty,
-                    'cases_needed': int(cases_needed),
-                    'unit_qty2': unit_qty2,
-                    'deficit': round(threshold - qty_on_hand, 2)
-                })
+            product_data = {
+                **product,
+                'threshold': round(threshold, 2),
+                'monthly_average': round(sales_data['monthly_average'], 2),
+                'daily_average': round(sales_data['daily_average'], 2),
+                'suggested_qty': suggested_qty,
+                'cases_needed': int(cases_needed),
+                'unit_qty2': unit_qty2,
+                'deficit': round(threshold - qty_on_hand, 2),
+                'status': 'needs_reorder' if needs_reorder else 'sufficient'
+            }
 
-        # Sort by deficit (most urgent first)
-        needs_reorder.sort(key=lambda x: x['deficit'], reverse=True)
+            if filter_mode == 'all':
+                result_products.append(product_data)
+            elif filter_mode == 'needs_reorder' and needs_reorder:
+                result_products.append(product_data)
+            elif filter_mode == 'sufficient' and not needs_reorder:
+                result_products.append(product_data)
+
+        result_products.sort(key=lambda x: (
+            0 if x['status'] == 'needs_reorder' else 1,
+            -x['deficit'] if x['status'] == 'needs_reorder' else 0,
+            x.get('ProductDescription', '')
+        ))
 
         return jsonify({
             'success': True,
-            'products': needs_reorder,
-            'count': len(needs_reorder)
+            'products': result_products,
+            'count': len(result_products),
+            'filter': filter_mode
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

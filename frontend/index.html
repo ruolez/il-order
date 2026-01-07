@@ -1,421 +1,564 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IL-Order | Inventory Ordering System</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="nav-brand">
-            <span class="brand-text">IL-Order</span>
-        </div>
-        <div class="nav-links">
-            <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
-            <a href="#" class="nav-link" data-page="inventory">Inventory</a>
-            <a href="#" class="nav-link" data-page="orders">Orders</a>
-            <a href="#" class="nav-link" data-page="history">History</a>
-            <a href="#" class="nav-link" data-page="settings">Settings</a>
-        </div>
+      <div class="nav-brand">
+        <span class="brand-text">IL-Order</span>
+      </div>
+      <div class="nav-links">
+        <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+        <a href="#" class="nav-link" data-page="inventory">Inventory</a>
+        <a href="#" class="nav-link" data-page="orders">Orders</a>
+        <a href="#" class="nav-link" data-page="history">History</a>
+        <a href="#" class="nav-link" data-page="settings">Settings</a>
+      </div>
     </nav>
 
     <!-- Main Content -->
     <main class="container">
-        <!-- Dashboard Page -->
-        <div id="page-dashboard" class="page active">
-            <div class="page-header">
-                <div class="page-header-row">
-                    <div>
-                        <h1>Dashboard</h1>
-                        <p class="subtitle">Inventory overview and quick actions</p>
-                    </div>
-                    <div class="refresh-section">
-                        <span class="last-updated" id="dashboard-updated"></span>
-                        <button class="btn btn-outline" onclick="refreshDashboard()">↻ Refresh Analysis</button>
-                    </div>
-                </div>
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <h1>Dashboard</h1>
+              <p class="subtitle">Inventory overview and quick actions</p>
             </div>
-
-            <div class="stats-grid" id="dashboard-stats">
-                <div class="stat-card clickable" onclick="navigateToInventoryWithFilter('all')">
-                    <div class="stat-icon blue"></div>
-                    <div class="stat-content">
-                        <span class="stat-value" id="stat-total">--</span>
-                        <span class="stat-label">Total Products</span>
-                    </div>
-                </div>
-                <div class="stat-card clickable" onclick="navigateToInventoryWithFilter('reorder')">
-                    <div class="stat-icon red"></div>
-                    <div class="stat-content">
-                        <span class="stat-value" id="stat-reorder">--</span>
-                        <span class="stat-label">Need Reorder</span>
-                    </div>
-                </div>
-                <div class="stat-card clickable" onclick="navigateToInventoryWithFilter('healthy')">
-                    <div class="stat-icon green"></div>
-                    <div class="stat-content">
-                        <span class="stat-value" id="stat-healthy">--</span>
-                        <span class="stat-label">Healthy Stock</span>
-                    </div>
-                </div>
+            <div class="refresh-section">
+              <span class="last-updated" id="dashboard-updated"></span>
+              <button class="btn btn-outline" onclick="refreshDashboard()">
+                ↻ Refresh Analysis
+              </button>
             </div>
-
-            <div class="quick-actions">
-                <h2>Quick Actions</h2>
-                <div class="action-buttons">
-                    <button class="btn btn-primary" onclick="navigateTo('inventory')">View Inventory</button>
-                    <button class="btn btn-secondary" onclick="navigateTo('orders')">Create Order</button>
-                    <button class="btn btn-outline" onclick="navigateTo('settings')">Settings</button>
-                </div>
-            </div>
-
-            <div id="not-configured-message" class="info-card" style="display: none;">
-                <h3>Setup Required</h3>
-                <p>Please configure your SQL Server connection in Settings to get started.</p>
-                <button class="btn btn-primary" onclick="navigateTo('settings')">Go to Settings</button>
-            </div>
+          </div>
         </div>
 
-        <!-- Inventory Page -->
-        <div id="page-inventory" class="page">
-            <div class="page-header">
-                <h1>Inventory</h1>
-                <p class="subtitle">View and manage product inventory</p>
+        <div class="stats-grid" id="dashboard-stats">
+          <div
+            class="stat-card clickable"
+            onclick="navigateToInventoryWithFilter('all')"
+          >
+            <div class="stat-icon blue"></div>
+            <div class="stat-content">
+              <span class="stat-value" id="stat-total">--</span>
+              <span class="stat-label">Total Products</span>
             </div>
-
-            <div class="toolbar">
-                <div class="search-box">
-                    <input type="text" id="inventory-search" placeholder="Search by UPC or description..." />
-                    <button class="btn btn-primary" onclick="searchProducts()">Search</button>
-                </div>
-                <div class="filter-options">
-                    <select id="inventory-filter">
-                        <option value="all">All Products</option>
-                        <option value="reorder">Needs Reorder</option>
-                        <option value="healthy">Healthy</option>
-                    </select>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="show-excluded-checkbox" onchange="toggleShowExcluded()" />
-                        Show Excluded
-                    </label>
-                </div>
+          </div>
+          <div
+            class="stat-card clickable"
+            onclick="navigateToInventoryWithFilter('reorder')"
+          >
+            <div class="stat-icon red"></div>
+            <div class="stat-content">
+              <span class="stat-value" id="stat-reorder">--</span>
+              <span class="stat-label">Need Reorder</span>
             </div>
-
-            <div class="table-container scrollable-table">
-                <table class="data-table" id="inventory-table">
-                    <thead>
-                        <tr>
-                            <th>UPC</th>
-                            <th>Description</th>
-                            <th>On Hand</th>
-                            <th>Threshold</th>
-                            <th>Monthly Avg</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-tbody">
-                        <tr>
-                            <td colspan="7" class="loading">Loading products...</td>
-                        </tr>
-                    </tbody>
-                </table>
+          </div>
+          <div
+            class="stat-card clickable"
+            onclick="navigateToInventoryWithFilter('healthy')"
+          >
+            <div class="stat-icon green"></div>
+            <div class="stat-content">
+              <span class="stat-value" id="stat-healthy">--</span>
+              <span class="stat-label">Healthy Stock</span>
             </div>
-
-            <div class="pagination" id="inventory-pagination">
-                <button class="pagination-btn" id="prev-page" onclick="loadPrevPage()">← Previous</button>
-                <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
-                <button class="pagination-btn" id="next-page" onclick="loadNextPage()">Next →</button>
-            </div>
+          </div>
         </div>
 
-        <!-- Orders Page -->
-        <div id="page-orders" class="page">
-            <div class="page-header">
-                <h1>Create Order</h1>
-                <p class="subtitle">Generate restock orders</p>
-            </div>
-
-            <div class="order-wizard">
-                <div class="wizard-step">
-                    <h3>Step 1: Select Supplier (Optional)</h3>
-                    <div class="supplier-row">
-                        <select id="supplier-select">
-                            <option value="">All Suppliers</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="loadNeedsReorder()">Load Products</button>
-                    </div>
-                </div>
-
-                <div class="order-items" id="order-items-container" style="display: none;">
-                    <div class="order-header-row">
-                        <h3>Step 2: Review Order Items</h3>
-                        <div class="order-summary-bar">
-                            <span class="summary-item"><strong id="order-item-count">0</strong> items</span>
-                            <span class="summary-item"><strong id="order-total-qty">0</strong> units</span>
-                            <span class="summary-item">Est. <strong id="order-total-cost">$0.00</strong></span>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="order-table">
-                            <thead>
-                                <tr>
-                                    <th><input type="checkbox" id="select-all-orders" /></th>
-                                    <th>UPC</th>
-                                    <th>Description</th>
-                                    <th>On Hand</th>
-                                    <th>Threshold</th>
-                                    <th>Suggested Qty</th>
-                                    <th>Order Qty</th>
-                                    <th>Cases</th>
-                                </tr>
-                            </thead>
-                            <tbody id="order-tbody">
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="order-name-row">
-                        <label for="order-name">Order Name:</label>
-                        <input type="text" id="order-name" placeholder="Optional - defaults to date/time" />
-                    </div>
-
-                    <div class="order-actions">
-                        <button class="btn btn-outline" onclick="saveOrderDraft()">Save Draft</button>
-                        <button class="btn btn-primary" onclick="saveAndExportExcel()">Save & Export Excel</button>
-                        <button class="btn btn-secondary" onclick="saveAndExportPDF()">Save & Export PDF</button>
-                    </div>
-                </div>
-            </div>
+        <div class="quick-actions">
+          <h2>Quick Actions</h2>
+          <div class="action-buttons">
+            <button class="btn btn-primary" onclick="navigateTo('inventory')">
+              View Inventory
+            </button>
+            <button class="btn btn-secondary" onclick="navigateTo('orders')">
+              Create Order
+            </button>
+            <button class="btn btn-outline" onclick="navigateTo('settings')">
+              Settings
+            </button>
+          </div>
         </div>
 
-        <!-- Order History Page -->
-        <div id="page-history" class="page">
-            <div class="page-header">
-                <h1>Order History</h1>
-                <p class="subtitle">View and manage saved orders</p>
-            </div>
+        <div
+          id="not-configured-message"
+          class="info-card"
+          style="display: none"
+        >
+          <h3>Setup Required</h3>
+          <p>
+            Please configure your SQL Server connection in Settings to get
+            started.
+          </p>
+          <button class="btn btn-primary" onclick="navigateTo('settings')">
+            Go to Settings
+          </button>
+        </div>
+      </div>
 
-            <div class="toolbar">
-                <div class="filter-options">
-                    <select id="history-filter" onchange="loadOrderHistory()">
-                        <option value="">All Orders</option>
-                        <option value="draft">Drafts</option>
-                        <option value="exported">Exported</option>
-                        <option value="archived">Archived</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="navigateTo('orders')">New Order</button>
-            </div>
+      <!-- Inventory Page -->
+      <div id="page-inventory" class="page">
+        <div class="page-header">
+          <h1>Inventory</h1>
+          <p class="subtitle">View and manage product inventory</p>
+        </div>
 
+        <div class="toolbar">
+          <div class="search-box">
+            <input
+              type="text"
+              id="inventory-search"
+              placeholder="Search by UPC or description..."
+            />
+            <button class="btn btn-primary" onclick="searchProducts()">
+              Search
+            </button>
+          </div>
+          <div class="filter-options">
+            <select id="inventory-filter">
+              <option value="all">All Products</option>
+              <option value="reorder">Needs Reorder</option>
+              <option value="healthy">Healthy</option>
+            </select>
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                id="show-excluded-checkbox"
+                onchange="toggleShowExcluded()"
+              />
+              Show Excluded
+            </label>
+          </div>
+        </div>
+
+        <div class="table-container scrollable-table">
+          <table class="data-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th>UPC</th>
+                <th>Description</th>
+                <th>On Hand</th>
+                <th>Threshold</th>
+                <th>Monthly Avg</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-tbody">
+              <tr>
+                <td colspan="7" class="loading">Loading products...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="inventory-pagination">
+          <button
+            class="pagination-btn"
+            id="prev-page"
+            onclick="loadPrevPage()"
+          >
+            ← Previous
+          </button>
+          <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+          <button
+            class="pagination-btn"
+            id="next-page"
+            onclick="loadNextPage()"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+
+      <!-- Orders Page -->
+      <div id="page-orders" class="page">
+        <div class="page-header">
+          <h1>Create Order</h1>
+          <p class="subtitle">Generate restock orders</p>
+        </div>
+
+        <div class="order-wizard">
+          <div class="wizard-step">
+            <h3>Step 1: Select Supplier (Optional)</h3>
+            <div class="supplier-row">
+              <select id="supplier-select">
+                <option value="">All Suppliers</option>
+              </select>
+              <select id="order-filter">
+                <option value="all" selected>All Products</option>
+                <option value="needs_reorder">Needs Reorder Only</option>
+                <option value="sufficient">Sufficient Stock Only</option>
+              </select>
+              <button class="btn btn-primary" onclick="loadNeedsReorder()">
+                Load Products
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="order-items"
+            id="order-items-container"
+            style="display: none"
+          >
+            <div class="order-header-row">
+              <h3>Step 2: Review Order Items</h3>
+              <div class="order-summary-bar">
+                <span class="summary-item"
+                  ><strong id="order-item-count">0</strong> items</span
+                >
+                <span class="summary-item"
+                  ><strong id="order-total-qty">0</strong> units</span
+                >
+                <span class="summary-item"
+                  >Est. <strong id="order-total-cost">$0.00</strong></span
+                >
+              </div>
+            </div>
             <div class="table-container">
-                <table class="data-table" id="history-table">
-                    <thead>
-                        <tr>
-                            <th>Order Name</th>
-                            <th>Created</th>
-                            <th>Items</th>
-                            <th>Total Qty</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-tbody">
-                        <tr>
-                            <td colspan="6" class="loading">Loading orders...</td>
-                        </tr>
-                    </tbody>
-                </table>
+              <table class="data-table" id="order-table">
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" id="select-all-orders" /></th>
+                    <th>Status</th>
+                    <th>UPC</th>
+                    <th>Description</th>
+                    <th>On Hand</th>
+                    <th>Threshold</th>
+                    <th>Suggested Qty</th>
+                    <th>Order Qty</th>
+                    <th>Cases</th>
+                  </tr>
+                </thead>
+                <tbody id="order-tbody"></tbody>
+              </table>
             </div>
+
+            <div class="order-name-row">
+              <label for="order-name">Order Name:</label>
+              <input
+                type="text"
+                id="order-name"
+                placeholder="Optional - defaults to date/time"
+              />
+            </div>
+
+            <div class="order-actions">
+              <button class="btn btn-outline" onclick="saveOrderDraft()">
+                Save Draft
+              </button>
+              <button class="btn btn-primary" onclick="saveAndExportExcel()">
+                Save & Export Excel
+              </button>
+              <button class="btn btn-secondary" onclick="saveAndExportPDF()">
+                Save & Export PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order History Page -->
+      <div id="page-history" class="page">
+        <div class="page-header">
+          <h1>Order History</h1>
+          <p class="subtitle">View and manage saved orders</p>
         </div>
 
-        <!-- Settings Page -->
-        <div id="page-settings" class="page">
-            <div class="page-header">
-                <h1>Settings</h1>
-                <p class="subtitle">Configure application settings</p>
-            </div>
-
-            <div class="settings-grid">
-                <!-- SQL Server Configuration -->
-                <div class="settings-card">
-                    <h2>SQL Server Connection</h2>
-                    <form id="sql-config-form">
-                        <div class="form-group">
-                            <label for="sql-server">Server</label>
-                            <input type="text" id="sql-server" placeholder="e.g., 192.168.1.100 or server\\instance" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="sql-database">Database</label>
-                            <input type="text" id="sql-database" placeholder="e.g., S2S" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="sql-username">Username</label>
-                            <input type="text" id="sql-username" placeholder="SQL username" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="sql-password">Password</label>
-                            <input type="password" id="sql-password" placeholder="SQL password" required />
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-outline" onclick="testConnection()">Test Connection</button>
-                            <button type="submit" class="btn btn-primary">Save Configuration</button>
-                        </div>
-                    </form>
-                    <div id="connection-status" class="status-message"></div>
-                </div>
-
-                <!-- Analysis Settings -->
-                <div class="settings-card">
-                    <h2>Analysis Settings</h2>
-                    <form id="analysis-settings-form">
-                        <div class="form-group">
-                            <label for="sales-period">Sales Analysis Period</label>
-                            <select id="sales-period">
-                                <option value="30">Last 30 Days</option>
-                                <option value="60" selected>Last 60 Days</option>
-                                <option value="90">Last 90 Days</option>
-                                <option value="180">Last 180 Days</option>
-                            </select>
-                            <small>Period used to calculate average monthly sales</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="order-period">Order Period</label>
-                            <select id="order-period">
-                                <option value="2">2 Weeks</option>
-                                <option value="3">3 Weeks</option>
-                                <option value="4" selected>4 Weeks (1 Month)</option>
-                                <option value="6">6 Weeks</option>
-                                <option value="8">8 Weeks (2 Months)</option>
-                            </select>
-                            <small>How many weeks of stock to order</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="threshold-multiplier">Threshold Multiplier</label>
-                            <input type="number" id="threshold-multiplier" value="1.0" step="0.1" min="0.5" max="3.0" />
-                            <small>Multiply the monthly average by this value</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="items-per-page">Items Per Page</label>
-                            <select id="items-per-page">
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100" selected>100</option>
-                                <option value="200">200</option>
-                                <option value="500">500</option>
-                            </select>
-                            <small>Number of products displayed per page in inventory</small>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Save Settings</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <div class="toolbar">
+          <div class="filter-options">
+            <select id="history-filter" onchange="loadOrderHistory()">
+              <option value="">All Orders</option>
+              <option value="draft">Drafts</option>
+              <option value="exported">Exported</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="navigateTo('orders')">
+            New Order
+          </button>
         </div>
+
+        <div class="table-container">
+          <table class="data-table" id="history-table">
+            <thead>
+              <tr>
+                <th>Order Name</th>
+                <th>Created</th>
+                <th>Items</th>
+                <th>Total Qty</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="6" class="loading">Loading orders...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page">
+        <div class="page-header">
+          <h1>Settings</h1>
+          <p class="subtitle">Configure application settings</p>
+        </div>
+
+        <div class="settings-grid">
+          <!-- SQL Server Configuration -->
+          <div class="settings-card">
+            <h2>SQL Server Connection</h2>
+            <form id="sql-config-form">
+              <div class="form-group">
+                <label for="sql-server">Server</label>
+                <input
+                  type="text"
+                  id="sql-server"
+                  placeholder="e.g., 192.168.1.100 or server\\instance"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="sql-database">Database</label>
+                <input
+                  type="text"
+                  id="sql-database"
+                  placeholder="e.g., S2S"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="sql-username">Username</label>
+                <input
+                  type="text"
+                  id="sql-username"
+                  placeholder="SQL username"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="sql-password">Password</label>
+                <input
+                  type="password"
+                  id="sql-password"
+                  placeholder="SQL password"
+                  required
+                />
+              </div>
+              <div class="form-actions">
+                <button
+                  type="button"
+                  class="btn btn-outline"
+                  onclick="testConnection()"
+                >
+                  Test Connection
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Save Configuration
+                </button>
+              </div>
+            </form>
+            <div id="connection-status" class="status-message"></div>
+          </div>
+
+          <!-- Analysis Settings -->
+          <div class="settings-card">
+            <h2>Analysis Settings</h2>
+            <form id="analysis-settings-form">
+              <div class="form-group">
+                <label for="sales-period">Sales Analysis Period</label>
+                <select id="sales-period">
+                  <option value="30">Last 30 Days</option>
+                  <option value="60" selected>Last 60 Days</option>
+                  <option value="90">Last 90 Days</option>
+                  <option value="180">Last 180 Days</option>
+                </select>
+                <small>Period used to calculate average monthly sales</small>
+              </div>
+              <div class="form-group">
+                <label for="order-period">Order Period</label>
+                <select id="order-period">
+                  <option value="2">2 Weeks</option>
+                  <option value="3">3 Weeks</option>
+                  <option value="4" selected>4 Weeks (1 Month)</option>
+                  <option value="6">6 Weeks</option>
+                  <option value="8">8 Weeks (2 Months)</option>
+                </select>
+                <small>How many weeks of stock to order</small>
+              </div>
+              <div class="form-group">
+                <label for="threshold-multiplier">Threshold Multiplier</label>
+                <input
+                  type="number"
+                  id="threshold-multiplier"
+                  value="1.0"
+                  step="0.1"
+                  min="0.5"
+                  max="3.0"
+                />
+                <small>Multiply the monthly average by this value</small>
+              </div>
+              <div class="form-group">
+                <label for="items-per-page">Items Per Page</label>
+                <select id="items-per-page">
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                  <option value="500">500</option>
+                </select>
+                <small
+                  >Number of products displayed per page in inventory</small
+                >
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- Product Detail Modal -->
     <div id="product-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Product Details</h2>
-                <button class="modal-close" onclick="closeProductModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="product-info">
-                    <div class="info-row">
-                        <span class="info-label">UPC:</span>
-                        <span class="info-value" id="modal-upc">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Description:</span>
-                        <span class="info-value" id="modal-description">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">SKU:</span>
-                        <span class="info-value" id="modal-sku">-</span>
-                    </div>
-                </div>
-
-                <div class="info-cards-row">
-                    <div class="info-card-small">
-                        <span class="card-value" id="modal-qty-on-hand">0</span>
-                        <span class="card-label">On Hand</span>
-                    </div>
-                    <div class="info-card-small">
-                        <span class="card-value" id="modal-threshold">0</span>
-                        <span class="card-label">Threshold</span>
-                    </div>
-                    <div class="info-card-small">
-                        <span class="card-value" id="modal-monthly-avg">0</span>
-                        <span class="card-label">Monthly Avg</span>
-                    </div>
-                    <div class="info-card-small">
-                        <span class="card-value" id="modal-daily-avg">0</span>
-                        <span class="card-label">Daily Avg</span>
-                    </div>
-                </div>
-
-                <div class="sales-info">
-                    <h3>Sales Analysis</h3>
-                    <div class="info-row">
-                        <span class="info-label">Total Sold (Period):</span>
-                        <span class="info-value" id="modal-total-sold">0</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Invoice Count:</span>
-                        <span class="info-value" id="modal-invoice-count">0</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Unit Cost:</span>
-                        <span class="info-value" id="modal-unit-cost">$0.00</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Case Qty (UnitQty2):</span>
-                        <span class="info-value" id="modal-case-qty">0</span>
-                    </div>
-                </div>
-
-                <div class="override-section">
-                    <h3>Override Settings</h3>
-                    <form id="override-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" id="override-exclude" />
-                                    Exclude from dynamic threshold
-                                </label>
-                                <small>Use system ReorderLevel instead</small>
-                            </div>
-                        </div>
-                        <div class="form-row two-col">
-                            <div class="form-group">
-                                <label for="override-threshold">Manual Threshold</label>
-                                <input type="number" id="override-threshold" placeholder="Leave blank for dynamic" min="0" />
-                            </div>
-                            <div class="form-group">
-                                <label for="override-order-qty">Manual Order Qty</label>
-                                <input type="number" id="override-order-qty" placeholder="Leave blank for calculated" min="0" />
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="override-notes">Notes</label>
-                            <textarea id="override-notes" rows="2" placeholder="Optional notes about this product..."></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-outline" onclick="clearOverride()">Clear Override</button>
-                            <button type="submit" class="btn btn-primary">Save Override</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Product Details</h2>
+          <button class="modal-close" onclick="closeProductModal()">
+            &times;
+          </button>
         </div>
+        <div class="modal-body">
+          <div class="product-info">
+            <div class="info-row">
+              <span class="info-label">UPC:</span>
+              <span class="info-value" id="modal-upc">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Description:</span>
+              <span class="info-value" id="modal-description">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">SKU:</span>
+              <span class="info-value" id="modal-sku">-</span>
+            </div>
+          </div>
+
+          <div class="info-cards-row">
+            <div class="info-card-small">
+              <span class="card-value" id="modal-qty-on-hand">0</span>
+              <span class="card-label">On Hand</span>
+            </div>
+            <div class="info-card-small">
+              <span class="card-value" id="modal-threshold">0</span>
+              <span class="card-label">Threshold</span>
+            </div>
+            <div class="info-card-small">
+              <span class="card-value" id="modal-monthly-avg">0</span>
+              <span class="card-label">Monthly Avg</span>
+            </div>
+            <div class="info-card-small">
+              <span class="card-value" id="modal-daily-avg">0</span>
+              <span class="card-label">Daily Avg</span>
+            </div>
+          </div>
+
+          <div class="sales-info">
+            <h3>Sales Analysis</h3>
+            <div class="info-row">
+              <span class="info-label">Total Sold (Period):</span>
+              <span class="info-value" id="modal-total-sold">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Invoice Count:</span>
+              <span class="info-value" id="modal-invoice-count">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Unit Cost:</span>
+              <span class="info-value" id="modal-unit-cost">$0.00</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Case Qty (UnitQty2):</span>
+              <span class="info-value" id="modal-case-qty">0</span>
+            </div>
+          </div>
+
+          <div class="override-section">
+            <h3>Override Settings</h3>
+            <form id="override-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="override-exclude" />
+                    Exclude from dynamic threshold
+                  </label>
+                  <small>Use system ReorderLevel instead</small>
+                </div>
+              </div>
+              <div class="form-row two-col">
+                <div class="form-group">
+                  <label for="override-threshold">Manual Threshold</label>
+                  <input
+                    type="number"
+                    id="override-threshold"
+                    placeholder="Leave blank for dynamic"
+                    min="0"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="override-order-qty">Manual Order Qty</label>
+                  <input
+                    type="number"
+                    id="override-order-qty"
+                    placeholder="Leave blank for calculated"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="override-notes">Notes</label>
+                <textarea
+                  id="override-notes"
+                  rows="2"
+                  placeholder="Optional notes about this product..."
+                ></textarea>
+              </div>
+              <div class="form-actions">
+                <button
+                  type="button"
+                  class="btn btn-outline"
+                  onclick="clearOverride()"
+                >
+                  Clear Override
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Save Override
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Toast notifications container -->
@@ -424,5 +567,5 @@
     <!-- Scripts -->
     <script src="js/app.js"></script>
     <script src="js/settings.js"></script>
-</body>
+  </body>
 </html>
