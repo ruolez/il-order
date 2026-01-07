@@ -930,8 +930,8 @@ input[type="checkbox"] {
   justify-content: center;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-sm);
 }
 
 .pagination-btn {
