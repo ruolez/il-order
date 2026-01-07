@@ -207,6 +207,12 @@ do_update() {
     print_msg "Waiting for services to start..."
     sleep 5
 
+    # Run database migrations
+    print_msg "Running database migrations..."
+    docker exec il-order-db psql -U ilorder -d ilorder -c "
+        ALTER TABLE product_overrides ADD COLUMN IF NOT EXISTS manual_order_period_days INT;
+    " 2>/dev/null || true
+
     echo ""
     echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║         Update Complete!                  ║${NC}"
