@@ -407,6 +407,10 @@ body {
   overflow-x: auto;
 }
 
+.table-container.table-page-scroll {
+  overflow: visible;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
