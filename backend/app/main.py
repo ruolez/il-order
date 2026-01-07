@@ -144,6 +144,7 @@ def get_products():
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
         status_filter = request.args.get('filter', 'all')  # all, reorder, low, healthy
+        show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
 
         # Get settings for threshold calculation
         settings = pg.get_settings()
@@ -151,6 +152,7 @@ def get_products():
 
         # Get overrides and sales data for threshold calculation
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
+        excluded_upcs = pg.get_excluded_upcs() if not show_excluded else set()
         all_sales_data = mssql.get_all_sales_data(sales_period)
 
         # For filtered views, we need to process all products to apply filter
@@ -162,6 +164,12 @@ def get_products():
             filtered = []
             for product in all_products:
                 upc = product['ProductUPC']
+
+                # Skip excluded products unless show_excluded is true
+                is_excluded = upc in excluded_upcs
+                if is_excluded and not show_excluded:
+                    continue
+
                 override = overrides.get(upc)
                 sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
                 dynamic_threshold = sales_data['monthly_average']
@@ -195,6 +203,7 @@ def get_products():
                     'monthly_average': round(sales_data['monthly_average'], 2),
                     'daily_average': round(sales_data['daily_average'], 2),
                     'needs_reorder': needs_reorder,
+                    'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override
                 })
 
@@ -202,14 +211,20 @@ def get_products():
             total_count = len(filtered)
             enriched = filtered[offset:offset + limit]
         else:
-            # No filter - use paginated query for efficiency
-            products = mssql.get_products(search=search, limit=limit, offset=offset)
-            total_count = mssql.get_product_count(search=search)
+            # No filter - need to handle excluded products
+            # Get all products and filter manually to handle exclusions properly
+            all_products = mssql.get_all_products(search=search) if search else mssql.get_all_products()
 
             # Enrich products with threshold data
             enriched = []
-            for product in products:
+            for product in all_products:
                 upc = product['ProductUPC']
+
+                # Skip excluded products unless show_excluded is true
+                is_excluded = upc in excluded_upcs
+                if is_excluded and not show_excluded:
+                    continue
+
                 override = overrides.get(upc)
                 sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
                 dynamic_threshold = sales_data['monthly_average']
@@ -235,8 +250,13 @@ def get_products():
                     'monthly_average': round(sales_data['monthly_average'], 2),
                     'daily_average': round(sales_data['daily_average'], 2),
                     'needs_reorder': qty_on_hand < threshold,
+                    'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override
                 })
+
+            # Apply pagination
+            total_count = len(enriched)
+            enriched = enriched[offset:offset + limit]
 
         return jsonify({
             'success': True,
@@ -287,6 +307,7 @@ def save_product_override(upc):
         override_id = pg.save_product_override(
             product_upc=upc,
             exclude_from_dynamic=data.get('exclude_from_dynamic', False),
+            exclude_from_orders=data.get('exclude_from_orders', False),
             manual_threshold=data.get('manual_threshold'),
             manual_order_qty=data.get('manual_order_qty'),
             notes=data.get('notes')
@@ -303,6 +324,34 @@ def delete_product_override(upc):
     try:
         deleted = pg.delete_product_override(upc)
         return jsonify({'success': True, 'deleted': deleted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/products/<upc>/exclude', methods=['POST'])
+def toggle_product_exclusion(upc):
+    """Toggle product exclusion from orders."""
+    try:
+        new_state = pg.toggle_product_exclusion(upc)
+        return jsonify({
+            'success': True,
+            'excluded': new_state,
+            'upc': upc
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/products/excluded', methods=['GET'])
+def get_excluded_products():
+    """Get list of products excluded from orders."""
+    try:
+        excluded = pg.get_excluded_products()
+        return jsonify({
+            'success': True,
+            'products': [dict(p) for p in excluded],
+            'count': len(excluded)
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -335,6 +384,11 @@ def get_products_by_supplier(supplier_id):
             return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
 
         products = mssql.get_products_by_supplier(supplier_id)
+
+        # Filter out excluded products
+        excluded_upcs = pg.get_excluded_upcs()
+        products = [p for p in products if p['ProductUPC'] not in excluded_upcs]
+
         return jsonify({
             'success': True,
             'products': products,
@@ -368,12 +422,18 @@ def get_needs_reorder():
 
         needs_reorder = []
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
+        excluded_upcs = pg.get_excluded_upcs()
 
         # Get all sales data in a single query (optimized)
         all_sales_data = mssql.get_all_sales_data(sales_period)
 
         for product in products:
             upc = product['ProductUPC']
+
+            # Skip excluded products
+            if upc in excluded_upcs:
+                continue
+
             override = overrides.get(upc)
 
             # Look up sales data from batch result

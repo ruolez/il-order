@@ -31,6 +31,7 @@ let totalPages = 1;
 let totalProducts = 0;
 let currentSearch = '';
 let pendingFilter = null;
+let showExcludedProducts = false;
 
 // Load application settings (including items per page)
 async function loadAppSettings() {
@@ -185,6 +186,9 @@ async function loadInventory(page = 1, search = '') {
         if (search) {
             endpoint += `&search=${encodeURIComponent(search)}`;
         }
+        if (showExcludedProducts) {
+            endpoint += '&show_excluded=true';
+        }
 
         const result = await api.get(endpoint);
 
@@ -250,17 +254,26 @@ function renderInventoryTable(products, skipFilter = false) {
     tbody.innerHTML = filtered.map(product => {
         const qtyOnHand = product.QuantOnHand || 0;
         const threshold = product.threshold || 0;
+        const isExcluded = product.excluded || false;
 
         let statusClass = 'badge-success';
         let statusText = 'OK';
 
-        if (product.needs_reorder) {
+        if (isExcluded) {
+            statusClass = 'badge-secondary';
+            statusText = 'Excluded';
+        } else if (product.needs_reorder) {
             statusClass = 'badge-error';
             statusText = 'Reorder';
         }
 
+        const rowClass = isExcluded ? 'product-excluded' : '';
+        const excludeBtn = isExcluded
+            ? `<button class="action-btn include" onclick="toggleExclude('${product.ProductUPC}')">Include</button>`
+            : `<button class="action-btn exclude" onclick="toggleExclude('${product.ProductUPC}')">Exclude</button>`;
+
         return `
-            <tr>
+            <tr class="${rowClass}">
                 <td>${product.ProductUPC || '-'}</td>
                 <td>${product.ProductDescription || '-'}</td>
                 <td>${qtyOnHand.toLocaleString()}</td>
@@ -272,6 +285,7 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <button class="action-btn view" onclick="viewProduct('${product.ProductUPC}')">View</button>
+                    ${excludeBtn}
                 </td>
             </tr>
         `;
@@ -281,6 +295,31 @@ function renderInventoryTable(products, skipFilter = false) {
 function searchProducts() {
     const searchTerm = document.getElementById('inventory-search').value.trim();
     loadInventory(1, searchTerm);
+}
+
+// Toggle product exclusion
+async function toggleExclude(upc) {
+    try {
+        const result = await api.post(`/products/${upc}/exclude`, {});
+
+        if (result.success) {
+            const action = result.excluded ? 'excluded' : 'included';
+            showToast(`Product ${action} successfully`, 'success');
+            loadInventory(currentPage, currentSearch);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Error toggling exclusion:', error);
+        showToast(`Error: ${error.message}`, 'error');
+    }
+}
+
+// Toggle showing excluded products
+function toggleShowExcluded() {
+    const checkbox = document.getElementById('show-excluded-checkbox');
+    showExcludedProducts = checkbox ? checkbox.checked : false;
+    loadInventory(1, currentSearch);
 }
 
 // Current product being viewed in modal

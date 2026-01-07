@@ -1032,3 +1032,60 @@ input[type="checkbox"] {
     background-color: var(--surface-variant);
     color: var(--on-surface-secondary);
 }
+
+/* Exclude/Include action buttons */
+.action-btn.exclude {
+    background-color: var(--warning-light);
+    color: #ea8600;
+}
+
+.action-btn.exclude:hover {
+    background-color: #ffe0b2;
+}
+
+.action-btn.include {
+    background-color: var(--success-light);
+    color: var(--success);
+}
+
+.action-btn.include:hover {
+    background-color: #c8e6c9;
+}
+
+/* Excluded product row styling */
+.product-excluded {
+    opacity: 0.6;
+    background-color: var(--surface-variant) !important;
+}
+
+.product-excluded:hover {
+    opacity: 0.8;
+}
+
+/* Checkbox label in toolbar */
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 14px;
+    cursor: pointer;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-full);
+    transition: background-color var(--transition-fast);
+}
+
+.checkbox-label:hover {
+    background-color: var(--surface-variant);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+/* Filter options layout */
+.filter-options {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}

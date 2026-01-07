@@ -11,6 +11,26 @@ class PostgresManager:
 
     def __init__(self, database_url: str):
         self.database_url = database_url
+        self._run_migrations()
+
+    def _run_migrations(self):
+        """Run database migrations for schema updates."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'product_overrides'
+                        AND column_name = 'exclude_from_orders'
+                    ) THEN
+                        ALTER TABLE product_overrides
+                        ADD COLUMN exclude_from_orders BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;
+            """)
+            cursor.close()
 
     @contextmanager
     def get_connection(self):
@@ -121,22 +141,23 @@ class PostgresManager:
             return cursor.fetchall()
 
     def save_product_override(self, product_upc: str, exclude_from_dynamic: bool = False,
-                              manual_threshold: int = None, manual_order_qty: int = None,
-                              notes: str = None) -> int:
+                              exclude_from_orders: bool = False, manual_threshold: int = None,
+                              manual_order_qty: int = None, notes: str = None) -> int:
         """Save or update product override."""
         with self.get_cursor() as cursor:
             cursor.execute("""
-                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, manual_threshold, manual_order_qty, notes)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (product_upc) DO UPDATE SET
                     exclude_from_dynamic = %s,
+                    exclude_from_orders = %s,
                     manual_threshold = %s,
                     manual_order_qty = %s,
                     notes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING id
-            """, (product_upc, exclude_from_dynamic, manual_threshold, manual_order_qty, notes,
-                  exclude_from_dynamic, manual_threshold, manual_order_qty, notes))
+            """, (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes,
+                  exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes))
             result = cursor.fetchone()
             return result['id']
 
@@ -145,6 +166,50 @@ class PostgresManager:
         with self.get_cursor() as cursor:
             cursor.execute("DELETE FROM product_overrides WHERE product_upc = %s", (product_upc,))
             return cursor.rowcount > 0
+
+    def get_excluded_upcs(self) -> set:
+        """Get set of UPCs excluded from orders."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT product_upc FROM product_overrides
+                WHERE exclude_from_orders = TRUE
+            """)
+            rows = cursor.fetchall()
+            return {row['product_upc'] for row in rows}
+
+    def toggle_product_exclusion(self, product_upc: str) -> bool:
+        """Toggle product exclusion status. Returns new exclusion state."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT exclude_from_orders FROM product_overrides
+                WHERE product_upc = %s
+            """, (product_upc,))
+            row = cursor.fetchone()
+
+            if row is None:
+                cursor.execute("""
+                    INSERT INTO product_overrides (product_upc, exclude_from_orders)
+                    VALUES (%s, TRUE)
+                """, (product_upc,))
+                return True
+            else:
+                new_state = not row['exclude_from_orders']
+                cursor.execute("""
+                    UPDATE product_overrides
+                    SET exclude_from_orders = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE product_upc = %s
+                """, (new_state, product_upc))
+                return new_state
+
+    def get_excluded_products(self) -> List[Dict[str, Any]]:
+        """Get all excluded products with their override info."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT * FROM product_overrides
+                WHERE exclude_from_orders = TRUE
+                ORDER BY product_upc
+            """)
+            return cursor.fetchall()
 
     # Order draft methods
     def create_order_draft(self, name: str = None, supplier_id: int = None, supplier_name: str = None) -> int:

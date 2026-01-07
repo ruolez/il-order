@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS product_overrides (
     id SERIAL PRIMARY KEY,
     product_upc VARCHAR(20) NOT NULL UNIQUE,
     exclude_from_dynamic BOOLEAN DEFAULT FALSE,
+    exclude_from_orders BOOLEAN DEFAULT FALSE,
     manual_threshold INT,
     manual_order_qty INT,
     notes TEXT,
