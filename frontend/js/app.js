@@ -906,10 +906,11 @@ async function loadNeedsReorder() {
         const statusBadge = needsReorder
           ? '<span class="badge badge-error">Reorder</span>'
           : '<span class="badge badge-success">OK</span>';
+        const shouldCheck = needsReorder && product.suggested_qty > 0;
 
         return `
                 <tr data-upc="${product.ProductUPC}" class="${needsReorder ? "" : "row-sufficient"}">
-                    <td><input type="checkbox" class="order-checkbox" ${needsReorder ? "checked" : ""} onchange="updateOrderSummary()" /></td>
+                    <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC || "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
@@ -931,10 +932,10 @@ async function loadNeedsReorder() {
       })
       .join("");
 
-    const hasNeedsReorder = result.products.some(
-      (p) => p.status === "needs_reorder",
+    const hasSelectableItems = result.products.some(
+      (p) => p.status === "needs_reorder" && p.suggested_qty > 0,
     );
-    document.getElementById("select-all-orders").checked = hasNeedsReorder;
+    document.getElementById("select-all-orders").checked = hasSelectableItems;
     updateOrderSummary();
     updateSortIndicators("orders");
   } catch (error) {
@@ -949,7 +950,28 @@ function updateCases(input) {
   const qty = parseInt(input.value) || 0;
   const unitQty = parseFloat(input.dataset.unitQty) || 1;
   const cases = Math.ceil(qty / unitQty);
-  input.closest("tr").querySelector(".cases-cell").textContent = cases;
+  const row = input.closest("tr");
+  row.querySelector(".cases-cell").textContent = cases;
+
+  // Auto-uncheck if Order Qty is 0
+  const checkbox = row.querySelector(".order-checkbox");
+  if (checkbox && qty === 0) {
+    checkbox.checked = false;
+  }
+}
+
+function handleOrderCheckbox(checkbox) {
+  if (checkbox.checked) {
+    const row = checkbox.closest("tr");
+    const qtyInput = row.querySelector(".order-qty");
+    const qty = parseInt(qtyInput?.value) || 0;
+
+    if (qty === 0) {
+      checkbox.checked = false;
+      showToast("Cannot select item with Order Qty of 0", "error");
+    }
+  }
+  updateOrderSummary();
 }
 
 // Select all checkbox
@@ -958,7 +980,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (selectAll) {
     selectAll.addEventListener("change", (e) => {
       document.querySelectorAll(".order-checkbox").forEach((cb) => {
-        cb.checked = e.target.checked;
+        if (e.target.checked) {
+          // Only check items with Order Qty > 0
+          const row = cb.closest("tr");
+          const qtyInput = row.querySelector(".order-qty");
+          const qty = parseInt(qtyInput?.value) || 0;
+          cb.checked = qty > 0;
+        } else {
+          cb.checked = false;
+        }
       });
       updateOrderSummary();
     });
