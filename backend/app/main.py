@@ -160,6 +160,9 @@ def get_products():
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
         excluded_upcs = pg.get_excluded_upcs() if not show_excluded else set()
 
+        # Get last supplier mapping for all products
+        last_suppliers = mssql.get_last_suppliers_for_products()
+
         # For filtered views (reorder/healthy), we need to process all products
         # because threshold depends on PostgreSQL overrides
         if status_filter != 'all':
@@ -229,8 +232,14 @@ def get_products():
                     'daily_average': round(daily_avg, 2),
                     'needs_reorder': needs_reorder,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
-                    'override': override
+                    'override': override,
+                    'last_supplier': last_suppliers.get(upc)
                 })
+
+            # Sort by last_supplier if requested (Python-level since not in SQL)
+            if sort_by == 'last_supplier':
+                reverse_sort = sort_order == 'desc'
+                filtered.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
 
             # Apply pagination to filtered results
             total_count = len(filtered)
@@ -299,8 +308,14 @@ def get_products():
                     'daily_average': round(daily_avg, 2),
                     'needs_reorder': qty_on_hand < threshold,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
-                    'override': override
+                    'override': override,
+                    'last_supplier': last_suppliers.get(upc)
                 })
+
+        # Sort by last_supplier if requested (Python-level since not in SQL)
+        if sort_by == 'last_supplier':
+            reverse_sort = sort_order == 'desc'
+            enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
 
         return jsonify({
             'success': True,

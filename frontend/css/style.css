@@ -445,6 +445,16 @@ body {
   padding: var(--spacing-xl);
 }
 
+/* Supplier cell - smaller text with ellipsis for long names */
+.supplier-cell {
+  font-size: 0.85em;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-surface-secondary);
+}
+
 /* Sortable table headers */
 .data-table th.sortable {
   cursor: pointer;

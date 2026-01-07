@@ -295,7 +295,7 @@ function renderInventoryTable(products, skipFilter = false) {
                     ${threshold.toLocaleString()}
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
                 </td>
-                <td>${product.monthly_average.toLocaleString()}</td>
+                <td class="supplier-cell" title="${product.last_supplier || ''}">${product.last_supplier || '-'}</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <button class="action-btn view" onclick="viewProduct('${product.ProductUPC}')">View</button>

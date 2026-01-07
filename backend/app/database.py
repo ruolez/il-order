@@ -663,6 +663,31 @@ class MSSQLManager:
             return cursor.fetchall()
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
+    def get_last_suppliers_for_products(self) -> Dict[str, str]:
+        """Get the last supplier for all products based on most recent purchase order.
+
+        Returns a dict mapping ProductUPC -> supplier BusinessName.
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                WITH LatestPO AS (
+                    SELECT
+                        pod.ProductUPC,
+                        po.SupplierID,
+                        ROW_NUMBER() OVER (PARTITION BY pod.ProductUPC ORDER BY po.PoDate DESC) as rn
+                    FROM PurchaseOrdersDetails_tbl pod
+                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE pod.ProductUPC IS NOT NULL
+                )
+                SELECT lp.ProductUPC, s.BusinessName as last_supplier
+                FROM LatestPO lp
+                JOIN Suppliers_tbl s ON lp.SupplierID = s.SupplierID
+                WHERE lp.rn = 1
+            """)
+            rows = cursor.fetchall()
+            return {row['ProductUPC']: row['last_supplier'] for row in rows}
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products_with_sales(self, days: int = 60, search: str = None,
                                  limit: int = None, offset: int = None,
                                  sort_by: str = 'description', sort_order: str = 'asc') -> Dict[str, Any]:
