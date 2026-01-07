@@ -201,18 +201,51 @@ async function loadInventory(page = 1, search = "") {
 
   currentPage = page;
   currentSearch = search;
-  const offset = (page - 1) * itemsPerPage;
   const currentFilter = document.getElementById("inventory-filter").value;
 
+  // Show/hide containers based on view mode
+  const tableContainer = document.getElementById('inventory-table-container');
+  const cardsContainer = document.getElementById('supplier-cards-container');
+  const pagination = document.getElementById('inventory-pagination');
+
   try {
-    let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}`;
-    if (search) {
-      endpoint += `&search=${encodeURIComponent(search)}`;
+    let endpoint;
+
+    if (inventoryViewMode === 'grouped') {
+      // Grouped view: fetch ALL products (no pagination) to group by supplier
+      endpoint = `/products?limit=0&filter=${currentFilter}`;
+      if (search) {
+        endpoint += `&search=${encodeURIComponent(search)}`;
+      }
+      if (showExcludedProducts) {
+        endpoint += "&show_excluded=true";
+      }
+      // Sort by supplier for grouped view
+      endpoint += `&sort_by=last_supplier&sort_order=asc`;
+
+      tableContainer.style.display = 'none';
+      cardsContainer.style.display = '';
+      pagination.style.display = 'none';
+
+      // Show loading in cards container
+      document.getElementById('supplier-cards-grid').innerHTML =
+        '<div class="info-card"><p>Loading suppliers...</p></div>';
+    } else {
+      // Table view: use pagination
+      const offset = (page - 1) * itemsPerPage;
+      endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}`;
+      if (search) {
+        endpoint += `&search=${encodeURIComponent(search)}`;
+      }
+      if (showExcludedProducts) {
+        endpoint += "&show_excluded=true";
+      }
+      endpoint += `&sort_by=${inventorySortBy}&sort_order=${inventorySortOrder}`;
+
+      tableContainer.style.display = '';
+      cardsContainer.style.display = 'none';
+      pagination.style.display = '';
     }
-    if (showExcludedProducts) {
-      endpoint += "&show_excluded=true";
-    }
-    endpoint += `&sort_by=${inventorySortBy}&sort_order=${inventorySortOrder}`;
 
     const result = await api.get(endpoint);
 
@@ -224,28 +257,22 @@ async function loadInventory(page = 1, search = "") {
     totalProducts = result.total_count;
     totalPages = Math.ceil(totalProducts / itemsPerPage);
 
-    // Show correct view based on mode
-    const tableContainer = document.getElementById('inventory-table-container');
-    const cardsContainer = document.getElementById('supplier-cards-container');
-    const pagination = document.getElementById('inventory-pagination');
-
     if (inventoryViewMode === 'grouped') {
-      tableContainer.style.display = 'none';
-      cardsContainer.style.display = '';
-      pagination.style.display = 'none';
       renderGroupedView(allProducts);
     } else {
-      tableContainer.style.display = '';
-      cardsContainer.style.display = 'none';
-      pagination.style.display = '';
       renderInventoryTable(allProducts, true);
+      updatePagination();
     }
 
-    updatePagination();
     updateSortIndicators("inventory");
   } catch (error) {
     console.error("Error loading inventory:", error);
-    tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+    if (inventoryViewMode === 'grouped') {
+      document.getElementById('supplier-cards-grid').innerHTML =
+        `<div class="info-card"><p>Error: ${error.message}</p></div>`;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+    }
   }
 }
 
@@ -376,22 +403,8 @@ function setInventoryView(mode) {
     btn.classList.toggle('active', btn.dataset.view === mode);
   });
 
-  // Show/hide appropriate containers
-  const tableContainer = document.getElementById('inventory-table-container');
-  const cardsContainer = document.getElementById('supplier-cards-container');
-  const pagination = document.getElementById('inventory-pagination');
-
-  if (mode === 'table') {
-    tableContainer.style.display = '';
-    cardsContainer.style.display = 'none';
-    pagination.style.display = '';
-    renderInventoryTable(allProducts, true);
-  } else {
-    tableContainer.style.display = 'none';
-    cardsContainer.style.display = '';
-    pagination.style.display = 'none';
-    renderGroupedView(allProducts);
-  }
+  // Reload data - grouped view needs ALL products, table view uses pagination
+  loadInventory(mode === 'table' ? currentPage : 1, currentSearch);
 }
 
 // Render grouped view (supplier cards)

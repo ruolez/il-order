@@ -145,9 +145,12 @@ def get_products():
             return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
 
         search = request.args.get('search', '')
-        limit = int(request.args.get('limit', 100))
+        limit = int(request.args.get('limit', 100))  # 0 = no limit (fetch all)
         offset = int(request.args.get('offset', 0))
         status_filter = request.args.get('filter', 'all')  # all, reorder, stocked (healthy also accepted)
+
+        # Handle limit=0 as "no limit" for grouped view
+        no_pagination = (limit == 0)
         show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
         sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
@@ -241,13 +244,16 @@ def get_products():
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
 
-            # Apply pagination to filtered results
+            # Apply pagination to filtered results (unless no_pagination)
             total_count = len(filtered)
-            enriched = filtered[offset:offset + limit]
+            if no_pagination:
+                enriched = filtered
+            else:
+                enriched = filtered[offset:offset + limit]
         else:
             # "all" filter - use SQL-level pagination for maximum speed
-            # Exception: when sorting by last_supplier, we need to fetch all and sort in Python
-            use_python_pagination = sort_by == 'last_supplier'
+            # Exception: when sorting by last_supplier or no_pagination, we need to fetch all and sort in Python
+            use_python_pagination = sort_by == 'last_supplier' or no_pagination
 
             result = mssql.get_products_with_sales(
                 days=sales_period,
@@ -315,12 +321,15 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-            # Sort by last_supplier if requested, then apply pagination
+            # Sort by last_supplier if requested, then apply pagination (unless no_pagination)
             if use_python_pagination:
                 reverse_sort = sort_order == 'desc'
                 all_enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
                 total_count = len(all_enriched)
-                enriched = all_enriched[offset:offset + limit]
+                if no_pagination:
+                    enriched = all_enriched
+                else:
+                    enriched = all_enriched[offset:offset + limit]
             else:
                 enriched = all_enriched
 
