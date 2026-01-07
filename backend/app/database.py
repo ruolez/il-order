@@ -318,7 +318,7 @@ class MSSQLManager:
                 query += " AND (ProductUPC LIKE %s OR ProductDescription LIKE %s)"
                 params.extend([f'%{search}%', f'%{search}%'])
 
-            cursor.execute(query, params)
+            cursor.execute(query, tuple(params) if params else None)
             row = cursor.fetchone()
             return row['total'] if row else 0
 
@@ -343,7 +343,7 @@ class MSSQLManager:
             query += " ORDER BY ProductDescription"
             query += f" OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
 
-            cursor.execute(query, params)
+            cursor.execute(query, tuple(params) if params else None)
             return cursor.fetchall()
 
     def get_all_products(self, search: str = None) -> List[Dict[str, Any]]:
@@ -366,7 +366,7 @@ class MSSQLManager:
 
             query += " ORDER BY ProductDescription"
 
-            cursor.execute(query, params)
+            cursor.execute(query, tuple(params) if params else None)
             return cursor.fetchall()
 
     def get_product_by_upc(self, upc: str) -> Optional[Dict[str, Any]]:
