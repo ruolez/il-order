@@ -47,6 +47,14 @@
   --color-neutral-muted: rgba(175, 184, 193, 0.2);
   --color-neutral-subtle: #f6f8fa;
 
+  /* Dark Navbar Theme */
+  --color-navbar-bg: #1f2937;
+  --color-navbar-text: #f9fafb;
+  --color-navbar-hover: #374151;
+  --color-navbar-active-bg: #ffffff;
+  --color-navbar-active-text: #1f2937;
+  --color-navbar-border: #374151;
+
   /* Shadows (GitHub style - more subtle) */
   --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
   --shadow-md: 0 3px 6px rgba(140, 149, 159, 0.15);
@@ -96,8 +104,8 @@ body {
 
 /* Navigation */
 .navbar {
-  background-color: var(--color-canvas-subtle);
-  border-bottom: 1px solid var(--color-border-muted);
+  background-color: var(--color-navbar-bg);
+  border-bottom: 1px solid var(--color-navbar-border);
   padding: 0 var(--spacing-xl);
   display: flex;
   align-items: stretch;
@@ -121,7 +129,7 @@ body {
 .brand-text {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-fg-default);
+  color: var(--color-navbar-text);
 }
 
 .nav-links {
@@ -136,20 +144,21 @@ body {
   justify-content: center;
   padding: 0 40px;
   text-decoration: none;
-  color: var(--color-fg-default);
+  color: var(--color-navbar-text);
   font-weight: 500;
   font-size: 14px;
-  transition: background-color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-link:hover {
-  background-color: var(--color-neutral-muted);
-  color: var(--color-fg-default);
+  background-color: var(--color-navbar-hover);
+  color: var(--color-navbar-text);
 }
 
 .nav-link.active {
-  background-color: var(--color-accent-subtle);
-  color: var(--color-accent-fg);
+  background-color: var(--color-navbar-active-bg);
+  color: var(--color-navbar-active-text);
+  border-radius: var(--radius-md);
 }
 
 .nav-link.nav-icon {
@@ -158,7 +167,12 @@ body {
 }
 
 .nav-link.nav-icon svg {
-  transition: transform var(--transition-normal);
+  stroke: var(--color-navbar-text);
+  transition: transform var(--transition-normal), stroke var(--transition-fast);
+}
+
+.nav-link.nav-icon.active svg {
+  stroke: var(--color-navbar-active-text);
 }
 
 .nav-link.nav-icon:hover svg {
