@@ -145,6 +145,7 @@ def get_products():
         offset = int(request.args.get('offset', 0))
 
         products = mssql.get_products(search=search, limit=limit, offset=offset)
+        total_count = mssql.get_product_count(search=search)
 
         # Get settings for threshold calculation
         settings = pg.get_settings()
@@ -189,7 +190,10 @@ def get_products():
         return jsonify({
             'success': True,
             'products': enriched,
-            'count': len(enriched)
+            'count': len(enriched),
+            'total_count': total_count,
+            'limit': limit,
+            'offset': offset
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -304,7 +308,7 @@ def get_needs_reorder():
         if supplier_id:
             products = mssql.get_products_by_supplier(supplier_id)
         else:
-            products = mssql.get_products(limit=10000)
+            products = mssql.get_all_products()
 
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
@@ -387,7 +391,7 @@ def get_summary():
                 }
             })
 
-        products = mssql.get_products(limit=10000)
+        products = mssql.get_all_products()
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
 

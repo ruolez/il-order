@@ -24,6 +24,14 @@ const api = {
     }
 };
 
+// Pagination state
+const ITEMS_PER_PAGE = 100;
+let currentPage = 1;
+let totalPages = 1;
+let totalProducts = 0;
+let currentSearch = '';
+let pendingFilter = null;
+
 // Toast notifications
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
@@ -68,6 +76,12 @@ function navigateTo(pageName) {
             loadSettings();
             break;
     }
+}
+
+// Navigate to inventory with a specific filter pre-selected
+function navigateToInventoryWithFilter(filter) {
+    pendingFilter = filter;
+    navigateTo('inventory');
 }
 
 // Initialize navigation event listeners
@@ -118,23 +132,65 @@ async function loadDashboard() {
 // Inventory
 let allProducts = [];
 
-async function loadInventory() {
+async function loadInventory(page = 1, search = '') {
     const tbody = document.getElementById('inventory-tbody');
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading products...</td></tr>';
 
+    // Apply pending filter if exists
+    if (pendingFilter) {
+        document.getElementById('inventory-filter').value = pendingFilter;
+        pendingFilter = null;
+    }
+
+    currentPage = page;
+    currentSearch = search;
+    const offset = (page - 1) * ITEMS_PER_PAGE;
+
     try {
-        const result = await api.get('/products?limit=500');
+        let endpoint = `/products?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
+        if (search) {
+            endpoint += `&search=${encodeURIComponent(search)}`;
+        }
+
+        const result = await api.get(endpoint);
 
         if (!result.success) {
             throw new Error(result.error);
         }
 
         allProducts = result.products;
+        totalProducts = result.total_count;
+        totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
+
         renderInventoryTable(allProducts);
+        updatePagination();
 
     } catch (error) {
         console.error('Error loading inventory:', error);
         tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+    }
+}
+
+function updatePagination() {
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const pageInfo = document.getElementById('pagination-info');
+
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalProducts.toLocaleString()} products)`;
+}
+
+function loadPrevPage() {
+    if (currentPage > 1) {
+        loadInventory(currentPage - 1, currentSearch);
+    }
+}
+
+function loadNextPage() {
+    if (currentPage < totalPages) {
+        loadInventory(currentPage + 1, currentSearch);
     }
 }
 
@@ -192,19 +248,8 @@ function renderInventoryTable(products) {
 }
 
 function searchProducts() {
-    const searchTerm = document.getElementById('inventory-search').value.toLowerCase();
-
-    if (!searchTerm) {
-        renderInventoryTable(allProducts);
-        return;
-    }
-
-    const filtered = allProducts.filter(p =>
-        (p.ProductUPC && p.ProductUPC.toLowerCase().includes(searchTerm)) ||
-        (p.ProductDescription && p.ProductDescription.toLowerCase().includes(searchTerm))
-    );
-
-    renderInventoryTable(filtered);
+    const searchTerm = document.getElementById('inventory-search').value.trim();
+    loadInventory(1, searchTerm);
 }
 
 // Current product being viewed in modal
@@ -237,7 +282,7 @@ async function viewProduct(upc) {
 
         document.getElementById('modal-total-sold').textContent = salesData.total_sold.toLocaleString();
         document.getElementById('modal-invoice-count').textContent = salesData.invoice_count;
-        document.getElementById('modal-unit-cost').textContent = `$${(product.UnitCost || 0).toFixed(2)}`;
+        document.getElementById('modal-unit-cost').textContent = `$${parseFloat(product.UnitCost || 0).toFixed(2)}`;
         document.getElementById('modal-case-qty').textContent = product.UnitQty2 || 'N/A';
 
         // Populate override form
@@ -359,6 +404,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filterSelect) {
         filterSelect.addEventListener('change', () => {
             renderInventoryTable(allProducts);
+        });
+    }
+
+    // Search on Enter key
+    const searchInput = document.getElementById('inventory-search');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchProducts();
+            }
         });
     }
 });

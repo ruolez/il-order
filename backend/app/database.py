@@ -304,6 +304,24 @@ class MSSQLManager:
                 'error': str(e)
             }
 
+    def get_product_count(self, search: str = None) -> int:
+        """Get total count of products."""
+        with self.get_cursor() as cursor:
+            query = """
+                SELECT COUNT(*) as total
+                FROM Items_tbl
+                WHERE Discontinued = 0 OR Discontinued IS NULL
+            """
+            params = []
+
+            if search:
+                query += " AND (ProductUPC LIKE %s OR ProductDescription LIKE %s)"
+                params.extend([f'%{search}%', f'%{search}%'])
+
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+            return row['total'] if row else 0
+
     def get_products(self, search: str = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get products from Items_tbl."""
         with self.get_cursor() as cursor:
@@ -324,6 +342,29 @@ class MSSQLManager:
 
             query += " ORDER BY ProductDescription"
             query += f" OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
+
+            cursor.execute(query, params)
+            return cursor.fetchall()
+
+    def get_all_products(self, search: str = None) -> List[Dict[str, Any]]:
+        """Get all products without limit (for analysis)."""
+        with self.get_cursor() as cursor:
+            query = """
+                SELECT
+                    ProductID, ProductUPC, ProductSKU, ProductDescription,
+                    QuantOnHand, QuantOnOrder, ReorderLevel, ReorderQuant,
+                    UnitCost, UnitPrice, UnitQty2, UnitID2,
+                    LastReceived, LastSold, Discontinued
+                FROM Items_tbl
+                WHERE Discontinued = 0 OR Discontinued IS NULL
+            """
+            params = []
+
+            if search:
+                query += " AND (ProductUPC LIKE %s OR ProductDescription LIKE %s)"
+                params.extend([f'%{search}%', f'%{search}%'])
+
+            query += " ORDER BY ProductDescription"
 
             cursor.execute(query, params)
             return cursor.fetchall()
