@@ -56,13 +56,6 @@
                         <span class="stat-label">Need Reorder</span>
                     </div>
                 </div>
-                <div class="stat-card clickable" onclick="navigateToInventoryWithFilter('low')">
-                    <div class="stat-icon yellow"></div>
-                    <div class="stat-content">
-                        <span class="stat-value" id="stat-low">--</span>
-                        <span class="stat-label">Low Stock</span>
-                    </div>
-                </div>
                 <div class="stat-card clickable" onclick="navigateToInventoryWithFilter('healthy')">
                     <div class="stat-icon green"></div>
                     <div class="stat-content">
@@ -104,7 +97,6 @@
                     <select id="inventory-filter">
                         <option value="all">All Products</option>
                         <option value="reorder">Needs Reorder</option>
-                        <option value="low">Low Stock</option>
                         <option value="healthy">Healthy</option>
                     </select>
                 </div>

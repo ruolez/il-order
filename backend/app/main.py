@@ -179,13 +179,10 @@ def get_products():
 
                 qty_on_hand = product.get('QuantOnHand') or 0
                 needs_reorder = qty_on_hand < threshold
-                is_low = not needs_reorder and qty_on_hand < threshold * 1.5
-                is_healthy = qty_on_hand >= threshold * 1.5
+                is_healthy = not needs_reorder
 
                 # Apply filter
                 if status_filter == 'reorder' and not needs_reorder:
-                    continue
-                elif status_filter == 'low' and not is_low:
                     continue
                 elif status_filter == 'healthy' and not is_healthy:
                     continue
@@ -452,7 +449,6 @@ def get_summary():
 
         total_products = len(products)
         needs_reorder_count = 0
-        low_stock_count = 0
 
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
 
@@ -478,8 +474,6 @@ def get_summary():
 
             if qty_on_hand < threshold:
                 needs_reorder_count += 1
-            elif qty_on_hand < threshold * 1.5:
-                low_stock_count += 1
 
         return jsonify({
             'success': True,
@@ -487,8 +481,7 @@ def get_summary():
                 'configured': True,
                 'total_products': total_products,
                 'needs_reorder': needs_reorder_count,
-                'low_stock': low_stock_count,
-                'healthy': total_products - needs_reorder_count - low_stock_count,
+                'healthy': total_products - needs_reorder_count,
                 'settings': settings
             }
         })

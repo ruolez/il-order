@@ -120,7 +120,6 @@ async function loadDashboard() {
 
         document.getElementById('stat-total').textContent = summary.total_products.toLocaleString();
         document.getElementById('stat-reorder').textContent = summary.needs_reorder.toLocaleString();
-        document.getElementById('stat-low').textContent = summary.low_stock.toLocaleString();
         document.getElementById('stat-healthy').textContent = summary.healthy.toLocaleString();
 
         // Update timestamp
@@ -221,10 +220,8 @@ function renderInventoryTable(products, skipFilter = false) {
     if (!skipFilter) {
         if (filter === 'reorder') {
             filtered = products.filter(p => p.needs_reorder);
-        } else if (filter === 'low') {
-            filtered = products.filter(p => !p.needs_reorder && (p.QuantOnHand || 0) < (p.threshold || 0) * 1.5);
         } else if (filter === 'healthy') {
-            filtered = products.filter(p => (p.QuantOnHand || 0) >= (p.threshold || 0) * 1.5);
+            filtered = products.filter(p => !p.needs_reorder);
         }
     }
 
@@ -243,9 +240,6 @@ function renderInventoryTable(products, skipFilter = false) {
         if (product.needs_reorder) {
             statusClass = 'badge-error';
             statusText = 'Reorder';
-        } else if (qtyOnHand < threshold * 1.5) {
-            statusClass = 'badge-warning';
-            statusText = 'Low';
         }
 
         return `
