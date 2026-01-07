@@ -296,6 +296,17 @@
                             <input type="number" id="threshold-multiplier" value="1.0" step="0.1" min="0.5" max="3.0" />
                             <small>Multiply the monthly average by this value</small>
                         </div>
+                        <div class="form-group">
+                            <label for="items-per-page">Items Per Page</label>
+                            <select id="items-per-page">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                            <small>Number of products displayed per page in inventory</small>
+                        </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">Save Settings</button>
                         </div>

@@ -95,6 +95,9 @@ async function loadAnalysisSettings() {
             if (settings.threshold_multiplier) {
                 document.getElementById('threshold-multiplier').value = settings.threshold_multiplier;
             }
+            if (settings.items_per_page) {
+                document.getElementById('items-per-page').value = settings.items_per_page;
+            }
         }
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -107,7 +110,8 @@ async function saveAnalysisSettings(e) {
     const settings = {
         sales_period_days: document.getElementById('sales-period').value,
         order_period_weeks: document.getElementById('order-period').value,
-        threshold_multiplier: document.getElementById('threshold-multiplier').value
+        threshold_multiplier: document.getElementById('threshold-multiplier').value,
+        items_per_page: document.getElementById('items-per-page').value
     };
 
     try {

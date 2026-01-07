@@ -25,12 +25,26 @@ const api = {
 };
 
 // Pagination state
-const ITEMS_PER_PAGE = 100;
+let itemsPerPage = 100;  // Default, will be loaded from settings
 let currentPage = 1;
 let totalPages = 1;
 let totalProducts = 0;
 let currentSearch = '';
 let pendingFilter = null;
+
+// Load application settings (including items per page)
+async function loadAppSettings() {
+    try {
+        const result = await api.get('/settings');
+        if (result.success && result.settings) {
+            if (result.settings.items_per_page) {
+                itemsPerPage = parseInt(result.settings.items_per_page, 10);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading app settings:', error);
+    }
+}
 
 // Toast notifications
 function showToast(message, type = 'info') {
@@ -64,7 +78,7 @@ function navigateTo(pageName) {
             loadDashboard();
             break;
         case 'inventory':
-            loadInventory();
+            loadAppSettings().then(() => loadInventory());
             break;
         case 'orders':
             loadOrderPage();
@@ -85,7 +99,10 @@ function navigateToInventoryWithFilter(filter) {
 }
 
 // Initialize navigation event listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Load app settings first (includes items per page)
+    await loadAppSettings();
+
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -160,11 +177,11 @@ async function loadInventory(page = 1, search = '') {
 
     currentPage = page;
     currentSearch = search;
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const offset = (page - 1) * itemsPerPage;
     const currentFilter = document.getElementById('inventory-filter').value;
 
     try {
-        let endpoint = `/products?limit=${ITEMS_PER_PAGE}&offset=${offset}&filter=${currentFilter}`;
+        let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}`;
         if (search) {
             endpoint += `&search=${encodeURIComponent(search)}`;
         }
@@ -177,7 +194,7 @@ async function loadInventory(page = 1, search = '') {
 
         allProducts = result.products;
         totalProducts = result.total_count;
-        totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
+        totalPages = Math.ceil(totalProducts / itemsPerPage);
 
         renderInventoryTable(allProducts, true);  // Skip client-side filter
         updatePagination();
