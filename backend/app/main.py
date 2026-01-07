@@ -839,20 +839,18 @@ def export_order_excel(order_id):
 
         ws['A1'] = f"Order: {order['name'] or 'Untitled'}"
         ws['A1'].font = Font(bold=True, size=14)
-        ws['A2'] = f"Created: {order['created_at'].strftime('%Y-%m-%d %H:%M') if order['created_at'] else ''}"
-        ws['A3'] = f"Status: {order['status']}"
 
         # Write headers for selected columns only
         headers = [column_config[col]['header'] for col in selected_columns]
         for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=5, column=col_idx, value=header)
+            cell = ws.cell(row=3, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
 
         # Write data rows
-        for row_idx, item in enumerate(items, 6):
+        for row_idx, item in enumerate(items, 4):
             unit_qty2 = float(item['unit_qty2'] or 1)
             cases = int((item['final_qty'] or 0) / unit_qty2) if unit_qty2 > 0 else 0
             total = (item['final_qty'] or 0) * float(item['unit_cost'] or 0)
@@ -877,7 +875,7 @@ def export_order_excel(order_id):
                     cell.number_format = '$#,##0.00'
 
         # Summary row - only show if relevant columns are selected
-        summary_row = len(items) + 7
+        summary_row = len(items) + 5
         if 'order_qty' in selected_columns:
             order_qty_idx = selected_columns.index('order_qty') + 1
             # Put TOTALS label in column before order_qty, or in order_qty column if it's first
@@ -959,11 +957,7 @@ def export_order_pdf(order_id):
 
         title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, spaceAfter=12)
         elements.append(Paragraph(f"Order: {order['name'] or 'Untitled'}", title_style))
-
-        info_style = ParagraphStyle('Info', parent=styles['Normal'], fontSize=10, spaceAfter=6)
-        elements.append(Paragraph(f"Created: {order['created_at'].strftime('%Y-%m-%d %H:%M') if order['created_at'] else ''}", info_style))
-        elements.append(Paragraph(f"Status: {order['status']}", info_style))
-        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Spacer(1, 0.2*inch))
 
         # Build headers for selected columns
         headers = [column_config[col]['header'] for col in selected_columns]
