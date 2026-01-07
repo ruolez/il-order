@@ -362,6 +362,7 @@ def save_product_override(upc):
             exclude_from_orders=data.get('exclude_from_orders', False),
             manual_threshold=data.get('manual_threshold'),
             manual_order_qty=data.get('manual_order_qty'),
+            manual_unit_cost=data.get('manual_unit_cost'),
             notes=data.get('notes')
         )
 
@@ -535,6 +536,11 @@ def get_needs_reorder():
                 suggested_qty = 0
                 cases_needed = 0
 
+            # Determine effective unit cost (override or system)
+            effective_unit_cost = product.get('UnitCost') or 0
+            if override and override.get('manual_unit_cost') is not None:
+                effective_unit_cost = float(override['manual_unit_cost'])
+
             product_data = {
                 **product,
                 'threshold': int(threshold),
@@ -544,7 +550,9 @@ def get_needs_reorder():
                 'cases_needed': int(cases_needed),
                 'unit_qty2': unit_qty2,
                 'deficit': int(threshold - qty_on_hand),
-                'status': 'needs_reorder' if needs_reorder else 'sufficient'
+                'status': 'needs_reorder' if needs_reorder else 'sufficient',
+                'effective_unit_cost': effective_unit_cost,
+                'has_cost_override': override and override.get('manual_unit_cost') is not None
             }
 
             if filter_mode == 'all':

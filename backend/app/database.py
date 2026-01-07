@@ -88,6 +88,7 @@ class PostgresManager:
         """Run database migrations for schema updates."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Migration: Add exclude_from_orders column
             cursor.execute("""
                 DO $$
                 BEGIN
@@ -98,6 +99,20 @@ class PostgresManager:
                     ) THEN
                         ALTER TABLE product_overrides
                         ADD COLUMN exclude_from_orders BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;
+            """)
+            # Migration: Add manual_unit_cost column
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'product_overrides'
+                        AND column_name = 'manual_unit_cost'
+                    ) THEN
+                        ALTER TABLE product_overrides
+                        ADD COLUMN manual_unit_cost DECIMAL(12,2);
                     END IF;
                 END $$;
             """)
@@ -213,22 +228,24 @@ class PostgresManager:
 
     def save_product_override(self, product_upc: str, exclude_from_dynamic: bool = False,
                               exclude_from_orders: bool = False, manual_threshold: int = None,
-                              manual_order_qty: int = None, notes: str = None) -> int:
+                              manual_order_qty: int = None, manual_unit_cost: float = None,
+                              notes: str = None) -> int:
         """Save or update product override."""
         with self.get_cursor() as cursor:
             cursor.execute("""
-                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO product_overrides (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (product_upc) DO UPDATE SET
                     exclude_from_dynamic = %s,
                     exclude_from_orders = %s,
                     manual_threshold = %s,
                     manual_order_qty = %s,
+                    manual_unit_cost = %s,
                     notes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING id
-            """, (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes,
-                  exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, notes))
+            """, (product_upc, exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes,
+                  exclude_from_dynamic, exclude_from_orders, manual_threshold, manual_order_qty, manual_unit_cost, notes))
             result = cursor.fetchone()
             return result['id']
 

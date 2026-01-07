@@ -429,6 +429,11 @@ async function viewProduct(upc) {
     document.getElementById("modal-case-qty").textContent =
       product.UnitQty2 || "N/A";
 
+    // Set cost override placeholder to show current system cost
+    const systemCost = parseFloat(product.UnitCost || 0);
+    const costInput = document.getElementById("override-unit-cost");
+    costInput.placeholder = `Current: $${systemCost.toFixed(2)}`;
+
     // Populate override form
     if (override) {
       document.getElementById("override-exclude").checked =
@@ -437,11 +442,13 @@ async function viewProduct(upc) {
         override.manual_threshold || "";
       document.getElementById("override-order-qty").value =
         override.manual_order_qty || "";
+      costInput.value = override.manual_unit_cost != null ? override.manual_unit_cost : "";
       document.getElementById("override-notes").value = override.notes || "";
     } else {
       document.getElementById("override-exclude").checked = false;
       document.getElementById("override-threshold").value = "";
       document.getElementById("override-order-qty").value = "";
+      costInput.value = "";
       document.getElementById("override-notes").value = "";
     }
 
@@ -474,6 +481,9 @@ async function saveOverride(e) {
       : null,
     manual_order_qty: document.getElementById("override-order-qty").value
       ? parseInt(document.getElementById("override-order-qty").value)
+      : null,
+    manual_unit_cost: document.getElementById("override-unit-cost").value
+      ? parseFloat(document.getElementById("override-unit-cost").value)
       : null,
     notes: document.getElementById("override-notes").value || null,
   };
@@ -718,6 +728,9 @@ function getOrderData() {
       const product =
         loadedOrderProducts.find((p) => p.ProductUPC === upc) || {};
 
+      // Use effective_unit_cost if available (includes override), fallback to UnitCost
+      const unitCost = product.effective_unit_cost ?? product.UnitCost ?? 0;
+
       items.push({
         upc: upc,
         description: row.cells[3].textContent,
@@ -727,7 +740,7 @@ function getOrderData() {
           parseFloat(row.cells[6].textContent.replace(/,/g, "")) || 0,
         order_qty: parseInt(qtyInput ? qtyInput.value : 0) || 0,
         unit_qty2: product.unit_qty2 || 1,
-        unit_cost: product.UnitCost || 0,
+        unit_cost: unitCost,
       });
     }
   });
@@ -797,7 +810,9 @@ function updateOrderSummary() {
       const upc = row.dataset.upc;
       const product =
         loadedOrderProducts.find((p) => p.ProductUPC === upc) || {};
-      totalCost += qty * (product.UnitCost || 0);
+      // Use effective_unit_cost if available (includes override), fallback to UnitCost
+      const unitCost = product.effective_unit_cost ?? product.UnitCost ?? 0;
+      totalCost += qty * unitCost;
     }
   });
 

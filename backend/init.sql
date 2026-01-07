@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS product_overrides (
     exclude_from_orders BOOLEAN DEFAULT FALSE,
     manual_threshold INT,
     manual_order_qty INT,
+    manual_unit_cost DECIMAL(12,2),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
