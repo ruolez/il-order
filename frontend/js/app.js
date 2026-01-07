@@ -425,12 +425,15 @@ function renderGroupedView(products) {
         name: supplier,
         products: [],
         reorderCount: 0,
-        totalValue: 0
+        estimatedOrderCost: 0
       };
     }
     supplierGroups[supplier].products.push(p);
-    if (p.needs_reorder) supplierGroups[supplier].reorderCount++;
-    supplierGroups[supplier].totalValue += (parseFloat(p.UnitCost) || 0) * (p.QuantOnHand || 0);
+    if (p.needs_reorder) {
+      supplierGroups[supplier].reorderCount++;
+      // Calculate estimated order cost: suggested_qty × UnitCost
+      supplierGroups[supplier].estimatedOrderCost += (p.suggested_qty || 0) * (parseFloat(p.UnitCost) || 0);
+    }
   });
 
   // Sort suppliers: by name, but "No Supplier" at the end
@@ -459,7 +462,7 @@ function renderGroupedView(products) {
           <div class="supplier-card-stats">
             <span class="stat">${group.products.length} products</span>
             ${group.reorderCount > 0 ? `<span class="stat reorder">${group.reorderCount} need reorder</span>` : ''}
-            <span class="stat value">$${group.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            ${group.estimatedOrderCost > 0 ? `<span class="stat value">$${group.estimatedOrderCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} est. order</span>` : ''}
           </div>
         </div>
         <div class="supplier-card-arrow">

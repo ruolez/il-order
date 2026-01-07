@@ -155,9 +155,10 @@ def get_products():
         sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
 
-        # Get settings for threshold calculation
+        # Get settings for threshold and order calculation
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
+        order_period_weeks = int(settings.get('order_period_weeks', 4))
 
         # Get overrides for threshold calculation
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
@@ -207,6 +208,21 @@ def get_products():
                 qty_on_hand = product.get('QuantOnHand') or 0
                 needs_reorder = qty_on_hand < threshold
 
+                # Calculate suggested order quantity (same logic as needs-reorder endpoint)
+                unit_qty2 = product.get('UnitQty2') or 1
+                if unit_qty2 <= 0:
+                    unit_qty2 = 1
+
+                if needs_reorder:
+                    order_period_days = order_period_weeks * 7
+                    projected_need = daily_avg * order_period_days
+                    cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
+                    suggested_qty = int(cases_needed * unit_qty2)
+                    if override and override.get('manual_order_qty'):
+                        suggested_qty = override['manual_order_qty']
+                else:
+                    suggested_qty = 0
+
                 # Apply filter
                 if status_filter == 'reorder' and not needs_reorder:
                     continue
@@ -234,6 +250,7 @@ def get_products():
                     'monthly_average': int(math.ceil(monthly_avg)),
                     'daily_average': round(daily_avg, 2),
                     'needs_reorder': needs_reorder,
+                    'suggested_qty': suggested_qty,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override,
                     'last_supplier': last_suppliers.get(upc)
@@ -294,6 +311,22 @@ def get_products():
                     threshold_type = 'dynamic'
 
                 qty_on_hand = product.get('QuantOnHand') or 0
+                needs_reorder = qty_on_hand < threshold
+
+                # Calculate suggested order quantity (same logic as needs-reorder endpoint)
+                unit_qty2 = product.get('UnitQty2') or 1
+                if unit_qty2 <= 0:
+                    unit_qty2 = 1
+
+                if needs_reorder:
+                    order_period_days = order_period_weeks * 7
+                    projected_need = daily_avg * order_period_days
+                    cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
+                    suggested_qty = int(cases_needed * unit_qty2)
+                    if override and override.get('manual_order_qty'):
+                        suggested_qty = override['manual_order_qty']
+                else:
+                    suggested_qty = 0
 
                 all_enriched.append({
                     'ProductID': product['ProductID'],
@@ -315,7 +348,8 @@ def get_products():
                     'dynamic_threshold': int(dynamic_threshold),
                     'monthly_average': int(math.ceil(monthly_avg)),
                     'daily_average': round(daily_avg, 2),
-                    'needs_reorder': qty_on_hand < threshold,
+                    'needs_reorder': needs_reorder,
+                    'suggested_qty': suggested_qty,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override,
                     'last_supplier': last_suppliers.get(upc)
