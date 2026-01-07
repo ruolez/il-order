@@ -641,7 +641,7 @@ async function loadNeedsReorder() {
       .map((product) => {
         const needsReorder = product.status === "needs_reorder";
         const statusBadge = needsReorder
-          ? '<span class="badge badge-error">Needs Reorder</span>'
+          ? '<span class="badge badge-error">Reorder</span>'
           : '<span class="badge badge-success">In Stock</span>';
 
         return `
