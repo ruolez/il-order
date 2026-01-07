@@ -147,7 +147,7 @@ def get_products():
         search = request.args.get('search', '')
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
-        status_filter = request.args.get('filter', 'all')  # all, reorder, healthy
+        status_filter = request.args.get('filter', 'all')  # all, reorder, stocked (healthy also accepted)
         show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
         sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
@@ -207,7 +207,7 @@ def get_products():
                 # Apply filter
                 if status_filter == 'reorder' and not needs_reorder:
                     continue
-                elif status_filter == 'healthy' and needs_reorder:
+                elif status_filter in ('stocked', 'healthy') and needs_reorder:
                     continue
 
                 filtered.append({

@@ -74,7 +74,7 @@
           </div>
           <div
             class="stat-card clickable"
-            onclick="navigateToInventoryWithFilter('healthy')"
+            onclick="navigateToInventoryWithFilter('stocked')"
           >
             <div class="stat-icon green"></div>
             <div class="stat-content">
@@ -132,8 +132,30 @@
             <select id="inventory-filter">
               <option value="all">All Products</option>
               <option value="reorder">Needs Reorder</option>
-              <option value="healthy">Healthy</option>
+              <option value="stocked">Stocked</option>
             </select>
+            <div class="view-toggle">
+              <button type="button" class="view-toggle-btn active" data-view="table" onclick="setInventoryView('table')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                Table
+              </button>
+              <button type="button" class="view-toggle-btn" data-view="grouped" onclick="setInventoryView('grouped')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Grouped
+              </button>
+            </div>
             <label class="checkbox-label">
               <input
                 type="checkbox"
@@ -145,7 +167,7 @@
           </div>
         </div>
 
-        <div class="table-container scrollable-table">
+        <div class="table-container scrollable-table" id="inventory-table-container">
           <table class="data-table" id="inventory-table">
             <thead>
               <tr>
@@ -165,6 +187,12 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="supplier-cards-container" id="supplier-cards-container" style="display: none;">
+          <div class="supplier-cards-grid" id="supplier-cards-grid">
+            <!-- Supplier cards will be rendered here -->
+          </div>
         </div>
 
         <div class="pagination" id="inventory-pagination">

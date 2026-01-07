@@ -39,6 +39,14 @@ let inventorySortOrder = "asc";
 let ordersSortBy = null; // null = use default server sort
 let ordersSortOrder = "asc";
 
+// View mode state
+let inventoryViewMode = localStorage.getItem('inventoryViewMode') || 'table';
+
+// Pending order navigation state
+let pendingOrderSupplier = null;
+let pendingOrderFilter = null;
+let pendingOrderAutoLoad = false;
+
 // Load application settings (including items per page)
 async function loadAppSettings() {
   try {
@@ -186,6 +194,11 @@ async function loadInventory(page = 1, search = "") {
     pendingFilter = null;
   }
 
+  // Initialize view toggle buttons state
+  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === inventoryViewMode);
+  });
+
   currentPage = page;
   currentSearch = search;
   const offset = (page - 1) * itemsPerPage;
@@ -211,7 +224,23 @@ async function loadInventory(page = 1, search = "") {
     totalProducts = result.total_count;
     totalPages = Math.ceil(totalProducts / itemsPerPage);
 
-    renderInventoryTable(allProducts, true); // Skip client-side filter
+    // Show correct view based on mode
+    const tableContainer = document.getElementById('inventory-table-container');
+    const cardsContainer = document.getElementById('supplier-cards-container');
+    const pagination = document.getElementById('inventory-pagination');
+
+    if (inventoryViewMode === 'grouped') {
+      tableContainer.style.display = 'none';
+      cardsContainer.style.display = '';
+      pagination.style.display = 'none';
+      renderGroupedView(allProducts);
+    } else {
+      tableContainer.style.display = '';
+      cardsContainer.style.display = 'none';
+      pagination.style.display = '';
+      renderInventoryTable(allProducts, true);
+    }
+
     updatePagination();
     updateSortIndicators("inventory");
   } catch (error) {
@@ -252,7 +281,7 @@ function renderInventoryTable(products, skipFilter = false) {
   if (!skipFilter) {
     if (filter === "reorder") {
       filtered = products.filter((p) => p.needs_reorder);
-    } else if (filter === "healthy") {
+    } else if (filter === "stocked") {
       filtered = products.filter((p) => !p.needs_reorder);
     }
   }
@@ -335,6 +364,121 @@ function toggleShowExcluded() {
   const checkbox = document.getElementById("show-excluded-checkbox");
   showExcludedProducts = checkbox ? checkbox.checked : false;
   loadInventory(1, currentSearch);
+}
+
+// Set inventory view mode (table or grouped)
+function setInventoryView(mode) {
+  inventoryViewMode = mode;
+  localStorage.setItem('inventoryViewMode', mode);
+
+  // Update toggle button states
+  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === mode);
+  });
+
+  // Show/hide appropriate containers
+  const tableContainer = document.getElementById('inventory-table-container');
+  const cardsContainer = document.getElementById('supplier-cards-container');
+  const pagination = document.getElementById('inventory-pagination');
+
+  if (mode === 'table') {
+    tableContainer.style.display = '';
+    cardsContainer.style.display = 'none';
+    pagination.style.display = '';
+    renderInventoryTable(allProducts, true);
+  } else {
+    tableContainer.style.display = 'none';
+    cardsContainer.style.display = '';
+    pagination.style.display = 'none';
+    renderGroupedView(allProducts);
+  }
+}
+
+// Render grouped view (supplier cards)
+function renderGroupedView(products) {
+  const grid = document.getElementById('supplier-cards-grid');
+
+  if (!products || products.length === 0) {
+    grid.innerHTML = '<div class="info-card"><p>No products found</p></div>';
+    return;
+  }
+
+  // Group products by supplier
+  const supplierGroups = {};
+  products.forEach(p => {
+    const supplier = p.last_supplier || 'No Supplier';
+    if (!supplierGroups[supplier]) {
+      supplierGroups[supplier] = {
+        name: supplier,
+        products: [],
+        reorderCount: 0,
+        totalValue: 0
+      };
+    }
+    supplierGroups[supplier].products.push(p);
+    if (p.needs_reorder) supplierGroups[supplier].reorderCount++;
+    supplierGroups[supplier].totalValue += (parseFloat(p.UnitCost) || 0) * (p.QuantOnHand || 0);
+  });
+
+  // Sort suppliers: by name, but "No Supplier" at the end
+  const sortedSuppliers = Object.values(supplierGroups).sort((a, b) => {
+    if (a.name === 'No Supplier') return 1;
+    if (b.name === 'No Supplier') return -1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Render cards
+  grid.innerHTML = sortedSuppliers.map(group => {
+    const isNoSupplier = group.name === 'No Supplier';
+    const cardClass = isNoSupplier ? 'supplier-card no-supplier' : 'supplier-card';
+    const currentFilter = document.getElementById('inventory-filter').value;
+
+    return `
+      <div class="${cardClass}" onclick="navigateToOrdersWithSupplier('${escapeHtml(group.name)}', '${currentFilter}')">
+        <div class="supplier-card-content">
+          <div class="supplier-card-name">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            ${escapeHtml(group.name)}
+          </div>
+          <div class="supplier-card-stats">
+            <span class="stat">${group.products.length} products</span>
+            ${group.reorderCount > 0 ? `<span class="stat reorder">${group.reorderCount} need reorder</span>` : ''}
+            <span class="stat value">$${group.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          </div>
+        </div>
+        <div class="supplier-card-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Navigate to Orders page with supplier and filter pre-selected
+function navigateToOrdersWithSupplier(supplierName, inventoryFilter) {
+  // Map inventory filter to orders filter
+  const filterMap = {
+    'all': 'all',
+    'reorder': 'needs_reorder',
+    'stocked': 'sufficient'
+  };
+
+  pendingOrderSupplier = supplierName;
+  pendingOrderFilter = filterMap[inventoryFilter] || 'all';
+  pendingOrderAutoLoad = true;
+  navigateTo('orders');
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Sorting functions for Inventory table
@@ -613,11 +757,47 @@ async function loadOrderPage() {
 
       result.suppliers.forEach((supplier) => {
         select.innerHTML += `
-                    <option value="${supplier.SupplierID}">
+                    <option value="${supplier.SupplierID}" data-name="${escapeHtml(supplier.BusinessName)}">
                         ${supplier.BusinessName} (${supplier.order_count} orders)
                     </option>
                 `;
       });
+
+      // Handle pending supplier selection from inventory grouped view
+      if (pendingOrderSupplier) {
+        // Find supplier option by name
+        const options = select.options;
+        let found = false;
+
+        for (let i = 0; i < options.length; i++) {
+          const optionName = options[i].dataset.name || options[i].textContent.split(' (')[0].trim();
+          if (optionName === pendingOrderSupplier ||
+              (pendingOrderSupplier === 'No Supplier' && options[i].value === '')) {
+            select.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+
+        // If supplier name was "No Supplier", select "All Suppliers"
+        if (!found && pendingOrderSupplier === 'No Supplier') {
+          select.selectedIndex = 0;
+        }
+
+        pendingOrderSupplier = null;
+      }
+
+      // Handle pending filter
+      if (pendingOrderFilter) {
+        document.getElementById('order-filter').value = pendingOrderFilter;
+        pendingOrderFilter = null;
+      }
+
+      // Auto-load products if requested
+      if (pendingOrderAutoLoad) {
+        pendingOrderAutoLoad = false;
+        loadNeedsReorder();
+      }
     }
   } catch (error) {
     console.error("Error loading suppliers:", error);
