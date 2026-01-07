@@ -652,7 +652,7 @@ async function loadNeedsReorder() {
         const needsReorder = product.status === "needs_reorder";
         const statusBadge = needsReorder
           ? '<span class="badge badge-error">Reorder</span>'
-          : '<span class="badge badge-success">In Stock</span>';
+          : '<span class="badge badge-success">OK</span>';
 
         return `
                 <tr data-upc="${product.ProductUPC}" class="${needsReorder ? "" : "row-sufficient"}">
