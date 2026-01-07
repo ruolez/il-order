@@ -264,3 +264,8 @@ curl -fsSL https://raw.githubusercontent.com/ruolez/il-order/main/install.sh | s
 - No passwords returned in GET /api/sql-config
 - CORS configurable for production (not wide open)
 - Run behind reverse proxy with HTTPS in production
+
+## Workflow Reminders
+
+- **Always push to GitHub** after completing a feature or fix
+- Use conventional commits format (feat:, fix:, etc.)
