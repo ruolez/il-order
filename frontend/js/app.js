@@ -436,11 +436,11 @@ function renderGroupedView(products) {
     }
   });
 
-  // Sort suppliers: by name, but "No Supplier" at the end
+  // Sort by estimated order cost (high to low), "No Supplier" always at the end
   const sortedSuppliers = Object.values(supplierGroups).sort((a, b) => {
     if (a.name === 'No Supplier') return 1;
     if (b.name === 'No Supplier') return -1;
-    return a.name.localeCompare(b.name);
+    return b.estimatedOrderCost - a.estimatedOrderCost;
   });
 
   // Render cards
