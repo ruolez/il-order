@@ -629,7 +629,7 @@ async function loadNeedsReorder() {
           : filterMode === "sufficient"
             ? "No products with sufficient stock"
             : "No products found";
-      tbody.innerHTML = `<tr><td colspan="10" class="loading">${emptyMessage}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="loading">${emptyMessage}</td></tr>`;
       loadedOrderProducts = [];
       updateOrderSummary();
       return;
@@ -662,6 +662,7 @@ async function loadNeedsReorder() {
                                onchange="updateCases(this); updateOrderSummary();" />
                     </td>
                     <td class="cases-cell">${product.cases_needed}</td>
+                    <td><button class="action-btn view" onclick="viewProduct('${product.ProductUPC}')">View</button></td>
                 </tr>
             `;
       })
@@ -675,7 +676,7 @@ async function loadNeedsReorder() {
     updateSortIndicators("orders");
   } catch (error) {
     console.error("Error loading products:", error);
-    tbody.innerHTML = `<tr><td colspan="10" class="loading">Error: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="loading">Error: ${error.message}</td></tr>`;
     loadedOrderProducts = [];
     updateOrderSummary();
   }
