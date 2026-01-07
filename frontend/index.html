@@ -165,6 +165,7 @@
           <table class="data-table" id="inventory-table">
             <thead>
               <tr>
+                <th><input type="checkbox" id="inventory-select-all" onchange="toggleInventorySelectAll(this)" /></th>
                 <th class="sortable" data-sort="upc" onclick="sortInventory('upc')">UPC<span class="sort-indicator"></span></th>
                 <th class="sortable" data-sort="description" onclick="sortInventory('description')">Description<span class="sort-indicator"></span></th>
                 <th class="sortable" data-sort="on_hand" onclick="sortInventory('on_hand')">On Hand<span class="sort-indicator"></span></th>
@@ -172,12 +173,15 @@
                 <th class="sortable" data-sort="threshold" onclick="sortInventory('threshold')">Threshold<span class="sort-indicator"></span></th>
                 <th class="sortable" data-sort="last_supplier" onclick="sortInventory('last_supplier')">Last Supplier<span class="sort-indicator"></span></th>
                 <th class="sortable" data-sort="status" onclick="sortInventory('status')">Status<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="suggested_qty" onclick="sortInventory('suggested_qty')">Suggested Qty<span class="sort-indicator"></span></th>
+                <th>Order Qty</th>
+                <th>Cases</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="inventory-tbody">
               <tr>
-                <td colspan="8" class="loading">Loading products...</td>
+                <td colspan="12" class="loading">Loading products...</td>
               </tr>
             </tbody>
           </table>
@@ -204,6 +208,18 @@
             onclick="loadNextPage()"
           >
             Next →
+          </button>
+        </div>
+
+        <!-- Floating Export Bar for Inventory -->
+        <div id="inventory-export-bar" class="floating-export-bar hidden">
+          <span id="inventory-selected-count" class="selected-count">0 items selected</span>
+          <button onclick="clearInventorySelection()" class="btn-clear-selection">Clear</button>
+          <button onclick="exportInventoryToExcel()" class="btn-export-excel">
+            Export Excel
+          </button>
+          <button onclick="exportInventoryToPDF()" class="btn-export-pdf">
+            Export PDF
           </button>
         </div>
       </div>

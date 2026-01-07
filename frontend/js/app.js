@@ -63,6 +63,9 @@ let cachedSupplierGroups = {};
 // Excluded suppliers cache (for grouped view)
 let excludedSuppliers = new Set();
 
+// Inventory selection state (for export from inventory)
+let inventorySelectedItems = new Map(); // UPC -> product data
+
 // Load application settings (including items per page)
 async function loadAppSettings() {
   try {
@@ -425,7 +428,7 @@ function renderInventoryTable(products, skipFilter = false) {
 
   if (filtered.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="8" class="loading">No products found</td></tr>';
+      '<tr><td colspan="12" class="loading">No products found</td></tr>';
     return;
   }
 
@@ -434,6 +437,15 @@ function renderInventoryTable(products, skipFilter = false) {
       const qtyOnHand = product.QuantOnHand || 0;
       const threshold = product.threshold || 0;
       const isExcluded = product.excluded || false;
+      const suggestedQty = product.suggested_qty || 0;
+      const unitQty2 = product.UnitQty2 || 1;
+      const upc = product.ProductUPC || "";
+
+      // Check if this product is already selected
+      const isSelected = inventorySelectedItems.has(upc);
+      // Use stored order_qty if selected, otherwise use suggested_qty
+      const orderQty = isSelected ? (inventorySelectedItems.get(upc).order_qty || suggestedQty) : suggestedQty;
+      const cases = Math.ceil(orderQty / unitQty2);
 
       let statusClass = "badge-success";
       let statusText = "OK";
@@ -448,33 +460,233 @@ function renderInventoryTable(products, skipFilter = false) {
 
       const rowClass = isExcluded ? "product-excluded" : "";
       const excludeBtn = isExcluded
-        ? `<button class="action-btn include" onclick="toggleExclude('${product.ProductUPC}')">Include</button>`
-        : `<button class="action-btn exclude" onclick="toggleExclude('${product.ProductUPC}')">Exclude</button>`;
+        ? `<button class="action-btn include" onclick="toggleExclude('${upc}')">Include</button>`
+        : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
 
       return `
-            <tr class="${rowClass}">
-                <td>${product.ProductUPC || "-"}</td>
+            <tr class="${rowClass}" data-upc="${upc}">
+                <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? 'checked' : ''} onchange="handleInventoryCheckboxChange(this)" /></td>
+                <td>${upc || "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyOnHand.toLocaleString()}</td>
-                <td>${(product.UnitQty2 || 0).toLocaleString()}</td>
+                <td>${unitQty2.toLocaleString()}</td>
                 <td>
                     ${threshold.toLocaleString()}
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
                 </td>
                 <td class="supplier-cell" title="${product.last_supplier || ''}">${product.last_supplier || '-'}</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>${suggestedQty.toLocaleString()}</td>
                 <td>
-                    <button class="action-btn view" onclick="viewProduct('${product.ProductUPC}')">View</button>
+                    <input type="number" class="inventory-order-qty-input"
+                           value="${orderQty}"
+                           min="0"
+                           data-upc="${upc}"
+                           data-unit-qty="${unitQty2}"
+                           onchange="updateInventoryCases(this)" />
+                </td>
+                <td class="inventory-cases-cell">${cases}</td>
+                <td>
+                    <button class="action-btn view" onclick="viewProduct('${upc}')">View</button>
                     ${excludeBtn}
                 </td>
             </tr>
         `;
     })
     .join("");
+
+  // Update select all checkbox state
+  updateInventorySelectAllState();
+}
+
+// ============== Inventory Selection Functions ==============
+
+// Handle individual checkbox change in inventory table
+function handleInventoryCheckboxChange(checkbox) {
+  const upc = checkbox.dataset.upc;
+  const row = checkbox.closest('tr');
+
+  if (checkbox.checked) {
+    // Extract and store product data from the row
+    const product = allProducts.find(p => p.ProductUPC === upc) || {};
+    const orderQtyInput = row.querySelector('.inventory-order-qty-input');
+    const orderQty = parseInt(orderQtyInput?.value) || 0;
+    const unitQty2 = product.UnitQty2 || 1;
+
+    inventorySelectedItems.set(upc, {
+      upc: upc,
+      description: product.ProductDescription || row.cells[2]?.textContent || '-',
+      on_hand: product.QuantOnHand || 0,
+      case_qty: unitQty2,
+      threshold: product.threshold || 0,
+      suggested_qty: product.suggested_qty || 0,
+      order_qty: orderQty,
+      cases: Math.ceil(orderQty / unitQty2),
+      unit_cost: parseFloat(product.UnitCost) || 0
+    });
+  } else {
+    inventorySelectedItems.delete(upc);
+  }
+
+  updateInventoryExportBar();
+  updateInventorySelectAllState();
+}
+
+// Update cases column when order qty changes
+function updateInventoryCases(input) {
+  const qty = parseInt(input.value) || 0;
+  const unitQty = parseFloat(input.dataset.unitQty) || 1;
+  const cases = Math.ceil(qty / unitQty);
+  const row = input.closest('tr');
+  const casesCell = row.querySelector('.inventory-cases-cell');
+  if (casesCell) {
+    casesCell.textContent = cases;
+  }
+
+  // Update stored data if item is checked
+  const checkbox = row.querySelector('.inventory-checkbox');
+  const upc = input.dataset.upc;
+  if (checkbox && checkbox.checked && upc && inventorySelectedItems.has(upc)) {
+    const data = inventorySelectedItems.get(upc);
+    data.order_qty = qty;
+    data.cases = cases;
+  }
+}
+
+// Show/hide floating export bar based on selection count
+function updateInventoryExportBar() {
+  const bar = document.getElementById('inventory-export-bar');
+  if (!bar) return;
+
+  const count = inventorySelectedItems.size;
+  if (count > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('inventory-selected-count').textContent =
+      `${count} item${count !== 1 ? 's' : ''} selected`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+// Toggle select all checkbox in inventory table header
+function toggleInventorySelectAll(checkbox) {
+  const checkboxes = document.querySelectorAll('.inventory-checkbox');
+
+  checkboxes.forEach(cb => {
+    if (cb.checked !== checkbox.checked) {
+      cb.checked = checkbox.checked;
+      handleInventoryCheckboxChange(cb);
+    }
+  });
+}
+
+// Update select all checkbox state based on individual selections
+function updateInventorySelectAllState() {
+  const selectAll = document.getElementById('inventory-select-all');
+  if (!selectAll) return;
+
+  const checkboxes = document.querySelectorAll('.inventory-checkbox');
+  if (checkboxes.length === 0) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+    return;
+  }
+
+  const checkedCount = document.querySelectorAll('.inventory-checkbox:checked').length;
+  selectAll.checked = checkedCount === checkboxes.length;
+  selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+}
+
+// Clear all inventory selections
+function clearInventorySelection() {
+  inventorySelectedItems.clear();
+  document.querySelectorAll('.inventory-checkbox').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('inventory-select-all');
+  if (selectAll) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+  }
+  updateInventoryExportBar();
+}
+
+// Export selected inventory items to Excel
+async function exportInventoryToExcel() {
+  if (inventorySelectedItems.size === 0) {
+    showToast('No items selected', 'error');
+    return;
+  }
+
+  const items = Array.from(inventorySelectedItems.values());
+
+  try {
+    const response = await fetch('/api/inventory/export/excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast('Excel exported successfully!', 'success');
+    } else {
+      const error = await response.json();
+      throw new Error(error.error || 'Export failed');
+    }
+  } catch (error) {
+    console.error('Error exporting to Excel:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+// Export selected inventory items to PDF
+async function exportInventoryToPDF() {
+  if (inventorySelectedItems.size === 0) {
+    showToast('No items selected', 'error');
+    return;
+  }
+
+  const items = Array.from(inventorySelectedItems.values());
+
+  try {
+    const response = await fetch('/api/inventory/export/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-export-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast('PDF exported successfully!', 'success');
+    } else {
+      const error = await response.json();
+      throw new Error(error.error || 'Export failed');
+    }
+  } catch (error) {
+    console.error('Error exporting to PDF:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
 }
 
 function searchProducts() {
   const searchTerm = document.getElementById("inventory-search").value.trim();
+  // Clear selections when search changes
+  clearInventorySelection();
   loadInventory(1, searchTerm);
 }
 
@@ -947,6 +1159,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterSelect = document.getElementById("inventory-filter");
   if (filterSelect) {
     filterSelect.addEventListener("change", () => {
+      // Clear selections when filter changes
+      clearInventorySelection();
       // Reload from server with new filter
       loadInventory(1, currentSearch);
     });

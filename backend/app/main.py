@@ -1194,5 +1194,214 @@ def export_order_pdf(order_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============== Inventory Direct Export Endpoints ==============
+
+@app.route('/api/inventory/export/excel', methods=['POST'])
+def export_inventory_excel():
+    """Export selected inventory items directly to Excel file."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        data = request.get_json()
+        items = data.get('items', [])
+
+        if not items:
+            return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Inventory Export"
+
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1a73e8", end_color="1a73e8", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Summary section
+        ws['A1'] = "Inventory Export"
+        ws['A1'].font = Font(bold=True, size=14)
+
+        export_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        ws['A2'] = f"Date: {export_date}"
+
+        total_items = len(items)
+        total_units = sum(item.get('order_qty', 0) for item in items)
+        total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
+
+        ws['C2'] = f"Items: {total_items}"
+        ws['E2'] = f"Total Units: {total_units:,}"
+        ws['G2'] = f"Est. Cost: ${total_cost:,.2f}"
+
+        # Headers
+        headers = ['UPC', 'Description', 'On Hand', 'Case Qty', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+
+        # Data rows
+        for row_idx, item in enumerate(items, 5):
+            order_qty = item.get('order_qty', 0)
+            unit_cost = float(item.get('unit_cost', 0))
+            cases = item.get('cases', 0)
+            total = order_qty * unit_cost
+
+            row_data = [
+                item.get('upc', ''),
+                item.get('description', ''),
+                item.get('on_hand', 0),
+                item.get('case_qty', 1),
+                item.get('threshold', 0),
+                item.get('suggested_qty', 0),
+                order_qty,
+                cases,
+                unit_cost,
+                total
+            ]
+
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = thin_border
+                if col_idx in [9, 10]:  # Unit Cost, Total
+                    cell.number_format = '$#,##0.00'
+
+        # Totals row
+        summary_row = len(items) + 6
+        ws.cell(row=summary_row, column=6, value="TOTALS:").font = Font(bold=True)
+        ws.cell(row=summary_row, column=7, value=total_units).font = Font(bold=True)
+        ws.cell(row=summary_row, column=10, value=total_cost).font = Font(bold=True)
+        ws.cell(row=summary_row, column=10).number_format = '$#,##0.00'
+
+        # Column widths
+        col_widths = [15, 40, 10, 10, 10, 13, 11, 8, 11, 11]
+        for idx, width in enumerate(col_widths):
+            ws.column_dimensions['ABCDEFGHIJ'[idx]].width = width
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"inventory-export-{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except ImportError:
+        return jsonify({'success': False, 'error': 'openpyxl not installed'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/inventory/export/pdf', methods=['POST'])
+def export_inventory_pdf():
+    """Export selected inventory items directly to PDF file."""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+        data = request.get_json()
+        items = data.get('items', [])
+
+        if not items:
+            return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+        output = BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Title
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, spaceAfter=6)
+        elements.append(Paragraph("Inventory Export", title_style))
+
+        # Summary
+        export_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        total_items = len(items)
+        total_units = sum(item.get('order_qty', 0) for item in items)
+        total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
+
+        summary_style = ParagraphStyle('Summary', parent=styles['Normal'], fontSize=10, spaceAfter=12)
+        summary_text = f"Date: {export_date}  |  Items: {total_items}  |  Total Units: {total_units:,}  |  Est. Cost: ${total_cost:,.2f}"
+        elements.append(Paragraph(summary_text, summary_style))
+        elements.append(Spacer(1, 0.2*inch))
+
+        # Table headers
+        headers = ['UPC', 'Description', 'On Hand', 'Case Qty', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        table_data = [headers]
+
+        # Table rows
+        for item in items:
+            order_qty = item.get('order_qty', 0)
+            unit_cost = float(item.get('unit_cost', 0))
+            total = order_qty * unit_cost
+
+            row = [
+                item.get('upc', '') or '',
+                (item.get('description', '') or '')[:30],
+                str(int(item.get('on_hand', 0))),
+                str(int(item.get('case_qty', 1))),
+                str(int(item.get('threshold', 0))),
+                str(int(item.get('suggested_qty', 0))),
+                str(int(order_qty)),
+                str(int(item.get('cases', 0))),
+                f"${unit_cost:.2f}",
+                f"${total:.2f}"
+            ]
+            table_data.append(row)
+
+        # Totals row
+        totals_row = ['', '', '', '', '', 'TOTALS:', str(int(total_units)), '', '', f"${total_cost:.2f}"]
+        table_data.append(totals_row)
+
+        # Column widths
+        col_widths = [1.0*inch, 2.0*inch, 0.6*inch, 0.6*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.5*inch, 0.75*inch, 0.8*inch]
+
+        table = Table(table_data, colWidths=col_widths)
+
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Description left-aligned
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0f0f0')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+        ]
+
+        table.setStyle(TableStyle(table_style))
+        elements.append(table)
+        doc.build(elements)
+        output.seek(0)
+
+        filename = f"inventory-export-{datetime.now().strftime('%Y%m%d')}.pdf"
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except ImportError:
+        return jsonify({'success': False, 'error': 'reportlab not installed'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
