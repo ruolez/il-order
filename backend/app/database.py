@@ -668,10 +668,10 @@ class MSSQLManager:
 
             # Build WHERE clause for search
             search_clause = ""
-            params = [days]
+            search_params = []
             if search:
                 search_clause = "AND (i.ProductUPC LIKE %s OR i.ProductDescription LIKE %s)"
-                params.extend([f'%{search}%', f'%{search}%'])
+                search_params = [f'%{search}%', f'%{search}%']
 
             # Build pagination clause
             pagination_clause = ""
@@ -708,8 +708,8 @@ class MSSQLManager:
                 {pagination_clause}
             """
 
-            # Add days parameter twice more for the calculations
-            params.extend([days, days])
+            # Parameters in correct order: days (CTE), days (monthly calc), days (daily calc), then search
+            params = [days, days, days] + search_params
 
             cursor.execute(query, tuple(params))
             products = cursor.fetchall()
