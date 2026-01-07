@@ -1267,6 +1267,22 @@ input[type="checkbox"] {
   opacity: 1;
 }
 
+/* Historical supplier row styling (product was ordered from this supplier but they're not the most recent) */
+.row-historical-supplier {
+  background-color: #fff8c5;
+  border-left: 3px solid var(--color-attention-emphasis);
+}
+
+.row-historical-supplier:hover {
+  background-color: #fff3cd;
+}
+
+/* When combined with row-sufficient (historical + sufficient stock) */
+.row-historical-supplier.row-sufficient {
+  background-color: #fff8c5;
+  opacity: 0.9;
+}
+
 /* Exclude/Include action buttons */
 .action-btn.exclude {
   background-color: var(--color-attention-subtle);

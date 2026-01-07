@@ -1018,6 +1018,8 @@ async function loadOrderPage() {
 
 async function loadNeedsReorder() {
   const supplierId = document.getElementById("supplier-select").value;
+  const supplierSelect = document.getElementById("supplier-select");
+  const selectedSupplierName = supplierSelect.selectedOptions[0]?.dataset.name || null;
   const filterMode = document.getElementById("order-filter").value;
   const container = document.getElementById("order-items-container");
   const tbody = document.getElementById("order-tbody");
@@ -1044,7 +1046,8 @@ async function loadNeedsReorder() {
           suggested_qty: suggestedQty,
           cases_needed: Math.ceil(suggestedQty / unitQty2),
           status: p.needs_reorder ? 'needs_reorder' : 'sufficient',
-          UnitCost: p.UnitCost
+          UnitCost: p.UnitCost,
+          last_supplier: p.last_supplier
         };
       });
 
@@ -1107,16 +1110,51 @@ async function loadNeedsReorder() {
 
     loadedOrderProducts = products;
 
+    // Sort products: current supplier first, then historical supplier, then sufficient
+    if (selectedSupplierName) {
+      products.sort((a, b) => {
+        const aHistorical = a.last_supplier && a.last_supplier !== selectedSupplierName;
+        const bHistorical = b.last_supplier && b.last_supplier !== selectedSupplierName;
+        const aNeedsReorder = a.status === 'needs_reorder';
+        const bNeedsReorder = b.status === 'needs_reorder';
+
+        // Primary: needs_reorder first, sufficient last
+        if (aNeedsReorder !== bNeedsReorder) {
+          return aNeedsReorder ? -1 : 1;
+        }
+
+        // Secondary: within needs_reorder, current supplier before historical
+        if (aNeedsReorder && bNeedsReorder) {
+          if (aHistorical !== bHistorical) {
+            return aHistorical ? 1 : -1;
+          }
+        }
+
+        // Tertiary: by description
+        return (a.ProductDescription || '').localeCompare(b.ProductDescription || '');
+      });
+    }
+
     tbody.innerHTML = products
       .map((product) => {
         const needsReorder = product.status === "needs_reorder";
+        const isHistoricalSupplier = selectedSupplierName &&
+          product.last_supplier &&
+          product.last_supplier !== selectedSupplierName;
         const statusBadge = needsReorder
           ? '<span class="badge badge-error">Reorder</span>'
           : '<span class="badge badge-success">OK</span>';
-        const shouldCheck = needsReorder && product.suggested_qty > 0;
+        // Only auto-check if needs_reorder AND has suggested qty AND is NOT historical supplier
+        const shouldCheck = needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
+
+        // Build row classes
+        const rowClasses = [];
+        if (!needsReorder) rowClasses.push("row-sufficient");
+        if (isHistoricalSupplier) rowClasses.push("row-historical-supplier");
+        const rowClass = rowClasses.join(" ");
 
         return `
-                <tr data-upc="${product.ProductUPC}" class="${needsReorder ? "" : "row-sufficient"}">
+                <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC || "-"}</td>
@@ -1139,9 +1177,12 @@ async function loadNeedsReorder() {
       })
       .join("");
 
-    const hasSelectableItems = products.some(
-      (p) => p.status === "needs_reorder" && p.suggested_qty > 0,
-    );
+    const hasSelectableItems = products.some((p) => {
+      const isHistorical = selectedSupplierName &&
+        p.last_supplier &&
+        p.last_supplier !== selectedSupplierName;
+      return p.status === "needs_reorder" && p.suggested_qty > 0 && !isHistorical;
+    });
     document.getElementById("select-all-orders").checked = hasSelectableItems;
     updateOrderSummary();
     updateSortIndicators("orders");

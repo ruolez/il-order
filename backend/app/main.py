@@ -635,6 +635,7 @@ def get_needs_reorder():
         excluded_upcs = pg.get_excluded_upcs()
 
         all_sales_data = mssql.get_all_sales_data(sales_period)
+        last_suppliers = mssql.get_last_suppliers_for_products()
 
         for product in products:
             upc = product['ProductUPC']
@@ -691,7 +692,8 @@ def get_needs_reorder():
                 'deficit': int(threshold - qty_on_hand),
                 'status': 'needs_reorder' if needs_reorder else 'sufficient',
                 'effective_unit_cost': effective_unit_cost,
-                'has_cost_override': override and override.get('manual_unit_cost') is not None
+                'has_cost_override': override and override.get('manual_unit_cost') is not None,
+                'last_supplier': last_suppliers.get(upc)
             }
 
             if filter_mode == 'all':
