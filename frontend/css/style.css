@@ -129,6 +129,22 @@ body {
   color: var(--primary);
 }
 
+.nav-link.nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm);
+  margin-left: var(--spacing-sm);
+}
+
+.nav-link.nav-icon svg {
+  transition: transform var(--transition-fast);
+}
+
+.nav-link.nav-icon:hover svg {
+  transform: rotate(45deg);
+}
+
 /* Main container */
 .container {
   max-width: 1400px;
