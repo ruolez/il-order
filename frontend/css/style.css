@@ -98,13 +98,14 @@ body {
 .navbar {
   background-color: var(--color-canvas-subtle);
   border-bottom: 1px solid var(--color-border-muted);
-  padding: var(--spacing-md) var(--spacing-xl);
+  padding: 0 var(--spacing-xl);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
+  min-height: 48px;
 }
 
 .nav-brand {
@@ -125,18 +126,20 @@ body {
 
 .nav-links {
   display: flex;
+  align-items: stretch;
   gap: 0;
 }
 
 .nav-link {
-  padding: 6px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40px;
   text-decoration: none;
   color: var(--color-fg-default);
   font-weight: 500;
   font-size: 14px;
-  border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
-  text-align: center;
 }
 
 .nav-link:hover {
@@ -150,10 +153,7 @@ body {
 }
 
 .nav-link.nav-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
+  padding: 0 16px;
   margin-left: var(--spacing-sm);
 }
 
