@@ -13,7 +13,6 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-brand">
-            <span class="brand-icon">📦</span>
             <span class="brand-text">IL-Order</span>
         </div>
         <div class="nav-links">
@@ -36,28 +35,28 @@
 
             <div class="stats-grid" id="dashboard-stats">
                 <div class="stat-card">
-                    <div class="stat-icon blue">📊</div>
+                    <div class="stat-icon blue"></div>
                     <div class="stat-content">
                         <span class="stat-value" id="stat-total">--</span>
                         <span class="stat-label">Total Products</span>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon red">⚠️</div>
+                    <div class="stat-icon red"></div>
                     <div class="stat-content">
                         <span class="stat-value" id="stat-reorder">--</span>
                         <span class="stat-label">Need Reorder</span>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon yellow">📉</div>
+                    <div class="stat-icon yellow"></div>
                     <div class="stat-content">
                         <span class="stat-value" id="stat-low">--</span>
                         <span class="stat-label">Low Stock</span>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon green">✅</div>
+                    <div class="stat-icon green"></div>
                     <div class="stat-content">
                         <span class="stat-value" id="stat-healthy">--</span>
                         <span class="stat-label">Healthy Stock</span>
@@ -68,15 +67,9 @@
             <div class="quick-actions">
                 <h2>Quick Actions</h2>
                 <div class="action-buttons">
-                    <button class="btn btn-primary" onclick="navigateTo('inventory')">
-                        <span>📋</span> View Inventory
-                    </button>
-                    <button class="btn btn-secondary" onclick="navigateTo('orders')">
-                        <span>🛒</span> Create Order
-                    </button>
-                    <button class="btn btn-outline" onclick="navigateTo('settings')">
-                        <span>⚙️</span> Settings
-                    </button>
+                    <button class="btn btn-primary" onclick="navigateTo('inventory')">View Inventory</button>
+                    <button class="btn btn-secondary" onclick="navigateTo('orders')">Create Order</button>
+                    <button class="btn btn-outline" onclick="navigateTo('settings')">Settings</button>
                 </div>
             </div>
 
@@ -183,15 +176,9 @@
                     </div>
 
                     <div class="order-actions">
-                        <button class="btn btn-outline" onclick="saveOrderDraft()">
-                            <span>💾</span> Save Draft
-                        </button>
-                        <button class="btn btn-primary" onclick="saveAndExportExcel()">
-                            <span>📊</span> Save & Export Excel
-                        </button>
-                        <button class="btn btn-secondary" onclick="saveAndExportPDF()">
-                            <span>📄</span> Save & Export PDF
-                        </button>
+                        <button class="btn btn-outline" onclick="saveOrderDraft()">Save Draft</button>
+                        <button class="btn btn-primary" onclick="saveAndExportExcel()">Save & Export Excel</button>
+                        <button class="btn btn-secondary" onclick="saveAndExportPDF()">Save & Export PDF</button>
                     </div>
                 </div>
             </div>
@@ -213,9 +200,7 @@
                         <option value="archived">Archived</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" onclick="navigateTo('orders')">
-                    <span>➕</span> New Order
-                </button>
+                <button class="btn btn-primary" onclick="navigateTo('orders')">New Order</button>
             </div>
 
             <div class="table-container">

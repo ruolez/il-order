@@ -339,6 +339,7 @@ class MSSQLManager:
                     LastReceived, LastSold, Discontinued
                 FROM Items_tbl
                 WHERE ProductUPC = %s
+                  AND (Discontinued = 0 OR Discontinued IS NULL)
             """, (upc,))
             return cursor.fetchone()
 
