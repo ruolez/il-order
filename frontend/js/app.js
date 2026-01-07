@@ -145,9 +145,10 @@ async function loadInventory(page = 1, search = '') {
     currentPage = page;
     currentSearch = search;
     const offset = (page - 1) * ITEMS_PER_PAGE;
+    const currentFilter = document.getElementById('inventory-filter').value;
 
     try {
-        let endpoint = `/products?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
+        let endpoint = `/products?limit=${ITEMS_PER_PAGE}&offset=${offset}&filter=${currentFilter}`;
         if (search) {
             endpoint += `&search=${encodeURIComponent(search)}`;
         }
@@ -162,7 +163,7 @@ async function loadInventory(page = 1, search = '') {
         totalProducts = result.total_count;
         totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
 
-        renderInventoryTable(allProducts);
+        renderInventoryTable(allProducts, true);  // Skip client-side filter
         updatePagination();
 
     } catch (error) {
@@ -194,18 +195,20 @@ function loadNextPage() {
     }
 }
 
-function renderInventoryTable(products) {
+function renderInventoryTable(products, skipFilter = false) {
     const tbody = document.getElementById('inventory-tbody');
     const filter = document.getElementById('inventory-filter').value;
 
-    // Apply filter
+    // Apply client-side filter only if not already filtered by server
     let filtered = products;
-    if (filter === 'reorder') {
-        filtered = products.filter(p => p.needs_reorder);
-    } else if (filter === 'low') {
-        filtered = products.filter(p => !p.needs_reorder && (p.QuantOnHand || 0) < (p.threshold || 0) * 1.5);
-    } else if (filter === 'healthy') {
-        filtered = products.filter(p => (p.QuantOnHand || 0) >= (p.threshold || 0) * 1.5);
+    if (!skipFilter) {
+        if (filter === 'reorder') {
+            filtered = products.filter(p => p.needs_reorder);
+        } else if (filter === 'low') {
+            filtered = products.filter(p => !p.needs_reorder && (p.QuantOnHand || 0) < (p.threshold || 0) * 1.5);
+        } else if (filter === 'healthy') {
+            filtered = products.filter(p => (p.QuantOnHand || 0) >= (p.threshold || 0) * 1.5);
+        }
     }
 
     if (filtered.length === 0) {
@@ -403,7 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterSelect = document.getElementById('inventory-filter');
     if (filterSelect) {
         filterSelect.addEventListener('change', () => {
-            renderInventoryTable(allProducts);
+            // Reload from server with new filter
+            loadInventory(1, currentSearch);
         });
     }
 

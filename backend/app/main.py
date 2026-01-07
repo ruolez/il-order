@@ -134,7 +134,7 @@ def test_connection():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    """Get products with optional search and pagination."""
+    """Get products with optional search, filter, and pagination."""
     try:
         mssql = get_mssql_manager()
         if not mssql:
@@ -143,49 +143,103 @@ def get_products():
         search = request.args.get('search', '')
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
-
-        products = mssql.get_products(search=search, limit=limit, offset=offset)
-        total_count = mssql.get_product_count(search=search)
+        status_filter = request.args.get('filter', 'all')  # all, reorder, low, healthy
 
         # Get settings for threshold calculation
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
 
-        # Enrich products with threshold data
-        enriched = []
+        # Get overrides and sales data for threshold calculation
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
+        all_sales_data = mssql.get_all_sales_data(sales_period)
 
-        for product in products:
-            upc = product['ProductUPC']
-            override = overrides.get(upc)
+        # For filtered views, we need to process all products to apply filter
+        if status_filter != 'all':
+            # Get all products matching search
+            all_products = mssql.get_all_products(search=search) if search else mssql.get_all_products()
 
-            # Get sales data for threshold calculation
-            sales_data = mssql.get_sales_data(upc, sales_period)
-            dynamic_threshold = sales_data['monthly_average']
+            # Enrich and filter all products
+            filtered = []
+            for product in all_products:
+                upc = product['ProductUPC']
+                override = overrides.get(upc)
+                sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
+                dynamic_threshold = sales_data['monthly_average']
 
-            # Determine effective threshold
-            if override and override.get('manual_threshold') is not None:
-                threshold = override['manual_threshold']
-                threshold_type = 'manual'
-            elif override and override.get('exclude_from_dynamic'):
-                threshold = product.get('ReorderLevel') or 0
-                threshold_type = 'system'
-            else:
-                threshold = dynamic_threshold
-                threshold_type = 'dynamic'
+                # Determine effective threshold
+                if override and override.get('manual_threshold') is not None:
+                    threshold = override['manual_threshold']
+                    threshold_type = 'manual'
+                elif override and override.get('exclude_from_dynamic'):
+                    threshold = product.get('ReorderLevel') or 0
+                    threshold_type = 'system'
+                else:
+                    threshold = dynamic_threshold
+                    threshold_type = 'dynamic'
 
-            qty_on_hand = product.get('QuantOnHand') or 0
+                qty_on_hand = product.get('QuantOnHand') or 0
+                needs_reorder = qty_on_hand < threshold
+                is_low = not needs_reorder and qty_on_hand < threshold * 1.5
+                is_healthy = qty_on_hand >= threshold * 1.5
 
-            enriched.append({
-                **product,
-                'threshold': round(threshold, 2),
-                'threshold_type': threshold_type,
-                'dynamic_threshold': round(dynamic_threshold, 2),
-                'monthly_average': round(sales_data['monthly_average'], 2),
-                'daily_average': round(sales_data['daily_average'], 2),
-                'needs_reorder': qty_on_hand < threshold,
-                'override': override
-            })
+                # Apply filter
+                if status_filter == 'reorder' and not needs_reorder:
+                    continue
+                elif status_filter == 'low' and not is_low:
+                    continue
+                elif status_filter == 'healthy' and not is_healthy:
+                    continue
+
+                filtered.append({
+                    **product,
+                    'threshold': round(threshold, 2),
+                    'threshold_type': threshold_type,
+                    'dynamic_threshold': round(dynamic_threshold, 2),
+                    'monthly_average': round(sales_data['monthly_average'], 2),
+                    'daily_average': round(sales_data['daily_average'], 2),
+                    'needs_reorder': needs_reorder,
+                    'override': override
+                })
+
+            # Apply pagination to filtered results
+            total_count = len(filtered)
+            enriched = filtered[offset:offset + limit]
+        else:
+            # No filter - use paginated query for efficiency
+            products = mssql.get_products(search=search, limit=limit, offset=offset)
+            total_count = mssql.get_product_count(search=search)
+
+            # Enrich products with threshold data
+            enriched = []
+            for product in products:
+                upc = product['ProductUPC']
+                override = overrides.get(upc)
+                sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
+                dynamic_threshold = sales_data['monthly_average']
+
+                # Determine effective threshold
+                if override and override.get('manual_threshold') is not None:
+                    threshold = override['manual_threshold']
+                    threshold_type = 'manual'
+                elif override and override.get('exclude_from_dynamic'):
+                    threshold = product.get('ReorderLevel') or 0
+                    threshold_type = 'system'
+                else:
+                    threshold = dynamic_threshold
+                    threshold_type = 'dynamic'
+
+                qty_on_hand = product.get('QuantOnHand') or 0
+
+                enriched.append({
+                    **product,
+                    'threshold': round(threshold, 2),
+                    'threshold_type': threshold_type,
+                    'dynamic_threshold': round(dynamic_threshold, 2),
+                    'monthly_average': round(sales_data['monthly_average'], 2),
+                    'daily_average': round(sales_data['daily_average'], 2),
+                    'needs_reorder': qty_on_hand < threshold,
+                    'override': override
+                })
 
         return jsonify({
             'success': True,
@@ -193,7 +247,8 @@ def get_products():
             'count': len(enriched),
             'total_count': total_count,
             'limit': limit,
-            'offset': offset
+            'offset': offset,
+            'filter': status_filter
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
