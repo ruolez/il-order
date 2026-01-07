@@ -310,7 +310,7 @@ class MSSQLManager:
             query = """
                 SELECT COUNT(*) as total
                 FROM Items_tbl
-                WHERE Discontinued = 0 OR Discontinued IS NULL
+                WHERE (Discontinued = 0 OR Discontinued IS NULL)
             """
             params = []
 
@@ -332,7 +332,7 @@ class MSSQLManager:
                     UnitCost, UnitPrice, UnitQty2, UnitID2,
                     LastReceived, LastSold, Discontinued
                 FROM Items_tbl
-                WHERE Discontinued = 0 OR Discontinued IS NULL
+                WHERE (Discontinued = 0 OR Discontinued IS NULL)
             """
             params = []
 
@@ -356,7 +356,7 @@ class MSSQLManager:
                     UnitCost, UnitPrice, UnitQty2, UnitID2,
                     LastReceived, LastSold, Discontinued
                 FROM Items_tbl
-                WHERE Discontinued = 0 OR Discontinued IS NULL
+                WHERE (Discontinued = 0 OR Discontinued IS NULL)
             """
             params = []
 
