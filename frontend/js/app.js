@@ -806,7 +806,7 @@ function updateOrderSummary() {
   document.getElementById("order-total-qty").textContent =
     totalQty.toLocaleString();
   document.getElementById("order-total-cost").textContent =
-    `$${totalCost.toFixed(2)}`;
+    `$${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // Order History
@@ -882,7 +882,7 @@ async function viewOrder(orderId) {
             <h3>${order.name || "Untitled Order"}</h3>
             <p>Created: ${order.created_at ? new Date(order.created_at).toLocaleString() : "-"}</p>
             <p>Status: ${order.status}</p>
-            <p>Items: ${summary.total_items} | Total Qty: ${summary.total_qty.toLocaleString()} | Est. Cost: $${summary.total_cost.toFixed(2)}</p>
+            <p>Items: ${summary.total_items} | Total Qty: ${summary.total_qty.toLocaleString()} | Est. Cost: $${summary.total_cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <hr>
             <table class="data-table" style="margin-top: 1rem;">
                 <thead>
