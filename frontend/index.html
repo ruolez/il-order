@@ -29,8 +29,16 @@
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page active">
             <div class="page-header">
-                <h1>Dashboard</h1>
-                <p class="subtitle">Inventory overview and quick actions</p>
+                <div class="page-header-row">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p class="subtitle">Inventory overview and quick actions</p>
+                    </div>
+                    <div class="refresh-section">
+                        <span class="last-updated" id="dashboard-updated"></span>
+                        <button class="btn btn-outline" onclick="refreshDashboard()">↻ Refresh Analysis</button>
+                    </div>
+                </div>
             </div>
 
             <div class="stats-grid" id="dashboard-stats">

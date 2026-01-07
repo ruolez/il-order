@@ -111,6 +111,7 @@ async function loadDashboard() {
         if (!summary.configured) {
             document.getElementById('dashboard-stats').style.display = 'none';
             document.getElementById('not-configured-message').style.display = 'block';
+            document.getElementById('dashboard-updated').textContent = '';
             return;
         }
 
@@ -122,11 +123,27 @@ async function loadDashboard() {
         document.getElementById('stat-low').textContent = summary.low_stock.toLocaleString();
         document.getElementById('stat-healthy').textContent = summary.healthy.toLocaleString();
 
+        // Update timestamp
+        const now = new Date();
+        document.getElementById('dashboard-updated').textContent = `Updated: ${now.toLocaleTimeString()}`;
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
         document.getElementById('dashboard-stats').style.display = 'none';
         document.getElementById('not-configured-message').style.display = 'block';
     }
+}
+
+function refreshDashboard() {
+    const btn = document.querySelector('.refresh-section .btn');
+    btn.disabled = true;
+    btn.textContent = '↻ Refreshing...';
+
+    loadDashboard().finally(() => {
+        btn.disabled = false;
+        btn.textContent = '↻ Refresh Analysis';
+        showToast('Analysis refreshed', 'success');
+    });
 }
 
 // Inventory

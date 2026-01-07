@@ -141,6 +141,14 @@ body {
     margin-bottom: var(--spacing-xl);
 }
 
+.page-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
 .page-header h1 {
     font-size: 28px;
     font-weight: 600;
@@ -150,6 +158,17 @@ body {
 .page-header .subtitle {
     color: var(--on-surface-secondary);
     font-size: 14px;
+}
+
+.refresh-section {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.last-updated {
+    font-size: 13px;
+    color: var(--on-surface-secondary);
 }
 
 /* Stats grid */
