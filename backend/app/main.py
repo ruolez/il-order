@@ -147,7 +147,7 @@ def get_products():
         search = request.args.get('search', '')
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
-        status_filter = request.args.get('filter', 'all')  # all, reorder, low, healthy
+        status_filter = request.args.get('filter', 'all')  # all, reorder, healthy
         show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
         sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
@@ -156,17 +156,23 @@ def get_products():
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
 
-        # Get overrides and sales data for threshold calculation
+        # Get overrides for threshold calculation
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
         excluded_upcs = pg.get_excluded_upcs() if not show_excluded else set()
-        all_sales_data = mssql.get_all_sales_data(sales_period)
 
-        # For filtered views, we need to process all products to apply filter
+        # For filtered views (reorder/healthy), we need to process all products
+        # because threshold depends on PostgreSQL overrides
         if status_filter != 'all':
-            # Get all products matching search
-            all_products = mssql.get_all_products(search=search) if search else mssql.get_all_products()
+            # Use optimized combined query (single round-trip instead of two)
+            result = mssql.get_products_with_sales(
+                days=sales_period,
+                search=search if search else None,
+                sort_by=sort_by,
+                sort_order=sort_order
+            )
+            all_products = result['products']
 
-            # Enrich and filter all products
+            # Enrich and filter products
             filtered = []
             for product in all_products:
                 upc = product['ProductUPC']
@@ -177,8 +183,9 @@ def get_products():
                     continue
 
                 override = overrides.get(upc)
-                sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
-                dynamic_threshold = math.ceil(sales_data['monthly_average'])
+                monthly_avg = float(product.get('monthly_average') or 0)
+                daily_avg = float(product.get('daily_average') or 0)
+                dynamic_threshold = math.ceil(monthly_avg)
 
                 # Determine effective threshold
                 if override and override.get('manual_threshold') is not None:
@@ -193,63 +200,69 @@ def get_products():
 
                 qty_on_hand = product.get('QuantOnHand') or 0
                 needs_reorder = qty_on_hand < threshold
-                is_healthy = not needs_reorder
 
                 # Apply filter
                 if status_filter == 'reorder' and not needs_reorder:
                     continue
-                elif status_filter == 'healthy' and not is_healthy:
+                elif status_filter == 'healthy' and needs_reorder:
                     continue
 
                 filtered.append({
-                    **product,
+                    'ProductID': product['ProductID'],
+                    'ProductUPC': product['ProductUPC'],
+                    'ProductSKU': product['ProductSKU'],
+                    'ProductDescription': product['ProductDescription'],
+                    'QuantOnHand': product['QuantOnHand'],
+                    'QuantOnOrder': product['QuantOnOrder'],
+                    'ReorderLevel': product['ReorderLevel'],
+                    'ReorderQuant': product['ReorderQuant'],
+                    'UnitCost': product['UnitCost'],
+                    'UnitPrice': product['UnitPrice'],
+                    'UnitQty2': product['UnitQty2'],
+                    'UnitID2': product['UnitID2'],
+                    'LastReceived': product['LastReceived'],
+                    'LastSold': product['LastSold'],
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
                     'dynamic_threshold': int(dynamic_threshold),
-                    'monthly_average': int(math.ceil(sales_data['monthly_average'])),
-                    'daily_average': round(sales_data['daily_average'], 2),
+                    'monthly_average': int(math.ceil(monthly_avg)),
+                    'daily_average': round(daily_avg, 2),
                     'needs_reorder': needs_reorder,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override
                 })
 
-            # Sort before pagination
-            def get_sort_key(p):
-                key_map = {
-                    'upc': (p.get('ProductUPC') or '').lower(),
-                    'description': (p.get('ProductDescription') or '').lower(),
-                    'on_hand': p.get('QuantOnHand') or 0,
-                    'case_qty': p.get('UnitQty2') or 0,
-                    'threshold': p.get('threshold') or 0,
-                    'monthly_avg': p.get('monthly_average') or 0,
-                    'status': 0 if p.get('needs_reorder') else 1
-                }
-                return key_map.get(sort_by, (p.get('ProductDescription') or '').lower())
-
-            reverse_sort = sort_order == 'desc'
-            filtered.sort(key=get_sort_key, reverse=reverse_sort)
-
             # Apply pagination to filtered results
             total_count = len(filtered)
             enriched = filtered[offset:offset + limit]
         else:
-            # No filter - need to handle excluded products
-            # Get all products and filter manually to handle exclusions properly
-            all_products = mssql.get_all_products(search=search) if search else mssql.get_all_products()
+            # "all" filter - use SQL-level pagination for maximum speed
+            result = mssql.get_products_with_sales(
+                days=sales_period,
+                search=search if search else None,
+                limit=limit,
+                offset=offset,
+                sort_by=sort_by,
+                sort_order=sort_order
+            )
+            products = result['products']
+            total_count = result['total_count']
 
             # Enrich products with threshold data
             enriched = []
-            for product in all_products:
+            for product in products:
                 upc = product['ProductUPC']
 
                 # Skip excluded products unless show_excluded is true
                 is_excluded = upc in excluded_upcs
                 if is_excluded and not show_excluded:
+                    total_count -= 1
                     continue
 
                 override = overrides.get(upc)
-                sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
-                dynamic_threshold = math.ceil(sales_data['monthly_average'])
+                monthly_avg = float(product.get('monthly_average') or 0)
+                daily_avg = float(product.get('daily_average') or 0)
+                dynamic_threshold = math.ceil(monthly_avg)
 
                 # Determine effective threshold
                 if override and override.get('manual_threshold') is not None:
@@ -265,36 +278,29 @@ def get_products():
                 qty_on_hand = product.get('QuantOnHand') or 0
 
                 enriched.append({
-                    **product,
+                    'ProductID': product['ProductID'],
+                    'ProductUPC': product['ProductUPC'],
+                    'ProductSKU': product['ProductSKU'],
+                    'ProductDescription': product['ProductDescription'],
+                    'QuantOnHand': product['QuantOnHand'],
+                    'QuantOnOrder': product['QuantOnOrder'],
+                    'ReorderLevel': product['ReorderLevel'],
+                    'ReorderQuant': product['ReorderQuant'],
+                    'UnitCost': product['UnitCost'],
+                    'UnitPrice': product['UnitPrice'],
+                    'UnitQty2': product['UnitQty2'],
+                    'UnitID2': product['UnitID2'],
+                    'LastReceived': product['LastReceived'],
+                    'LastSold': product['LastSold'],
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
                     'dynamic_threshold': int(dynamic_threshold),
-                    'monthly_average': int(math.ceil(sales_data['monthly_average'])),
-                    'daily_average': round(sales_data['daily_average'], 2),
+                    'monthly_average': int(math.ceil(monthly_avg)),
+                    'daily_average': round(daily_avg, 2),
                     'needs_reorder': qty_on_hand < threshold,
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override
                 })
-
-            # Sort before pagination
-            def get_sort_key(p):
-                key_map = {
-                    'upc': (p.get('ProductUPC') or '').lower(),
-                    'description': (p.get('ProductDescription') or '').lower(),
-                    'on_hand': p.get('QuantOnHand') or 0,
-                    'case_qty': p.get('UnitQty2') or 0,
-                    'threshold': p.get('threshold') or 0,
-                    'monthly_avg': p.get('monthly_average') or 0,
-                    'status': 0 if p.get('needs_reorder') else 1
-                }
-                return key_map.get(sort_by, (p.get('ProductDescription') or '').lower())
-
-            reverse_sort = sort_order == 'desc'
-            enriched.sort(key=get_sort_key, reverse=reverse_sort)
-
-            # Apply pagination
-            total_count = len(enriched)
-            enriched = enriched[offset:offset + limit]
 
         return jsonify({
             'success': True,
@@ -305,6 +311,14 @@ def get_products():
             'offset': offset,
             'filter': status_filter
         })
+    except DBTimeoutError as e:
+        return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
+    except DBConnectionError as e:
+        return jsonify({'success': False, 'error': f'Connection error: {e}'}), 503
+    except QueryError as e:
+        return jsonify({'success': False, 'error': f'Query error: {e}'}), 500
+    except DatabaseError as e:
+        return jsonify({'success': False, 'error': f'Database error: {e}'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

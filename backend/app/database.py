@@ -642,3 +642,91 @@ class MSSQLManager:
                 ORDER BY ProductDescription
             """, (supplier_id, supplier_id))
             return cursor.fetchall()
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
+    def get_products_with_sales(self, days: int = 60, search: str = None,
+                                 limit: int = None, offset: int = None,
+                                 sort_by: str = 'description', sort_order: str = 'asc') -> Dict[str, Any]:
+        """
+        Get products with sales data in a single optimized query.
+
+        Combines Items_tbl with aggregated sales data using CTE for efficiency.
+        Returns both products and total count for pagination.
+        """
+        with self.get_cursor() as cursor:
+            # Build ORDER BY clause
+            order_map = {
+                'upc': 'i.ProductUPC',
+                'description': 'i.ProductDescription',
+                'on_hand': 'i.QuantOnHand',
+                'case_qty': 'i.UnitQty2',
+                'monthly_avg': 'monthly_average',
+                'threshold': 'i.ReorderLevel'
+            }
+            order_column = order_map.get(sort_by, 'i.ProductDescription')
+            order_dir = 'DESC' if sort_order == 'desc' else 'ASC'
+
+            # Build WHERE clause for search
+            search_clause = ""
+            params = [days]
+            if search:
+                search_clause = "AND (i.ProductUPC LIKE %s OR i.ProductDescription LIKE %s)"
+                params.extend([f'%{search}%', f'%{search}%'])
+
+            # Build pagination clause
+            pagination_clause = ""
+            if limit is not None and offset is not None:
+                pagination_clause = f"OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
+
+            # Combined query with CTE for sales aggregation
+            query = f"""
+                WITH SalesData AS (
+                    SELECT
+                        d.ProductUPC,
+                        COALESCE(SUM(d.QtyShipped), 0) as total_sold,
+                        COUNT(DISTINCT inv.InvoiceID) as invoice_count
+                    FROM InvoicesDetails_tbl d
+                    JOIN Invoices_tbl inv ON d.InvoiceID = inv.InvoiceID
+                    WHERE inv.InvoiceDate >= DATEADD(day, -%s, GETDATE())
+                      AND inv.Void = 0
+                    GROUP BY d.ProductUPC
+                )
+                SELECT
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
+                    i.UnitCost, i.UnitPrice, i.UnitQty2, i.UnitID2,
+                    i.LastReceived, i.LastSold,
+                    ISNULL(s.total_sold, 0) as total_sold,
+                    ISNULL(s.invoice_count, 0) as invoice_count,
+                    CEILING(ISNULL(s.total_sold, 0) / (%s / 30.0)) as monthly_average,
+                    ISNULL(s.total_sold, 0) / CAST(%s as FLOAT) as daily_average
+                FROM Items_tbl i
+                LEFT JOIN SalesData s ON i.ProductUPC = s.ProductUPC
+                WHERE (i.Discontinued = 0 OR i.Discontinued IS NULL)
+                {search_clause}
+                ORDER BY {order_column} {order_dir}
+                {pagination_clause}
+            """
+
+            # Add days parameter twice more for the calculations
+            params.extend([days, days])
+
+            cursor.execute(query, tuple(params))
+            products = cursor.fetchall()
+
+            # Get total count (without pagination) for UI
+            count_query = f"""
+                SELECT COUNT(*) as total
+                FROM Items_tbl i
+                WHERE (i.Discontinued = 0 OR i.Discontinued IS NULL)
+                {search_clause}
+            """
+            count_params = [f'%{search}%', f'%{search}%'] if search else []
+            cursor.execute(count_query, tuple(count_params) if count_params else None)
+            total_row = cursor.fetchone()
+            total_count = total_row['total'] if total_row else 0
+
+            return {
+                'products': products,
+                'total_count': total_count
+            }
