@@ -466,7 +466,8 @@ class MSSQLManager:
                     i.UnitCost, i.UnitPrice, i.UnitQty2,
                     i.LastReceived, i.LastSold
                 FROM Items_tbl i
-                JOIN PurchaseOrdersDetails_tbl pod ON i.ProductUPC = pod.ProductUPC
+                JOIN PurchaseOrdersDetails_tbl pod ON
+                    (i.ProductID = pod.ProductID OR i.ProductUPC = pod.ProductUPC)
                 JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
                 WHERE po.SupplierID = %s
                   AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
