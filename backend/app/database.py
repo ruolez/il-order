@@ -3,7 +3,78 @@ from psycopg2.extras import RealDictCursor
 import pymssql
 from contextlib import contextmanager
 from typing import Optional, Dict, Any, List
+from functools import wraps
+import time
 import os
+
+
+# Custom exception classes for better error handling
+class DatabaseError(Exception):
+    """Base class for database errors."""
+    pass
+
+
+class DBConnectionError(DatabaseError):
+    """Error connecting to database."""
+    pass
+
+
+class QueryError(DatabaseError):
+    """Error executing query."""
+    pass
+
+
+class DBTimeoutError(DatabaseError):
+    """Query timeout error."""
+    pass
+
+
+def handle_db_errors(max_retries: int = 3, base_delay: float = 1.0):
+    """
+    Decorator to handle database exceptions with retries and exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Base delay in seconds for exponential backoff (default: 1.0)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except pymssql.OperationalError as e:
+                    error_msg = str(e).lower()
+                    last_exception = e
+
+                    # Retry on connection/timeout issues
+                    if 'timeout' in error_msg or 'connection' in error_msg:
+                        if attempt < max_retries:
+                            delay = base_delay * (2 ** attempt)
+                            time.sleep(delay)
+                            continue
+                        raise DBTimeoutError(f"Query failed after {max_retries + 1} attempts: {e}")
+
+                    raise QueryError(f"Database operation failed: {e}")
+                except pymssql.InterfaceError as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)
+                        time.sleep(delay)
+                        continue
+                    raise DBConnectionError(f"Connection failed after {max_retries + 1} attempts: {e}")
+                except pymssql.DatabaseError as e:
+                    raise QueryError(f"Query execution error: {e}")
+                except (DatabaseError, DBConnectionError, QueryError, DBTimeoutError):
+                    raise
+                except Exception as e:
+                    raise DatabaseError(f"Unexpected database error: {e}")
+
+            raise DatabaseError(f"Max retries exceeded: {last_exception}")
+        return wrapper
+    return decorator
 
 
 class PostgresManager:
@@ -369,6 +440,7 @@ class MSSQLManager:
                 'error': str(e)
             }
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_product_count(self, search: str = None) -> int:
         """Get total count of products."""
         with self.get_cursor() as cursor:
@@ -387,6 +459,7 @@ class MSSQLManager:
             row = cursor.fetchone()
             return row['total'] if row else 0
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products(self, search: str = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get products from Items_tbl."""
         with self.get_cursor() as cursor:
@@ -411,6 +484,7 @@ class MSSQLManager:
             cursor.execute(query, tuple(params) if params else None)
             return cursor.fetchall()
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_all_products(self, search: str = None) -> List[Dict[str, Any]]:
         """Get all products without limit (for analysis)."""
         with self.get_cursor() as cursor:
@@ -434,6 +508,7 @@ class MSSQLManager:
             cursor.execute(query, tuple(params) if params else None)
             return cursor.fetchall()
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_product_by_upc(self, upc: str) -> Optional[Dict[str, Any]]:
         """Get a single product by UPC."""
         with self.get_cursor() as cursor:
@@ -449,6 +524,7 @@ class MSSQLManager:
             """, (upc,))
             return cursor.fetchone()
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_sales_data(self, product_upc: str, days: int = 60) -> Dict[str, Any]:
         """Get sales data for a product over specified days."""
         with self.get_cursor() as cursor:
@@ -475,6 +551,7 @@ class MSSQLManager:
                 'daily_average': total_sold / days if days > 0 else 0
             }
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_all_sales_data(self, days: int = 60) -> Dict[str, Dict[str, Any]]:
         """Get aggregated sales data for all products in a single query."""
         with self.get_cursor() as cursor:
@@ -504,6 +581,7 @@ class MSSQLManager:
                 }
             return result
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_suppliers_from_purchase_history(self) -> List[Dict[str, Any]]:
         """Get list of suppliers that have been used in purchase orders."""
         with self.get_cursor() as cursor:
@@ -521,21 +599,46 @@ class MSSQLManager:
             """)
             return cursor.fetchall()
 
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products_by_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get products that have been ordered from a specific supplier."""
+        """Get products that have been ordered from a specific supplier.
+
+        Uses optimized UNION query instead of OR JOIN for better index usage.
+        """
         with self.get_cursor() as cursor:
             cursor.execute("""
-                SELECT DISTINCT
+                SELECT
                     i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
                     i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
                     i.UnitCost, i.UnitPrice, i.UnitQty2,
                     i.LastReceived, i.LastSold
                 FROM Items_tbl i
-                JOIN PurchaseOrdersDetails_tbl pod ON
-                    (i.ProductID = pod.ProductID OR i.ProductUPC = pod.ProductUPC)
-                JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
-                WHERE po.SupplierID = %s
-                  AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
-                ORDER BY i.ProductDescription
-            """, (supplier_id,))
+                WHERE i.ProductID IN (
+                    SELECT DISTINCT pod.ProductID
+                    FROM PurchaseOrdersDetails_tbl pod
+                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.SupplierID = %s
+                      AND pod.ProductID IS NOT NULL
+                )
+                AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
+
+                UNION
+
+                SELECT
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
+                    i.UnitCost, i.UnitPrice, i.UnitQty2,
+                    i.LastReceived, i.LastSold
+                FROM Items_tbl i
+                WHERE i.ProductUPC IN (
+                    SELECT DISTINCT pod.ProductUPC
+                    FROM PurchaseOrdersDetails_tbl pod
+                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.SupplierID = %s
+                      AND pod.ProductUPC IS NOT NULL
+                )
+                AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
+
+                ORDER BY ProductDescription
+            """, (supplier_id, supplier_id))
             return cursor.fetchall()

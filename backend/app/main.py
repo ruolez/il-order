@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
-from .database import PostgresManager, MSSQLManager
+from .database import (
+    PostgresManager, MSSQLManager,
+    DatabaseError, DBConnectionError, QueryError, DBTimeoutError
+)
 from .config import Config
 from datetime import datetime
 from io import BytesIO
@@ -406,6 +409,14 @@ def get_suppliers():
             'success': True,
             'suppliers': suppliers
         })
+    except DBTimeoutError as e:
+        return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
+    except DBConnectionError as e:
+        return jsonify({'success': False, 'error': f'Connection error: {e}'}), 503
+    except QueryError as e:
+        return jsonify({'success': False, 'error': f'Query error: {e}'}), 500
+    except DatabaseError as e:
+        return jsonify({'success': False, 'error': f'Database error: {e}'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -429,6 +440,14 @@ def get_products_by_supplier(supplier_id):
             'products': products,
             'count': len(products)
         })
+    except DBTimeoutError as e:
+        return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
+    except DBConnectionError as e:
+        return jsonify({'success': False, 'error': f'Connection error: {e}'}), 503
+    except QueryError as e:
+        return jsonify({'success': False, 'error': f'Query error: {e}'}), 500
+    except DatabaseError as e:
+        return jsonify({'success': False, 'error': f'Database error: {e}'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -552,6 +571,14 @@ def get_needs_reorder():
             'count': len(result_products),
             'filter': filter_mode
         })
+    except DBTimeoutError as e:
+        return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
+    except DBConnectionError as e:
+        return jsonify({'success': False, 'error': f'Connection error: {e}'}), 503
+    except QueryError as e:
+        return jsonify({'success': False, 'error': f'Query error: {e}'}), 500
+    except DatabaseError as e:
+        return jsonify({'success': False, 'error': f'Database error: {e}'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -611,6 +638,14 @@ def get_summary():
                 'settings': settings
             }
         })
+    except DBTimeoutError as e:
+        return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
+    except DBConnectionError as e:
+        return jsonify({'success': False, 'error': f'Connection error: {e}'}), 503
+    except QueryError as e:
+        return jsonify({'success': False, 'error': f'Query error: {e}'}), 500
+    except DatabaseError as e:
+        return jsonify({'success': False, 'error': f'Database error: {e}'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
