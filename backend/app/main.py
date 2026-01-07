@@ -216,6 +216,7 @@ def get_products():
                     'upc': (p.get('ProductUPC') or '').lower(),
                     'description': (p.get('ProductDescription') or '').lower(),
                     'on_hand': p.get('QuantOnHand') or 0,
+                    'case_qty': p.get('UnitQty2') or 0,
                     'threshold': p.get('threshold') or 0,
                     'monthly_avg': p.get('monthly_average') or 0,
                     'status': 0 if p.get('needs_reorder') else 1
@@ -278,6 +279,7 @@ def get_products():
                     'upc': (p.get('ProductUPC') or '').lower(),
                     'description': (p.get('ProductDescription') or '').lower(),
                     'on_hand': p.get('QuantOnHand') or 0,
+                    'case_qty': p.get('UnitQty2') or 0,
                     'threshold': p.get('threshold') or 0,
                     'monthly_avg': p.get('monthly_average') or 0,
                     'status': 0 if p.get('needs_reorder') else 1
@@ -527,6 +529,7 @@ def get_needs_reorder():
                     'upc': (p.get('ProductUPC') or '').lower(),
                     'description': (p.get('ProductDescription') or '').lower(),
                     'on_hand': p.get('QuantOnHand') or 0,
+                    'case_qty': p.get('unit_qty2') or 0,
                     'threshold': p.get('threshold') or 0,
                     'suggested_qty': p.get('suggested_qty') or 0,
                     'cases': p.get('cases_needed') or 0

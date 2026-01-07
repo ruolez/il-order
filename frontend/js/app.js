@@ -259,7 +259,7 @@ function renderInventoryTable(products, skipFilter = false) {
 
   if (filtered.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="7" class="loading">No products found</td></tr>';
+      '<tr><td colspan="8" class="loading">No products found</td></tr>';
     return;
   }
 
@@ -290,6 +290,7 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td>${product.ProductUPC || "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyOnHand.toLocaleString()}</td>
+                <td>${(product.UnitQty2 || 0).toLocaleString()}</td>
                 <td>
                     ${threshold.toLocaleString()}
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
@@ -628,7 +629,7 @@ async function loadNeedsReorder() {
           : filterMode === "sufficient"
             ? "No products with sufficient stock"
             : "No products found";
-      tbody.innerHTML = `<tr><td colspan="9" class="loading">${emptyMessage}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="loading">${emptyMessage}</td></tr>`;
       loadedOrderProducts = [];
       updateOrderSummary();
       return;
@@ -650,6 +651,7 @@ async function loadNeedsReorder() {
                     <td>${product.ProductUPC || "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
                     <td>${(product.QuantOnHand || 0).toLocaleString()}</td>
+                    <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
                     <td>${product.suggested_qty.toLocaleString()}</td>
                     <td>
@@ -673,7 +675,7 @@ async function loadNeedsReorder() {
     updateSortIndicators("orders");
   } catch (error) {
     console.error("Error loading products:", error);
-    tbody.innerHTML = `<tr><td colspan="9" class="loading">Error: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="loading">Error: ${error.message}</td></tr>`;
     loadedOrderProducts = [];
     updateOrderSummary();
   }
