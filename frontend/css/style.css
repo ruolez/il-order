@@ -429,6 +429,24 @@ body {
   padding: var(--spacing-xl);
 }
 
+/* Sortable table headers */
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast);
+}
+
+.data-table th.sortable:hover {
+  background-color: var(--primary-light);
+}
+
+.sort-indicator {
+  font-size: 0.75rem;
+  color: var(--primary);
+  margin-left: 2px;
+}
+
 /* Status badges */
 .badge {
   display: inline-block;

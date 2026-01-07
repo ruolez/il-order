@@ -33,6 +33,12 @@ let currentSearch = "";
 let pendingFilter = null;
 let showExcludedProducts = false;
 
+// Sorting state
+let inventorySortBy = "description";
+let inventorySortOrder = "asc";
+let ordersSortBy = null; // null = use default server sort
+let ordersSortOrder = "asc";
+
 // Load application settings (including items per page)
 async function loadAppSettings() {
   try {
@@ -193,6 +199,7 @@ async function loadInventory(page = 1, search = "") {
     if (showExcludedProducts) {
       endpoint += "&show_excluded=true";
     }
+    endpoint += `&sort_by=${inventorySortBy}&sort_order=${inventorySortOrder}`;
 
     const result = await api.get(endpoint);
 
@@ -206,6 +213,7 @@ async function loadInventory(page = 1, search = "") {
 
     renderInventoryTable(allProducts, true); // Skip client-side filter
     updatePagination();
+    updateSortIndicators("inventory");
   } catch (error) {
     console.error("Error loading inventory:", error);
     tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
@@ -326,6 +334,53 @@ function toggleShowExcluded() {
   const checkbox = document.getElementById("show-excluded-checkbox");
   showExcludedProducts = checkbox ? checkbox.checked : false;
   loadInventory(1, currentSearch);
+}
+
+// Sorting functions for Inventory table
+function sortInventory(column) {
+  if (inventorySortBy === column) {
+    inventorySortOrder = inventorySortOrder === "asc" ? "desc" : "asc";
+  } else {
+    inventorySortBy = column;
+    inventorySortOrder = "asc";
+  }
+  currentPage = 1; // Reset to first page when sorting changes
+  loadInventory(1, currentSearch);
+  updateSortIndicators("inventory");
+}
+
+// Sorting functions for Orders table
+function sortOrders(column) {
+  if (ordersSortBy === column) {
+    ordersSortOrder = ordersSortOrder === "asc" ? "desc" : "asc";
+  } else {
+    ordersSortBy = column;
+    ordersSortOrder = "asc";
+  }
+  loadNeedsReorder();
+  updateSortIndicators("orders");
+}
+
+// Update sort indicators on table headers
+function updateSortIndicators(table) {
+  const tableId = table === "inventory" ? "inventory-table" : "order-table";
+  const sortBy = table === "inventory" ? inventorySortBy : ordersSortBy;
+  const sortOrder = table === "inventory" ? inventorySortOrder : ordersSortOrder;
+
+  // Remove all indicators
+  document.querySelectorAll(`#${tableId} th .sort-indicator`).forEach((el) => {
+    el.textContent = "";
+  });
+
+  // Add indicator to current column
+  if (sortBy) {
+    const header = document.querySelector(
+      `#${tableId} th[data-sort="${sortBy}"] .sort-indicator`,
+    );
+    if (header) {
+      header.textContent = sortOrder === "asc" ? " ▲" : " ▼";
+    }
+  }
 }
 
 // Current product being viewed in modal
@@ -554,6 +609,10 @@ async function loadNeedsReorder() {
     const params = [];
     if (supplierId) params.push(`supplier_id=${supplierId}`);
     params.push(`filter=${filterMode}`);
+    if (ordersSortBy) {
+      params.push(`sort_by=${ordersSortBy}`);
+      params.push(`sort_order=${ordersSortOrder}`);
+    }
     if (params.length) endpoint += "?" + params.join("&");
 
     const result = await api.get(endpoint);
@@ -611,6 +670,7 @@ async function loadNeedsReorder() {
     );
     document.getElementById("select-all-orders").checked = hasNeedsReorder;
     updateOrderSummary();
+    updateSortIndicators("orders");
   } catch (error) {
     console.error("Error loading products:", error);
     tbody.innerHTML = `<tr><td colspan="9" class="loading">Error: ${error.message}</td></tr>`;

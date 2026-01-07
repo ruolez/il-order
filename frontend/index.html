@@ -149,12 +149,12 @@
           <table class="data-table" id="inventory-table">
             <thead>
               <tr>
-                <th>UPC</th>
-                <th>Description</th>
-                <th>On Hand</th>
-                <th>Threshold</th>
-                <th>Monthly Avg</th>
-                <th>Status</th>
+                <th class="sortable" data-sort="upc" onclick="sortInventory('upc')">UPC<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="description" onclick="sortInventory('description')">Description<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="on_hand" onclick="sortInventory('on_hand')">On Hand<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="threshold" onclick="sortInventory('threshold')">Threshold<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="monthly_avg" onclick="sortInventory('monthly_avg')">Monthly Avg<span class="sort-indicator"></span></th>
+                <th class="sortable" data-sort="status" onclick="sortInventory('status')">Status<span class="sort-indicator"></span></th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -234,14 +234,14 @@
                 <thead>
                   <tr>
                     <th><input type="checkbox" id="select-all-orders" /></th>
-                    <th>Status</th>
-                    <th>UPC</th>
-                    <th>Description</th>
-                    <th>On Hand</th>
-                    <th>Threshold</th>
-                    <th>Suggested Qty</th>
+                    <th class="sortable" data-sort="status" onclick="sortOrders('status')">Status<span class="sort-indicator"></span></th>
+                    <th class="sortable" data-sort="upc" onclick="sortOrders('upc')">UPC<span class="sort-indicator"></span></th>
+                    <th class="sortable" data-sort="description" onclick="sortOrders('description')">Description<span class="sort-indicator"></span></th>
+                    <th class="sortable" data-sort="on_hand" onclick="sortOrders('on_hand')">On Hand<span class="sort-indicator"></span></th>
+                    <th class="sortable" data-sort="threshold" onclick="sortOrders('threshold')">Threshold<span class="sort-indicator"></span></th>
+                    <th class="sortable" data-sort="suggested_qty" onclick="sortOrders('suggested_qty')">Suggested Qty<span class="sort-indicator"></span></th>
                     <th>Order Qty</th>
-                    <th>Cases</th>
+                    <th class="sortable" data-sort="cases" onclick="sortOrders('cases')">Cases<span class="sort-indicator"></span></th>
                   </tr>
                 </thead>
                 <tbody id="order-tbody"></tbody>

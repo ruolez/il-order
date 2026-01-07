@@ -135,7 +135,7 @@ def test_connection():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    """Get products with optional search, filter, and pagination."""
+    """Get products with optional search, filter, pagination, and sorting."""
     try:
         mssql = get_mssql_manager()
         if not mssql:
@@ -146,6 +146,8 @@ def get_products():
         offset = int(request.args.get('offset', 0))
         status_filter = request.args.get('filter', 'all')  # all, reorder, low, healthy
         show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
+        sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
+        sort_order = request.args.get('sort_order', 'asc')  # asc, desc
 
         # Get settings for threshold calculation
         settings = pg.get_settings()
@@ -208,6 +210,21 @@ def get_products():
                     'override': override
                 })
 
+            # Sort before pagination
+            def get_sort_key(p):
+                key_map = {
+                    'upc': (p.get('ProductUPC') or '').lower(),
+                    'description': (p.get('ProductDescription') or '').lower(),
+                    'on_hand': p.get('QuantOnHand') or 0,
+                    'threshold': p.get('threshold') or 0,
+                    'monthly_avg': p.get('monthly_average') or 0,
+                    'status': 0 if p.get('needs_reorder') else 1
+                }
+                return key_map.get(sort_by, (p.get('ProductDescription') or '').lower())
+
+            reverse_sort = sort_order == 'desc'
+            filtered.sort(key=get_sort_key, reverse=reverse_sort)
+
             # Apply pagination to filtered results
             total_count = len(filtered)
             enriched = filtered[offset:offset + limit]
@@ -254,6 +271,21 @@ def get_products():
                     'excluded': is_excluded or (override and override.get('exclude_from_orders', False)),
                     'override': override
                 })
+
+            # Sort before pagination
+            def get_sort_key(p):
+                key_map = {
+                    'upc': (p.get('ProductUPC') or '').lower(),
+                    'description': (p.get('ProductDescription') or '').lower(),
+                    'on_hand': p.get('QuantOnHand') or 0,
+                    'threshold': p.get('threshold') or 0,
+                    'monthly_avg': p.get('monthly_average') or 0,
+                    'status': 0 if p.get('needs_reorder') else 1
+                }
+                return key_map.get(sort_by, (p.get('ProductDescription') or '').lower())
+
+            reverse_sort = sort_order == 'desc'
+            enriched.sort(key=get_sort_key, reverse=reverse_sort)
 
             # Apply pagination
             total_count = len(enriched)
@@ -411,6 +443,8 @@ def get_needs_reorder():
 
         supplier_id = request.args.get('supplier_id', type=int)
         filter_mode = request.args.get('filter', 'all')
+        sort_by = request.args.get('sort_by')  # None = use default sort; options: status, upc, description, on_hand, threshold, suggested_qty, cases
+        sort_order = request.args.get('sort_order', 'asc')  # asc, desc
 
         if supplier_id:
             products = mssql.get_products_by_supplier(supplier_id)
@@ -485,11 +519,29 @@ def get_needs_reorder():
             elif filter_mode == 'sufficient' and not needs_reorder:
                 result_products.append(product_data)
 
-        result_products.sort(key=lambda x: (
-            0 if x['status'] == 'needs_reorder' else 1,
-            -x['deficit'] if x['status'] == 'needs_reorder' else 0,
-            x.get('ProductDescription', '')
-        ))
+        # Sort products
+        if sort_by:
+            def get_sort_key(p):
+                key_map = {
+                    'status': 0 if p['status'] == 'needs_reorder' else 1,
+                    'upc': (p.get('ProductUPC') or '').lower(),
+                    'description': (p.get('ProductDescription') or '').lower(),
+                    'on_hand': p.get('QuantOnHand') or 0,
+                    'threshold': p.get('threshold') or 0,
+                    'suggested_qty': p.get('suggested_qty') or 0,
+                    'cases': p.get('cases_needed') or 0
+                }
+                return key_map.get(sort_by, (p.get('ProductDescription') or '').lower())
+
+            reverse_sort = sort_order == 'desc'
+            result_products.sort(key=get_sort_key, reverse=reverse_sort)
+        else:
+            # Default: needs_reorder first, then by deficit, then by description
+            result_products.sort(key=lambda x: (
+                0 if x['status'] == 'needs_reorder' else 1,
+                -x['deficit'] if x['status'] == 'needs_reorder' else 0,
+                (x.get('ProductDescription') or '').lower()
+            ))
 
         return jsonify({
             'success': True,
