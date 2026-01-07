@@ -360,7 +360,7 @@ async function viewProduct(upc) {
     document.getElementById("modal-threshold").textContent =
       Math.ceil(salesData.monthly_average);
     document.getElementById("modal-monthly-avg").textContent =
-      salesData.monthly_average.toFixed(1);
+      Math.ceil(salesData.monthly_average);
     document.getElementById("modal-daily-avg").textContent =
       salesData.daily_average.toFixed(2);
 
