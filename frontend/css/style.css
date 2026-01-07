@@ -832,6 +832,25 @@ input[type="checkbox"] {
   font-size: 14px;
 }
 
+.editable-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editable-field input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 /* Info cards row */
 .info-cards-row {
   display: grid;

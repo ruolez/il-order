@@ -542,7 +542,10 @@
             </div>
             <div class="info-row">
               <span class="info-label">Case Qty (UnitQty2):</span>
-              <span class="info-value" id="modal-case-qty">0</span>
+              <div class="editable-field">
+                <input type="number" id="modal-case-qty" min="1" placeholder="Not set">
+                <button type="button" class="btn btn-small btn-primary" onclick="saveCaseQty()">Save</button>
+              </div>
             </div>
           </div>
 

@@ -446,6 +446,26 @@ def delete_product_override(upc):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/products/<upc>/unit-qty2', methods=['PUT'])
+def update_unit_qty2(upc):
+    """Update UnitQty2 for a product."""
+    try:
+        mssql = get_mssql_manager()
+        if not mssql:
+            return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
+
+        data = request.get_json()
+        unit_qty2 = data.get('unit_qty2')
+
+        if unit_qty2 is None or unit_qty2 < 1:
+            return jsonify({'success': False, 'error': 'Invalid unit_qty2 value'}), 400
+
+        updated = mssql.update_unit_qty2(upc, int(unit_qty2))
+        return jsonify({'success': True, 'updated': updated})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/products/<upc>/exclude', methods=['POST'])
 def toggle_product_exclusion(upc):
     """Toggle product exclusion from orders."""

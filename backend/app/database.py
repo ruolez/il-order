@@ -544,6 +544,19 @@ class MSSQLManager:
             return cursor.fetchone()
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
+    def update_unit_qty2(self, upc: str, unit_qty2: int) -> bool:
+        """Update UnitQty2 for a product in Items_tbl."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE Items_tbl
+                SET UnitQty2 = %s
+                WHERE ProductUPC = %s
+            """, (unit_qty2, upc))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_sales_data(self, product_upc: str, days: int = 60) -> Dict[str, Any]:
         """Get sales data for a product over specified days."""
         with self.get_cursor() as cursor:

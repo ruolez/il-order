@@ -22,6 +22,15 @@ const api = {
     });
     return response.json();
   },
+
+  async put(endpoint, data) {
+    const response = await fetch(`/api${endpoint}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
 };
 
 // Pagination state
@@ -586,8 +595,8 @@ async function viewProduct(upc) {
       salesData.invoice_count;
     document.getElementById("modal-unit-cost").textContent =
       `$${parseFloat(product.UnitCost || 0).toFixed(2)}`;
-    document.getElementById("modal-case-qty").textContent =
-      product.UnitQty2 || "N/A";
+    document.getElementById("modal-case-qty").value =
+      product.UnitQty2 || "";
 
     // Set cost override placeholder to show current system cost
     const systemCost = parseFloat(product.UnitCost || 0);
@@ -624,6 +633,35 @@ function closeProductModal() {
   const modal = document.getElementById("product-modal");
   modal.classList.remove("active");
   currentProductUpc = null;
+}
+
+async function saveCaseQty() {
+  if (!currentProductUpc) {
+    showToast("No product selected", "error");
+    return;
+  }
+
+  const input = document.getElementById("modal-case-qty");
+  const value = parseInt(input.value);
+
+  if (!value || value < 1) {
+    showToast("Please enter a valid case quantity (minimum 1)", "error");
+    return;
+  }
+
+  try {
+    const result = await api.put(`/products/${currentProductUpc}/unit-qty2`, {
+      unit_qty2: value,
+    });
+
+    if (result.success) {
+      showToast("Case quantity saved", "success");
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    showToast(`Error saving case qty: ${error.message}`, "error");
+  }
 }
 
 async function saveOverride(e) {
