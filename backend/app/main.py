@@ -246,19 +246,22 @@ def get_products():
             enriched = filtered[offset:offset + limit]
         else:
             # "all" filter - use SQL-level pagination for maximum speed
+            # Exception: when sorting by last_supplier, we need to fetch all and sort in Python
+            use_python_pagination = sort_by == 'last_supplier'
+
             result = mssql.get_products_with_sales(
                 days=sales_period,
                 search=search if search else None,
-                limit=limit,
-                offset=offset,
-                sort_by=sort_by,
-                sort_order=sort_order
+                limit=None if use_python_pagination else limit,
+                offset=None if use_python_pagination else offset,
+                sort_by=sort_by if not use_python_pagination else 'description',
+                sort_order=sort_order if not use_python_pagination else 'asc'
             )
             products = result['products']
             total_count = result['total_count']
 
             # Enrich products with threshold data
-            enriched = []
+            all_enriched = []
             for product in products:
                 upc = product['ProductUPC']
 
@@ -286,7 +289,7 @@ def get_products():
 
                 qty_on_hand = product.get('QuantOnHand') or 0
 
-                enriched.append({
+                all_enriched.append({
                     'ProductID': product['ProductID'],
                     'ProductUPC': product['ProductUPC'],
                     'ProductSKU': product['ProductSKU'],
@@ -312,10 +315,14 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-        # Sort by last_supplier if requested (Python-level since not in SQL)
-        if sort_by == 'last_supplier':
-            reverse_sort = sort_order == 'desc'
-            enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
+            # Sort by last_supplier if requested, then apply pagination
+            if use_python_pagination:
+                reverse_sort = sort_order == 'desc'
+                all_enriched.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
+                total_count = len(all_enriched)
+                enriched = all_enriched[offset:offset + limit]
+            else:
+                enriched = all_enriched
 
         return jsonify({
             'success': True,
