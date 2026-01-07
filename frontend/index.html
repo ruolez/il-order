@@ -261,6 +261,21 @@
             </div>
 
             <div class="order-actions">
+              <div class="column-selector-wrapper">
+                <button type="button" class="btn btn-outline btn-columns" onclick="toggleColumnSelector()">
+                  Columns <span class="chevron">▼</span>
+                </button>
+                <div id="column-selector-panel" class="column-selector-panel">
+                  <div class="column-selector-header">
+                    <span>Export Columns</span>
+                    <button type="button" class="btn-text" onclick="selectAllColumns(true)">All</button>
+                    <button type="button" class="btn-text" onclick="selectAllColumns(false)">None</button>
+                  </div>
+                  <div class="column-selector-options" id="column-selector-options">
+                    <!-- Populated by JavaScript -->
+                  </div>
+                </div>
+              </div>
               <button class="btn btn-outline" onclick="saveOrderDraft()">
                 Save Draft
               </button>

@@ -803,6 +803,27 @@ def export_order_excel(order_id):
 
         items = pg.get_order_draft_items(order_id)
 
+        # Parse columns parameter
+        columns_param = request.args.get('columns', '')
+        all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
+        if columns_param:
+            selected_columns = [c.strip() for c in columns_param.split(',') if c.strip() in all_columns]
+        else:
+            selected_columns = all_columns
+
+        # Column configuration
+        column_config = {
+            'upc': {'header': 'UPC', 'width': 15},
+            'description': {'header': 'Description', 'width': 40},
+            'on_hand': {'header': 'On Hand', 'width': 12},
+            'threshold': {'header': 'Threshold', 'width': 12},
+            'suggested_qty': {'header': 'Suggested Qty', 'width': 14},
+            'order_qty': {'header': 'Order Qty', 'width': 12},
+            'cases': {'header': 'Cases', 'width': 10},
+            'unit_cost': {'header': 'Unit Cost', 'width': 12},
+            'total': {'header': 'Total', 'width': 12},
+        }
+
         wb = Workbook()
         ws = wb.active
         ws.title = "Order"
@@ -821,47 +842,59 @@ def export_order_excel(order_id):
         ws['A2'] = f"Created: {order['created_at'].strftime('%Y-%m-%d %H:%M') if order['created_at'] else ''}"
         ws['A3'] = f"Status: {order['status']}"
 
-        headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=5, column=col, value=header)
+        # Write headers for selected columns only
+        headers = [column_config[col]['header'] for col in selected_columns]
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=5, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
 
-        for row, item in enumerate(items, 6):
+        # Write data rows
+        for row_idx, item in enumerate(items, 6):
             unit_qty2 = float(item['unit_qty2'] or 1)
             cases = int((item['final_qty'] or 0) / unit_qty2) if unit_qty2 > 0 else 0
             total = (item['final_qty'] or 0) * float(item['unit_cost'] or 0)
 
-            ws.cell(row=row, column=1, value=item['product_upc']).border = thin_border
-            ws.cell(row=row, column=2, value=item['product_description']).border = thin_border
-            ws.cell(row=row, column=3, value=item['current_qty']).border = thin_border
-            ws.cell(row=row, column=4, value=item['threshold']).border = thin_border
-            ws.cell(row=row, column=5, value=item['suggested_qty']).border = thin_border
-            ws.cell(row=row, column=6, value=item['final_qty']).border = thin_border
-            ws.cell(row=row, column=7, value=cases).border = thin_border
-            ws.cell(row=row, column=8, value=float(item['unit_cost'] or 0)).border = thin_border
-            ws.cell(row=row, column=8).number_format = '$#,##0.00'
-            ws.cell(row=row, column=9, value=total).border = thin_border
-            ws.cell(row=row, column=9).number_format = '$#,##0.00'
+            # Build row data based on selected columns
+            row_data = {
+                'upc': item['product_upc'],
+                'description': item['product_description'],
+                'on_hand': item['current_qty'],
+                'threshold': item['threshold'],
+                'suggested_qty': item['suggested_qty'],
+                'order_qty': item['final_qty'],
+                'cases': cases,
+                'unit_cost': float(item['unit_cost'] or 0),
+                'total': total,
+            }
 
+            for col_idx, col_id in enumerate(selected_columns, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=row_data[col_id])
+                cell.border = thin_border
+                if col_id in ['unit_cost', 'total']:
+                    cell.number_format = '$#,##0.00'
+
+        # Summary row - only show if relevant columns are selected
         summary_row = len(items) + 7
-        ws.cell(row=summary_row, column=5, value="TOTALS:").font = Font(bold=True)
-        ws.cell(row=summary_row, column=6, value=sum(i['final_qty'] or 0 for i in items)).font = Font(bold=True)
-        total_cost = sum((i['final_qty'] or 0) * float(i['unit_cost'] or 0) for i in items)
-        ws.cell(row=summary_row, column=9, value=total_cost).font = Font(bold=True)
-        ws.cell(row=summary_row, column=9).number_format = '$#,##0.00'
+        if 'order_qty' in selected_columns:
+            order_qty_idx = selected_columns.index('order_qty') + 1
+            # Put TOTALS label in column before order_qty, or in order_qty column if it's first
+            if order_qty_idx > 1:
+                ws.cell(row=summary_row, column=order_qty_idx - 1, value="TOTALS:").font = Font(bold=True)
+            ws.cell(row=summary_row, column=order_qty_idx, value=sum(i['final_qty'] or 0 for i in items)).font = Font(bold=True)
 
-        ws.column_dimensions['A'].width = 15
-        ws.column_dimensions['B'].width = 40
-        ws.column_dimensions['C'].width = 12
-        ws.column_dimensions['D'].width = 12
-        ws.column_dimensions['E'].width = 14
-        ws.column_dimensions['F'].width = 12
-        ws.column_dimensions['G'].width = 10
-        ws.column_dimensions['H'].width = 12
-        ws.column_dimensions['I'].width = 12
+        if 'total' in selected_columns:
+            total_idx = selected_columns.index('total') + 1
+            total_cost = sum((i['final_qty'] or 0) * float(i['unit_cost'] or 0) for i in items)
+            ws.cell(row=summary_row, column=total_idx, value=total_cost).font = Font(bold=True)
+            ws.cell(row=summary_row, column=total_idx).number_format = '$#,##0.00'
+
+        # Set column widths for selected columns
+        col_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for col_idx, col_id in enumerate(selected_columns):
+            ws.column_dimensions[col_letters[col_idx]].width = column_config[col_id]['width']
 
         output = BytesIO()
         wb.save(output)
@@ -898,6 +931,27 @@ def export_order_pdf(order_id):
 
         items = pg.get_order_draft_items(order_id)
 
+        # Parse columns parameter
+        columns_param = request.args.get('columns', '')
+        all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
+        if columns_param:
+            selected_columns = [c.strip() for c in columns_param.split(',') if c.strip() in all_columns]
+        else:
+            selected_columns = all_columns
+
+        # Column configuration for PDF
+        column_config = {
+            'upc': {'header': 'UPC', 'width': 1.1*inch},
+            'description': {'header': 'Description', 'width': 2.5*inch},
+            'on_hand': {'header': 'On Hand', 'width': 0.7*inch},
+            'threshold': {'header': 'Threshold', 'width': 0.8*inch},
+            'suggested_qty': {'header': 'Suggested', 'width': 0.8*inch},
+            'order_qty': {'header': 'Order Qty', 'width': 0.8*inch},
+            'cases': {'header': 'Cases', 'width': 0.6*inch},
+            'unit_cost': {'header': 'Unit Cost', 'width': 0.8*inch},
+            'total': {'header': 'Total', 'width': 0.9*inch},
+        }
+
         output = BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch)
         elements = []
@@ -911,35 +965,58 @@ def export_order_pdf(order_id):
         elements.append(Paragraph(f"Status: {order['status']}", info_style))
         elements.append(Spacer(1, 0.3*inch))
 
-        data = [['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']]
+        # Build headers for selected columns
+        headers = [column_config[col]['header'] for col in selected_columns]
+        data = [headers]
 
         for item in items:
             unit_qty2 = float(item['unit_qty2'] or 1)
             cases = int((item['final_qty'] or 0) / unit_qty2) if unit_qty2 > 0 else 0
             total = (item['final_qty'] or 0) * float(item['unit_cost'] or 0)
 
-            data.append([
-                item['product_upc'] or '',
-                (item['product_description'] or '')[:35],
-                str(int(item['current_qty'] or 0)),
-                str(int(item['threshold'] or 0)),
-                str(int(item['suggested_qty'] or 0)),
-                str(int(item['final_qty'] or 0)),
-                str(cases),
-                f"${float(item['unit_cost'] or 0):.2f}",
-                f"${total:.2f}"
-            ])
+            # Build row data based on selected columns
+            row_data = {
+                'upc': item['product_upc'] or '',
+                'description': (item['product_description'] or '')[:35],
+                'on_hand': str(int(item['current_qty'] or 0)),
+                'threshold': str(int(item['threshold'] or 0)),
+                'suggested_qty': str(int(item['suggested_qty'] or 0)),
+                'order_qty': str(int(item['final_qty'] or 0)),
+                'cases': str(cases),
+                'unit_cost': f"${float(item['unit_cost'] or 0):.2f}",
+                'total': f"${total:.2f}",
+            }
 
+            data.append([row_data[col] for col in selected_columns])
+
+        # Build totals row
         total_qty = sum(i['final_qty'] or 0 for i in items)
         total_cost = sum((i['final_qty'] or 0) * float(i['unit_cost'] or 0) for i in items)
-        data.append(['', '', '', '', 'TOTALS:', str(int(total_qty)), '', '', f"${total_cost:.2f}"])
 
-        table = Table(data, colWidths=[1.1*inch, 2.5*inch, 0.7*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch, 0.9*inch])
-        table.setStyle(TableStyle([
+        totals_row = []
+        for col in selected_columns:
+            if col == 'order_qty':
+                totals_row.append(str(int(total_qty)))
+            elif col == 'total':
+                totals_row.append(f"${total_cost:.2f}")
+            elif col == 'suggested_qty':
+                totals_row.append('TOTALS:')
+            else:
+                totals_row.append('')
+        data.append(totals_row)
+
+        # Get column widths for selected columns
+        col_widths = [column_config[col]['width'] for col in selected_columns]
+
+        table = Table(data, colWidths=col_widths)
+
+        # Find description column index for left-alignment
+        desc_col_idx = selected_columns.index('description') if 'description' in selected_columns else -1
+
+        table_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
@@ -948,7 +1025,13 @@ def export_order_pdf(order_id):
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
-        ]))
+        ]
+
+        # Left-align description column if present
+        if desc_col_idx >= 0:
+            table_style.append(('ALIGN', (desc_col_idx, 1), (desc_col_idx, -1), 'LEFT'))
+
+        table.setStyle(TableStyle(table_style))
 
         elements.append(table)
         doc.build(elements)

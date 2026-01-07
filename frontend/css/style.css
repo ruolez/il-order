@@ -1137,3 +1137,120 @@ input[type="checkbox"] {
   align-items: center;
   gap: var(--spacing-md);
 }
+
+/* Column Selector Dropdown */
+.column-selector-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.column-selector-panel {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: var(--spacing-sm);
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  z-index: 100;
+  animation: fadeInUp 0.15s ease;
+}
+
+.column-selector-panel.active {
+  display: block;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.column-selector-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-variant);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.column-selector-header span {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--on-surface-secondary);
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+
+.btn-text:hover {
+  background-color: var(--primary-light);
+}
+
+.column-selector-options {
+  padding: var(--spacing-sm) 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.column-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.column-option:hover {
+  background-color: var(--surface-variant);
+}
+
+.column-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.column-option label {
+  flex: 1;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Columns button with icon */
+.btn-columns {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-columns .chevron {
+  font-size: 10px;
+  transition: transform var(--transition-fast);
+}
+
+.btn-columns.active .chevron {
+  transform: rotate(180deg);
+}

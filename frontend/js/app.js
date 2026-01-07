@@ -715,6 +715,119 @@ document.addEventListener("DOMContentLoaded", () => {
 // Store loaded order data for reference
 let loadedOrderProducts = [];
 
+// ============== Column Selector for Export ==============
+const exportColumnConfig = [
+  { id: 'upc', label: 'UPC', default: true },
+  { id: 'description', label: 'Description', default: true },
+  { id: 'on_hand', label: 'On Hand', default: true },
+  { id: 'threshold', label: 'Threshold', default: true },
+  { id: 'suggested_qty', label: 'Suggested Qty', default: true },
+  { id: 'order_qty', label: 'Order Qty', default: true },
+  { id: 'cases', label: 'Cases', default: true },
+  { id: 'unit_cost', label: 'Unit Cost', default: true },
+  { id: 'total', label: 'Total', default: true },
+];
+
+// Track selected export columns - load from localStorage or use defaults
+function loadExportColumns() {
+  const saved = localStorage.getItem('exportColumns');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Validate that saved columns are still valid
+      const validColumns = parsed.filter(col =>
+        exportColumnConfig.some(c => c.id === col)
+      );
+      if (validColumns.length > 0) {
+        return new Set(validColumns);
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved export columns:', e);
+    }
+  }
+  // Return defaults if nothing saved or invalid
+  return new Set(exportColumnConfig.filter(c => c.default).map(c => c.id));
+}
+
+function saveExportColumns() {
+  localStorage.setItem('exportColumns', JSON.stringify(Array.from(exportColumns)));
+}
+
+let exportColumns = loadExportColumns();
+
+function initColumnSelector() {
+  const container = document.getElementById('column-selector-options');
+  if (!container) return;
+
+  container.innerHTML = exportColumnConfig.map(col => `
+    <div class="column-option">
+      <input type="checkbox" id="col-${col.id}"
+             ${exportColumns.has(col.id) ? 'checked' : ''}
+             onchange="toggleColumn('${col.id}')" />
+      <label for="col-${col.id}">${col.label}</label>
+    </div>
+  `).join('');
+}
+
+function toggleColumnSelector() {
+  const panel = document.getElementById('column-selector-panel');
+  const btn = document.querySelector('.btn-columns');
+
+  if (panel) {
+    panel.classList.toggle('active');
+    btn?.classList.toggle('active');
+  }
+}
+
+function toggleColumn(columnId) {
+  if (exportColumns.has(columnId)) {
+    exportColumns.delete(columnId);
+  } else {
+    exportColumns.add(columnId);
+  }
+  saveExportColumns();
+}
+
+function selectAllColumns(select) {
+  if (select) {
+    exportColumnConfig.forEach(col => exportColumns.add(col.id));
+  } else {
+    exportColumns.clear();
+  }
+  // Update checkboxes
+  exportColumnConfig.forEach(col => {
+    const checkbox = document.getElementById(`col-${col.id}`);
+    if (checkbox) checkbox.checked = select;
+  });
+  saveExportColumns();
+}
+
+function getSelectedColumnsParam() {
+  if (exportColumns.size === 0) {
+    return null; // No columns selected
+  }
+  if (exportColumns.size === exportColumnConfig.length) {
+    return ''; // All columns selected, no param needed
+  }
+  return Array.from(exportColumns).join(',');
+}
+
+// Close column selector when clicking outside
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('column-selector-panel');
+  const wrapper = e.target.closest('.column-selector-wrapper');
+
+  if (panel && panel.classList.contains('active') && !wrapper) {
+    panel.classList.remove('active');
+    document.querySelector('.btn-columns')?.classList.remove('active');
+  }
+});
+
+// Initialize column selector on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initColumnSelector();
+});
+
 // Export functions
 function getOrderData() {
   const rows = document.querySelectorAll("#order-tbody tr");
@@ -780,16 +893,36 @@ async function saveOrderDraft() {
 }
 
 async function saveAndExportExcel() {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
   const orderId = await saveOrderDraft();
   if (orderId) {
-    window.location.href = `/api/orders/${orderId}/export/excel`;
+    let url = `/api/orders/${orderId}/export/excel`;
+    if (columnsParam) {
+      url += `?columns=${columnsParam}`;
+    }
+    window.location.href = url;
   }
 }
 
 async function saveAndExportPDF() {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
   const orderId = await saveOrderDraft();
   if (orderId) {
-    window.location.href = `/api/orders/${orderId}/export/pdf`;
+    let url = `/api/orders/${orderId}/export/pdf`;
+    if (columnsParam) {
+      url += `?columns=${columnsParam}`;
+    }
+    window.location.href = url;
   }
 }
 
@@ -949,11 +1082,31 @@ async function viewOrder(orderId) {
 }
 
 function exportOrderExcel(orderId) {
-  window.location.href = `/api/orders/${orderId}/export/excel`;
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
+  let url = `/api/orders/${orderId}/export/excel`;
+  if (columnsParam) {
+    url += `?columns=${columnsParam}`;
+  }
+  window.location.href = url;
 }
 
 function exportOrderPDF(orderId) {
-  window.location.href = `/api/orders/${orderId}/export/pdf`;
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
+  let url = `/api/orders/${orderId}/export/pdf`;
+  if (columnsParam) {
+    url += `?columns=${columnsParam}`;
+  }
+  window.location.href = url;
 }
 
 async function deleteOrder(orderId) {
