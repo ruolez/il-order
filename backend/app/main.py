@@ -1213,9 +1213,29 @@ def export_inventory_excel():
 
         data = request.get_json()
         items = data.get('items', [])
+        columns_list = data.get('columns')
 
         if not items:
             return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+        # Column configuration
+        all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
+        column_config = {
+            'upc': {'header': 'UPC', 'width': 15},
+            'description': {'header': 'Description', 'width': 40},
+            'on_hand': {'header': 'On Hand', 'width': 12},
+            'threshold': {'header': 'Threshold', 'width': 12},
+            'suggested_qty': {'header': 'Suggested Qty', 'width': 14},
+            'order_qty': {'header': 'Order Qty', 'width': 12},
+            'cases': {'header': 'Cases', 'width': 10},
+            'unit_cost': {'header': 'Unit Cost', 'width': 12},
+            'total': {'header': 'Total', 'width': 12},
+        }
+
+        if columns_list:
+            selected_columns = [c for c in columns_list if c in all_columns]
+        else:
+            selected_columns = all_columns
 
         wb = Workbook()
         ws = wb.active
@@ -1234,8 +1254,8 @@ def export_inventory_excel():
         total_units = sum(item.get('order_qty', 0) for item in items)
         total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
 
-        # Headers (same as order export) - start at row 1
-        headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        # Headers - start at row 1
+        headers = [column_config[col]['header'] for col in selected_columns]
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = header_font
@@ -1250,35 +1270,41 @@ def export_inventory_excel():
             cases = item.get('cases', 0)
             total = order_qty * unit_cost
 
-            row_data = [
-                item.get('upc', ''),
-                item.get('description', ''),
-                item.get('on_hand', 0),
-                item.get('threshold', 0),
-                item.get('suggested_qty', 0),
-                order_qty,
-                cases,
-                unit_cost,
-                total
-            ]
+            row_data = {
+                'upc': item.get('upc', ''),
+                'description': item.get('description', ''),
+                'on_hand': item.get('on_hand', 0),
+                'threshold': item.get('threshold', 0),
+                'suggested_qty': item.get('suggested_qty', 0),
+                'order_qty': order_qty,
+                'cases': cases,
+                'unit_cost': unit_cost,
+                'total': total
+            }
 
-            for col_idx, value in enumerate(row_data, 1):
-                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            for col_idx, col_id in enumerate(selected_columns, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=row_data[col_id])
                 cell.border = thin_border
-                if col_idx in [8, 9]:  # Unit Cost, Total
+                if col_id in ['unit_cost', 'total']:
                     cell.number_format = '$#,##0.00'
 
-        # Totals row
+        # Summary row - only show if relevant columns are selected
         summary_row = len(items) + 2
-        ws.cell(row=summary_row, column=5, value="TOTALS:").font = Font(bold=True)
-        ws.cell(row=summary_row, column=6, value=total_units).font = Font(bold=True)
-        ws.cell(row=summary_row, column=9, value=total_cost).font = Font(bold=True)
-        ws.cell(row=summary_row, column=9).number_format = '$#,##0.00'
+        if 'order_qty' in selected_columns:
+            order_qty_idx = selected_columns.index('order_qty') + 1
+            if order_qty_idx > 1:
+                ws.cell(row=summary_row, column=order_qty_idx - 1, value="TOTALS:").font = Font(bold=True)
+            ws.cell(row=summary_row, column=order_qty_idx, value=total_units).font = Font(bold=True)
 
-        # Column widths
-        col_widths = [15, 40, 12, 12, 14, 12, 10, 12, 12]
-        for idx, width in enumerate(col_widths):
-            ws.column_dimensions['ABCDEFGHI'[idx]].width = width
+        if 'total' in selected_columns:
+            total_idx = selected_columns.index('total') + 1
+            ws.cell(row=summary_row, column=total_idx, value=total_cost).font = Font(bold=True)
+            ws.cell(row=summary_row, column=total_idx).number_format = '$#,##0.00'
+
+        # Column widths for selected columns
+        col_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for col_idx, col_id in enumerate(selected_columns):
+            ws.column_dimensions[col_letters[col_idx]].width = column_config[col_id]['width']
 
         output = BytesIO()
         wb.save(output)
@@ -1309,9 +1335,29 @@ def export_inventory_pdf():
 
         data = request.get_json()
         items = data.get('items', [])
+        columns_list = data.get('columns')
 
         if not items:
             return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+        # Column configuration for PDF
+        all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
+        column_config = {
+            'upc': {'header': 'UPC', 'width': 1.1*inch},
+            'description': {'header': 'Description', 'width': 2.5*inch},
+            'on_hand': {'header': 'On Hand', 'width': 0.7*inch},
+            'threshold': {'header': 'Threshold', 'width': 0.8*inch},
+            'suggested_qty': {'header': 'Suggested', 'width': 0.8*inch},
+            'order_qty': {'header': 'Order Qty', 'width': 0.8*inch},
+            'cases': {'header': 'Cases', 'width': 0.6*inch},
+            'unit_cost': {'header': 'Unit Cost', 'width': 0.8*inch},
+            'total': {'header': 'Total', 'width': 0.9*inch},
+        }
+
+        if columns_list:
+            selected_columns = [c for c in columns_list if c in all_columns]
+        else:
+            selected_columns = all_columns
 
         output = BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch)
@@ -1321,8 +1367,8 @@ def export_inventory_pdf():
         total_units = sum(item.get('order_qty', 0) for item in items)
         total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
 
-        # Table headers (same as order export)
-        headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
+        # Build headers for selected columns
+        headers = [column_config[col]['header'] for col in selected_columns]
         table_data = [headers]
 
         # Table rows
@@ -1331,33 +1377,45 @@ def export_inventory_pdf():
             unit_cost = float(item.get('unit_cost', 0))
             total = order_qty * unit_cost
 
-            row = [
-                item.get('upc', '') or '',
-                (item.get('description', '') or '')[:35],
-                str(int(item.get('on_hand', 0))),
-                str(int(item.get('threshold', 0))),
-                str(int(item.get('suggested_qty', 0))),
-                str(int(order_qty)),
-                str(int(item.get('cases', 0))),
-                f"${unit_cost:.2f}",
-                f"${total:.2f}"
-            ]
-            table_data.append(row)
+            row_data = {
+                'upc': item.get('upc', '') or '',
+                'description': (item.get('description', '') or '')[:35],
+                'on_hand': str(int(item.get('on_hand', 0))),
+                'threshold': str(int(item.get('threshold', 0))),
+                'suggested_qty': str(int(item.get('suggested_qty', 0))),
+                'order_qty': str(int(order_qty)),
+                'cases': str(int(item.get('cases', 0))),
+                'unit_cost': f"${unit_cost:.2f}",
+                'total': f"${total:.2f}"
+            }
 
-        # Totals row
-        totals_row = ['', '', '', '', 'TOTALS:', str(int(total_units)), '', '', f"${total_cost:.2f}"]
+            table_data.append([row_data[col] for col in selected_columns])
+
+        # Build totals row based on selected columns
+        totals_row = []
+        for col in selected_columns:
+            if col == 'order_qty':
+                totals_row.append(str(int(total_units)))
+            elif col == 'total':
+                totals_row.append(f"${total_cost:.2f}")
+            elif col == 'suggested_qty':
+                totals_row.append('TOTALS:')
+            else:
+                totals_row.append('')
         table_data.append(totals_row)
 
-        # Column widths
-        col_widths = [1.1*inch, 2.5*inch, 0.7*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch, 0.9*inch]
+        # Get column widths for selected columns
+        col_widths = [column_config[col]['width'] for col in selected_columns]
 
         table = Table(table_data, colWidths=col_widths)
+
+        # Find description column index for left-alignment
+        desc_col_idx = selected_columns.index('description') if 'description' in selected_columns else -1
 
         table_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Description left-aligned
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('FONTSIZE', (0, 1), (-1, -1), 8),
@@ -1367,6 +1425,10 @@ def export_inventory_pdf():
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
         ]
+
+        # Left-align description column if present
+        if desc_col_idx >= 0:
+            table_style.append(('ALIGN', (desc_col_idx, 1), (desc_col_idx, -1), 'LEFT'))
 
         table.setStyle(TableStyle(table_style))
         elements.append(table)

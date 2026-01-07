@@ -639,18 +639,25 @@ function clearInventorySelection() {
 
 // Export selected inventory items to Excel
 async function exportInventoryToExcel() {
+  const columnsParam = getInventorySelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
   if (inventorySelectedItems.size === 0) {
     showToast('No items selected', 'error');
     return;
   }
 
   const items = Array.from(inventorySelectedItems.values());
+  const columns = columnsParam ? columnsParam.split(',') : null;
 
   try {
     const response = await fetch('/api/inventory/export/excel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ items, columns })
     });
 
     if (response.ok) {
@@ -676,18 +683,25 @@ async function exportInventoryToExcel() {
 
 // Export selected inventory items to PDF
 async function exportInventoryToPDF() {
+  const columnsParam = getInventorySelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast('Please select at least one column to export', 'error');
+    return;
+  }
+
   if (inventorySelectedItems.size === 0) {
     showToast('No items selected', 'error');
     return;
   }
 
   const items = Array.from(inventorySelectedItems.values());
+  const columns = columnsParam ? columnsParam.split(',') : null;
 
   try {
     const response = await fetch('/api/inventory/export/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ items, columns })
     });
 
     if (response.ok) {
@@ -710,6 +724,119 @@ async function exportInventoryToPDF() {
     showToast(`Error: ${error.message}`, 'error');
   }
 }
+
+// ============== Inventory Column Selector ==============
+
+// Reuse the same column config as orders
+const inventoryExportColumnConfig = [
+  { id: 'upc', label: 'UPC', default: true },
+  { id: 'description', label: 'Description', default: true },
+  { id: 'on_hand', label: 'On Hand', default: true },
+  { id: 'threshold', label: 'Threshold', default: true },
+  { id: 'suggested_qty', label: 'Suggested Qty', default: true },
+  { id: 'order_qty', label: 'Order Qty', default: true },
+  { id: 'cases', label: 'Cases', default: true },
+  { id: 'unit_cost', label: 'Unit Cost', default: true },
+  { id: 'total', label: 'Total', default: true },
+];
+
+// Track selected inventory export columns - load from localStorage or use defaults
+function loadInventoryExportColumns() {
+  const saved = localStorage.getItem('inventoryExportColumns');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      const validColumns = parsed.filter(col =>
+        inventoryExportColumnConfig.some(c => c.id === col)
+      );
+      if (validColumns.length > 0) {
+        return new Set(validColumns);
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved inventory export columns:', e);
+    }
+  }
+  return new Set(inventoryExportColumnConfig.filter(c => c.default).map(c => c.id));
+}
+
+function saveInventoryExportColumns() {
+  localStorage.setItem('inventoryExportColumns', JSON.stringify(Array.from(inventoryExportColumns)));
+}
+
+let inventoryExportColumns = loadInventoryExportColumns();
+
+function initInventoryColumnSelector() {
+  const container = document.getElementById('inventory-column-selector-options');
+  if (!container) return;
+
+  container.innerHTML = inventoryExportColumnConfig.map(col => `
+    <div class="column-option">
+      <input type="checkbox" id="inv-col-${col.id}"
+             ${inventoryExportColumns.has(col.id) ? 'checked' : ''}
+             onchange="toggleInventoryColumn('${col.id}')" />
+      <label for="inv-col-${col.id}">${col.label}</label>
+    </div>
+  `).join('');
+}
+
+function toggleInventoryColumnSelector() {
+  const panel = document.getElementById('inventory-column-selector-panel');
+  const btn = document.querySelector('#inventory-export-bar .btn-columns');
+
+  if (panel) {
+    panel.classList.toggle('active');
+    btn?.classList.toggle('active');
+  }
+}
+
+function toggleInventoryColumn(columnId) {
+  if (inventoryExportColumns.has(columnId)) {
+    inventoryExportColumns.delete(columnId);
+  } else {
+    inventoryExportColumns.add(columnId);
+  }
+  saveInventoryExportColumns();
+}
+
+function selectAllInventoryColumns(select) {
+  if (select) {
+    inventoryExportColumnConfig.forEach(col => inventoryExportColumns.add(col.id));
+  } else {
+    inventoryExportColumns.clear();
+  }
+  inventoryExportColumnConfig.forEach(col => {
+    const checkbox = document.getElementById(`inv-col-${col.id}`);
+    if (checkbox) checkbox.checked = select;
+  });
+  saveInventoryExportColumns();
+}
+
+function getInventorySelectedColumnsParam() {
+  if (inventoryExportColumns.size === 0) {
+    return null;
+  }
+  if (inventoryExportColumns.size === inventoryExportColumnConfig.length) {
+    return '';
+  }
+  return Array.from(inventoryExportColumns).join(',');
+}
+
+// Close inventory column selector when clicking outside
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('inventory-column-selector-panel');
+  const wrapper = e.target.closest('.column-selector-wrapper');
+  const isInInventoryBar = e.target.closest('#inventory-export-bar');
+
+  if (panel && panel.classList.contains('active') && (!wrapper || !isInInventoryBar)) {
+    panel.classList.remove('active');
+    document.querySelector('#inventory-export-bar .btn-columns')?.classList.remove('active');
+  }
+});
+
+// Initialize inventory column selector on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initInventoryColumnSelector();
+});
 
 function searchProducts() {
   const searchTerm = document.getElementById("inventory-search").value.trim();
