@@ -55,6 +55,10 @@ let inventoryViewMode = localStorage.getItem('inventoryViewMode') || 'table';
 let pendingOrderSupplier = null;
 let pendingOrderFilter = null;
 let pendingOrderAutoLoad = false;
+let pendingNoSupplierProducts = null; // Products with no supplier (passed from grouped view)
+
+// Supplier groups cache (populated by renderGroupedView)
+let cachedSupplierGroups = {};
 
 // Load application settings (including items per page)
 async function loadAppSettings() {
@@ -445,6 +449,9 @@ function renderGroupedView(products) {
     }
   });
 
+  // Cache supplier groups for use when navigating to orders
+  cachedSupplierGroups = supplierGroups;
+
   // Sort by estimated order cost (high to low), "No Supplier" always at the end
   const sortedSuppliers = Object.values(supplierGroups).sort((a, b) => {
     if (a.name === 'No Supplier') return 1;
@@ -496,6 +503,14 @@ function navigateToOrdersWithSupplier(supplierName, inventoryFilter) {
   pendingOrderSupplier = supplierName;
   pendingOrderFilter = filterMap[inventoryFilter] || 'all';
   pendingOrderAutoLoad = true;
+
+  // For "No Supplier", pass the actual products instead of relying on API filter
+  if (supplierName === 'No Supplier' && cachedSupplierGroups['No Supplier']) {
+    pendingNoSupplierProducts = cachedSupplierGroups['No Supplier'].products;
+  } else {
+    pendingNoSupplierProducts = null;
+  }
+
   navigateTo('orders');
 }
 
@@ -869,23 +884,72 @@ async function loadNeedsReorder() {
     '<tr><td colspan="9" class="loading">Loading products...</td></tr>';
 
   try {
-    let endpoint = "/analysis/needs-reorder";
-    const params = [];
-    if (supplierId) params.push(`supplier_id=${supplierId}`);
-    params.push(`filter=${filterMode}`);
-    if (ordersSortBy) {
-      params.push(`sort_by=${ordersSortBy}`);
-      params.push(`sort_order=${ordersSortOrder}`);
+    let products;
+
+    // Check if we have pending "No Supplier" products from inventory grouped view
+    if (pendingNoSupplierProducts) {
+      // Transform inventory products to match the order table format
+      products = pendingNoSupplierProducts.map(p => {
+        const unitQty2 = p.UnitQty2 || 1;
+        const suggestedQty = p.suggested_qty || 0;
+        return {
+          ProductUPC: p.ProductUPC,
+          ProductDescription: p.ProductDescription,
+          QuantOnHand: p.QuantOnHand || 0,
+          unit_qty2: unitQty2,
+          threshold: p.threshold || 0,
+          suggested_qty: suggestedQty,
+          cases_needed: Math.ceil(suggestedQty / unitQty2),
+          status: p.needs_reorder ? 'needs_reorder' : 'sufficient',
+          UnitCost: p.UnitCost
+        };
+      });
+
+      // Apply filter
+      if (filterMode === 'needs_reorder') {
+        products = products.filter(p => p.status === 'needs_reorder');
+      } else if (filterMode === 'sufficient') {
+        products = products.filter(p => p.status === 'sufficient');
+      }
+
+      // Apply sorting
+      if (ordersSortBy) {
+        const sortKey = ordersSortBy === 'description' ? 'ProductDescription' : ordersSortBy;
+        products.sort((a, b) => {
+          let aVal = a[sortKey] || '';
+          let bVal = b[sortKey] || '';
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+          if (aVal < bVal) return ordersSortOrder === 'asc' ? -1 : 1;
+          if (aVal > bVal) return ordersSortOrder === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
+      // Clear the pending products after use
+      pendingNoSupplierProducts = null;
+    } else {
+      // Normal API call for supplier-filtered products
+      let endpoint = "/analysis/needs-reorder";
+      const params = [];
+      if (supplierId) params.push(`supplier_id=${supplierId}`);
+      params.push(`filter=${filterMode}`);
+      if (ordersSortBy) {
+        params.push(`sort_by=${ordersSortBy}`);
+        params.push(`sort_order=${ordersSortOrder}`);
+      }
+      if (params.length) endpoint += "?" + params.join("&");
+
+      const result = await api.get(endpoint);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      products = result.products;
     }
-    if (params.length) endpoint += "?" + params.join("&");
 
-    const result = await api.get(endpoint);
-
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-
-    if (result.products.length === 0) {
+    if (products.length === 0) {
       const emptyMessage =
         filterMode === "needs_reorder"
           ? "No products need reordering"
@@ -898,9 +962,9 @@ async function loadNeedsReorder() {
       return;
     }
 
-    loadedOrderProducts = result.products;
+    loadedOrderProducts = products;
 
-    tbody.innerHTML = result.products
+    tbody.innerHTML = products
       .map((product) => {
         const needsReorder = product.status === "needs_reorder";
         const statusBadge = needsReorder
@@ -932,7 +996,7 @@ async function loadNeedsReorder() {
       })
       .join("");
 
-    const hasSelectableItems = result.products.some(
+    const hasSelectableItems = products.some(
       (p) => p.status === "needs_reorder" && p.suggested_qty > 0,
     );
     document.getElementById("select-all-orders").checked = hasSelectableItems;
