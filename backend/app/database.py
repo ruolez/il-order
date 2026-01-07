@@ -369,6 +369,35 @@ class MSSQLManager:
                 'daily_average': total_sold / days if days > 0 else 0
             }
 
+    def get_all_sales_data(self, days: int = 60) -> Dict[str, Dict[str, Any]]:
+        """Get aggregated sales data for all products in a single query."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    d.ProductUPC,
+                    COALESCE(SUM(d.QtyShipped), 0) as total_sold,
+                    COUNT(DISTINCT i.InvoiceID) as invoice_count
+                FROM InvoicesDetails_tbl d
+                JOIN Invoices_tbl i ON d.InvoiceID = i.InvoiceID
+                WHERE i.InvoiceDate >= DATEADD(day, -%s, GETDATE())
+                  AND i.Void = 0
+                GROUP BY d.ProductUPC
+            """, (days,))
+            rows = cursor.fetchall()
+
+            months = days / 30.0
+            result = {}
+            for row in rows:
+                upc = row['ProductUPC']
+                total_sold = float(row['total_sold'] or 0)
+                result[upc] = {
+                    'total_sold': total_sold,
+                    'invoice_count': row['invoice_count'] or 0,
+                    'monthly_average': total_sold / months if months > 0 else 0,
+                    'daily_average': total_sold / days if days > 0 else 0
+                }
+            return result
+
     def get_suppliers_from_purchase_history(self) -> List[Dict[str, Any]]:
         """Get list of suppliers that have been used in purchase orders."""
         with self.get_cursor() as cursor:

@@ -313,11 +313,15 @@ def get_needs_reorder():
         needs_reorder = []
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
 
+        # Get all sales data in a single query (optimized)
+        all_sales_data = mssql.get_all_sales_data(sales_period)
+
         for product in products:
             upc = product['ProductUPC']
             override = overrides.get(upc)
 
-            sales_data = mssql.get_sales_data(upc, sales_period)
+            # Look up sales data from batch result
+            sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
             dynamic_threshold = sales_data['monthly_average']
 
             # Determine threshold
@@ -393,11 +397,15 @@ def get_summary():
 
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
 
+        # Get all sales data in a single query (optimized)
+        all_sales_data = mssql.get_all_sales_data(sales_period)
+
         for product in products:
             upc = product['ProductUPC']
             override = overrides.get(upc)
 
-            sales_data = mssql.get_sales_data(upc, sales_period)
+            # Look up sales data from batch result
+            sales_data = all_sales_data.get(upc, {'monthly_average': 0})
             dynamic_threshold = sales_data['monthly_average']
 
             if override and override.get('manual_threshold') is not None:
