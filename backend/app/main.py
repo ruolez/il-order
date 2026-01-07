@@ -1230,32 +1230,21 @@ def export_inventory_excel():
             bottom=Side(style='thin')
         )
 
-        # Summary section
-        ws['A1'] = "Inventory Export"
-        ws['A1'].font = Font(bold=True, size=14)
-
-        export_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-        ws['A2'] = f"Date: {export_date}"
-
-        total_items = len(items)
+        # Calculate totals for footer
         total_units = sum(item.get('order_qty', 0) for item in items)
         total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
 
-        ws['C2'] = f"Items: {total_items}"
-        ws['E2'] = f"Total Units: {total_units:,}"
-        ws['G2'] = f"Est. Cost: ${total_cost:,.2f}"
-
-        # Headers (same as order export)
+        # Headers (same as order export) - start at row 1
         headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested Qty', 'Order Qty', 'Cases', 'Unit Cost', 'Total']
         for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=4, column=col_idx, value=header)
+            cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
 
-        # Data rows
-        for row_idx, item in enumerate(items, 5):
+        # Data rows - start at row 2
+        for row_idx, item in enumerate(items, 2):
             order_qty = item.get('order_qty', 0)
             unit_cost = float(item.get('unit_cost', 0))
             cases = item.get('cases', 0)
@@ -1280,7 +1269,7 @@ def export_inventory_excel():
                     cell.number_format = '$#,##0.00'
 
         # Totals row
-        summary_row = len(items) + 6
+        summary_row = len(items) + 2
         ws.cell(row=summary_row, column=5, value="TOTALS:").font = Font(bold=True)
         ws.cell(row=summary_row, column=6, value=total_units).font = Font(bold=True)
         ws.cell(row=summary_row, column=9, value=total_cost).font = Font(bold=True)
@@ -1327,22 +1316,10 @@ def export_inventory_pdf():
         output = BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch)
         elements = []
-        styles = getSampleStyleSheet()
 
-        # Title
-        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, spaceAfter=6)
-        elements.append(Paragraph("Inventory Export", title_style))
-
-        # Summary
-        export_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-        total_items = len(items)
+        # Calculate totals for footer
         total_units = sum(item.get('order_qty', 0) for item in items)
         total_cost = sum(item.get('order_qty', 0) * float(item.get('unit_cost', 0)) for item in items)
-
-        summary_style = ParagraphStyle('Summary', parent=styles['Normal'], fontSize=10, spaceAfter=12)
-        summary_text = f"Date: {export_date}  |  Items: {total_items}  |  Total Units: {total_units:,}  |  Est. Cost: ${total_cost:,.2f}"
-        elements.append(Paragraph(summary_text, summary_style))
-        elements.append(Spacer(1, 0.2*inch))
 
         # Table headers (same as order export)
         headers = ['UPC', 'Description', 'On Hand', 'Threshold', 'Suggested', 'Order Qty', 'Cases', 'Unit Cost', 'Total']

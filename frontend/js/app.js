@@ -571,13 +571,41 @@ function updateInventoryExportBar() {
 // Toggle select all checkbox in inventory table header
 function toggleInventorySelectAll(checkbox) {
   const checkboxes = document.querySelectorAll('.inventory-checkbox');
+  const shouldCheck = checkbox.checked; // Capture the intended state
 
   checkboxes.forEach(cb => {
-    if (cb.checked !== checkbox.checked) {
-      cb.checked = checkbox.checked;
-      handleInventoryCheckboxChange(cb);
+    if (cb.checked !== shouldCheck) {
+      cb.checked = shouldCheck;
+      // Manually handle the selection instead of calling handleInventoryCheckboxChange
+      // to avoid updateInventorySelectAllState() changing the header checkbox mid-loop
+      const upc = cb.dataset.upc;
+      const row = cb.closest('tr');
+
+      if (shouldCheck) {
+        const product = allProducts.find(p => p.ProductUPC === upc) || {};
+        const orderQtyInput = row.querySelector('.inventory-order-qty-input');
+        const orderQty = parseInt(orderQtyInput?.value) || 0;
+        const unitQty2 = product.UnitQty2 || 1;
+
+        inventorySelectedItems.set(upc, {
+          upc: upc,
+          description: product.ProductDescription || row.cells[2]?.textContent || '-',
+          on_hand: product.QuantOnHand || 0,
+          case_qty: unitQty2,
+          threshold: product.threshold || 0,
+          suggested_qty: product.suggested_qty || 0,
+          order_qty: orderQty,
+          cases: Math.ceil(orderQty / unitQty2),
+          unit_cost: parseFloat(product.UnitCost) || 0
+        });
+      } else {
+        inventorySelectedItems.delete(upc);
+      }
     }
   });
+
+  // Update the export bar once after all checkboxes are processed
+  updateInventoryExportBar();
 }
 
 // Update select all checkbox state based on individual selections
