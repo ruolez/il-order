@@ -158,7 +158,7 @@ def get_products():
         # Get settings for threshold and order calculation
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
-        order_period_weeks = int(settings.get('order_period_weeks', 4))
+        order_period_days = int(settings.get('order_period_days', 28))
 
         # Get overrides for threshold calculation
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
@@ -214,7 +214,6 @@ def get_products():
                     unit_qty2 = 1
 
                 if needs_reorder:
-                    order_period_days = order_period_weeks * 7
                     projected_need = daily_avg * order_period_days
                     cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
                     suggested_qty = int(cases_needed * unit_qty2)
@@ -319,7 +318,6 @@ def get_products():
                     unit_qty2 = 1
 
                 if needs_reorder:
-                    order_period_days = order_period_weeks * 7
                     projected_need = daily_avg * order_period_days
                     cases_needed = int(-(-projected_need // unit_qty2))  # Ceiling division
                     suggested_qty = int(cases_needed * unit_qty2)
@@ -628,7 +626,7 @@ def get_needs_reorder():
 
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
-        order_period_weeks = int(settings.get('order_period_weeks', 4))
+        order_period_days = int(settings.get('order_period_days', 28))
 
         result_products = []
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
@@ -664,7 +662,6 @@ def get_needs_reorder():
 
             if needs_reorder:
                 daily_avg = sales_data['daily_average']
-                order_period_days = order_period_weeks * 7
                 projected_need = daily_avg * order_period_days
                 cases_needed = -(-projected_need // unit_qty2)
                 suggested_qty = int(cases_needed * unit_qty2)

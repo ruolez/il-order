@@ -430,15 +430,9 @@
                 <small>Period used to calculate average monthly sales</small>
               </div>
               <div class="form-group">
-                <label for="order-period">Order Period</label>
-                <select id="order-period">
-                  <option value="2">2 Weeks</option>
-                  <option value="3">3 Weeks</option>
-                  <option value="4" selected>4 Weeks (1 Month)</option>
-                  <option value="6">6 Weeks</option>
-                  <option value="8">8 Weeks (2 Months)</option>
-                </select>
-                <small>How many weeks of stock to order</small>
+                <label for="order-period">Order Period (Days)</label>
+                <input type="number" id="order-period" min="1" max="365" value="28">
+                <small>Number of days of stock to order</small>
               </div>
               <div class="form-group">
                 <label for="threshold-multiplier">Threshold Multiplier</label>

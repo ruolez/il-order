@@ -89,8 +89,8 @@ async function loadAnalysisSettings() {
             if (settings.sales_period_days) {
                 document.getElementById('sales-period').value = settings.sales_period_days;
             }
-            if (settings.order_period_weeks) {
-                document.getElementById('order-period').value = settings.order_period_weeks;
+            if (settings.order_period_days) {
+                document.getElementById('order-period').value = settings.order_period_days;
             }
             if (settings.threshold_multiplier) {
                 document.getElementById('threshold-multiplier').value = settings.threshold_multiplier;
@@ -109,7 +109,7 @@ async function saveAnalysisSettings(e) {
 
     const settings = {
         sales_period_days: document.getElementById('sales-period').value,
-        order_period_weeks: document.getElementById('order-period').value,
+        order_period_days: document.getElementById('order-period').value,
         threshold_multiplier: document.getElementById('threshold-multiplier').value,
         items_per_page: document.getElementById('items-per-page').value
     };

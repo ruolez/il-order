@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Insert default settings
 INSERT INTO settings (key, value) VALUES
     ('sales_period_days', '60'),
-    ('order_period_weeks', '4'),
+    ('order_period_days', '28'),
     ('threshold_multiplier', '1.0')
 ON CONFLICT (key) DO NOTHING;
 

@@ -38,7 +38,7 @@ sql_config (id, name, server, database, username, password, is_active, created_a
 
 -- Application settings (key-value)
 settings (key, value, updated_at)
--- Keys: sales_period_days, order_period_weeks, threshold_multiplier
+-- Keys: sales_period_days, order_period_days, threshold_multiplier
 
 -- Product-specific overrides
 product_overrides (id, product_upc, exclude_from_dynamic, manual_threshold, manual_order_qty, notes, created_at, updated_at)
