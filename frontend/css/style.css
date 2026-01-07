@@ -50,6 +50,9 @@
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
+
+  /* Layout */
+  --navbar-height: 57px;
 }
 
 /* Reset and base styles */
@@ -409,6 +412,46 @@ body {
 
 .table-container.table-page-scroll {
   overflow: visible;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Sticky header for page-scroll tables */
+.table-page-scroll .data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-page-scroll .data-table thead {
+  position: sticky;
+  top: var(--navbar-height);
+  z-index: 20;
+}
+
+.table-page-scroll .data-table th {
+  position: static;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.table-page-scroll .data-table th:first-child {
+  border-left: 1px solid var(--outline-variant);
+}
+
+.table-page-scroll .data-table th:last-child {
+  border-right: 1px solid var(--outline-variant);
+}
+
+.table-page-scroll .data-table td:first-child {
+  border-left: 1px solid var(--outline-variant);
+}
+
+.table-page-scroll .data-table td:last-child {
+  border-right: 1px solid var(--outline-variant);
+}
+
+.table-page-scroll .data-table tbody tr:last-child td {
+  border-bottom: 1px solid var(--outline-variant);
 }
 
 .data-table {
