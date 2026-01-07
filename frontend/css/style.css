@@ -402,7 +402,7 @@ body {
 }
 
 .table-container.scrollable-table {
-  max-height: calc(100vh - 320px);
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
   overflow-x: auto;
 }
