@@ -5,6 +5,7 @@ from .config import Config
 from datetime import datetime
 from io import BytesIO
 import os
+import math
 
 app = Flask(__name__)
 
@@ -172,7 +173,7 @@ def get_products():
 
                 override = overrides.get(upc)
                 sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
-                dynamic_threshold = sales_data['monthly_average']
+                dynamic_threshold = math.ceil(sales_data['monthly_average'])
 
                 # Determine effective threshold
                 if override and override.get('manual_threshold') is not None:
@@ -197,9 +198,9 @@ def get_products():
 
                 filtered.append({
                     **product,
-                    'threshold': round(threshold, 2),
+                    'threshold': int(threshold),
                     'threshold_type': threshold_type,
-                    'dynamic_threshold': round(dynamic_threshold, 2),
+                    'dynamic_threshold': int(dynamic_threshold),
                     'monthly_average': round(sales_data['monthly_average'], 2),
                     'daily_average': round(sales_data['daily_average'], 2),
                     'needs_reorder': needs_reorder,
@@ -227,7 +228,7 @@ def get_products():
 
                 override = overrides.get(upc)
                 sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
-                dynamic_threshold = sales_data['monthly_average']
+                dynamic_threshold = math.ceil(sales_data['monthly_average'])
 
                 # Determine effective threshold
                 if override and override.get('manual_threshold') is not None:
@@ -244,9 +245,9 @@ def get_products():
 
                 enriched.append({
                     **product,
-                    'threshold': round(threshold, 2),
+                    'threshold': int(threshold),
                     'threshold_type': threshold_type,
-                    'dynamic_threshold': round(dynamic_threshold, 2),
+                    'dynamic_threshold': int(dynamic_threshold),
                     'monthly_average': round(sales_data['monthly_average'], 2),
                     'daily_average': round(sales_data['daily_average'], 2),
                     'needs_reorder': qty_on_hand < threshold,
@@ -435,7 +436,7 @@ def get_needs_reorder():
             override = overrides.get(upc)
 
             sales_data = all_sales_data.get(upc, {'monthly_average': 0, 'daily_average': 0})
-            dynamic_threshold = sales_data['monthly_average']
+            dynamic_threshold = math.ceil(sales_data['monthly_average'])
 
             if override and override.get('manual_threshold') is not None:
                 threshold = override['manual_threshold']
@@ -467,13 +468,13 @@ def get_needs_reorder():
 
             product_data = {
                 **product,
-                'threshold': round(threshold, 2),
+                'threshold': int(threshold),
                 'monthly_average': round(sales_data['monthly_average'], 2),
                 'daily_average': round(sales_data['daily_average'], 2),
                 'suggested_qty': suggested_qty,
                 'cases_needed': int(cases_needed),
                 'unit_qty2': unit_qty2,
-                'deficit': round(threshold - qty_on_hand, 2),
+                'deficit': int(threshold - qty_on_hand),
                 'status': 'needs_reorder' if needs_reorder else 'sufficient'
             }
 
@@ -531,7 +532,7 @@ def get_summary():
 
             # Look up sales data from batch result
             sales_data = all_sales_data.get(upc, {'monthly_average': 0})
-            dynamic_threshold = sales_data['monthly_average']
+            dynamic_threshold = math.ceil(sales_data['monthly_average'])
 
             if override and override.get('manual_threshold') is not None:
                 threshold = override['manual_threshold']

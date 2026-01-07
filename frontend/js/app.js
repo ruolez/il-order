@@ -358,7 +358,7 @@ async function viewProduct(upc) {
       product.QuantOnHand || 0
     ).toLocaleString();
     document.getElementById("modal-threshold").textContent =
-      salesData.monthly_average.toFixed(1);
+      Math.ceil(salesData.monthly_average);
     document.getElementById("modal-monthly-avg").textContent =
       salesData.monthly_average.toFixed(1);
     document.getElementById("modal-daily-avg").textContent =
