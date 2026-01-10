@@ -258,7 +258,7 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-            # Sort by last_supplier or status if requested (Python-level since not in SQL)
+            # Sort by fields that require Python-level sorting (not available in SQL)
             if sort_by == 'last_supplier':
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: (x.get('last_supplier') or '').lower(), reverse=reverse_sort)
@@ -266,6 +266,10 @@ def get_products():
                 # Sort by needs_reorder: True (Reorder) first when asc, False (OK) first when desc
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: (not x.get('needs_reorder', False)), reverse=reverse_sort)
+            elif sort_by == 'threshold':
+                # Sort by the calculated threshold value (not SQL ReorderLevel)
+                reverse_sort = sort_order == 'desc'
+                filtered.sort(key=lambda x: x.get('threshold', 0), reverse=reverse_sort)
 
             # Apply pagination to filtered results (unless no_pagination)
             total_count = len(filtered)
@@ -275,8 +279,9 @@ def get_products():
                 enriched = filtered[offset:offset + limit]
         else:
             # "all" filter - use SQL-level pagination for maximum speed
-            # Exception: when sorting by last_supplier, status, or no_pagination, we need to fetch all and sort in Python
-            use_python_pagination = sort_by in ('last_supplier', 'status') or no_pagination
+            # Exception: when sorting by last_supplier, status, threshold, or no_pagination, we need to fetch all and sort in Python
+            # (threshold requires Python sorting because actual threshold is calculated from overrides + dynamic values)
+            use_python_pagination = sort_by in ('last_supplier', 'status', 'threshold') or no_pagination
 
             result = mssql.get_products_with_sales(
                 days=sales_period,
@@ -363,7 +368,7 @@ def get_products():
                     'last_supplier': last_suppliers.get(upc)
                 })
 
-            # Sort by last_supplier or status if requested, then apply pagination (unless no_pagination)
+            # Sort by fields that require Python-level sorting, then apply pagination (unless no_pagination)
             if use_python_pagination:
                 reverse_sort = sort_order == 'desc'
                 if sort_by == 'last_supplier':
@@ -371,6 +376,9 @@ def get_products():
                 elif sort_by == 'status':
                     # Sort by needs_reorder: True (Reorder) first when asc, False (OK) first when desc
                     all_enriched.sort(key=lambda x: (not x.get('needs_reorder', False)), reverse=reverse_sort)
+                elif sort_by == 'threshold':
+                    # Sort by the calculated threshold value (not SQL ReorderLevel)
+                    all_enriched.sort(key=lambda x: x.get('threshold', 0), reverse=reverse_sort)
                 total_count = len(all_enriched)
                 if no_pagination:
                     enriched = all_enriched
