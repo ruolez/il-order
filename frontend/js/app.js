@@ -244,16 +244,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Dashboard
 async function loadDashboard() {
   try {
-    const result = await api.get("/analysis/summary");
+    // Fetch summary and settings in parallel
+    const [summaryResult, settingsResult] = await Promise.all([
+      api.get("/analysis/summary"),
+      api.get("/settings")
+    ]);
 
-    if (!result.success) {
-      throw new Error(result.error);
+    // Display settings
+    if (settingsResult.success && settingsResult.settings) {
+      const settings = settingsResult.settings;
+
+      // Sales period display
+      const salesPeriod = settings.sales_period_days || 60;
+      document.getElementById("display-sales-period").textContent = `Last ${salesPeriod} Days`;
+
+      // Order period editable input
+      const orderPeriod = settings.order_period_days || 28;
+      document.getElementById("dashboard-order-period").value = orderPeriod;
+
+      // Show settings section
+      document.getElementById("current-settings").style.display = "block";
     }
 
-    const summary = result.summary;
+    if (!summaryResult.success) {
+      throw new Error(summaryResult.error);
+    }
+
+    const summary = summaryResult.summary;
 
     if (!summary.configured) {
       document.getElementById("dashboard-stats").style.display = "none";
+      document.getElementById("current-settings").style.display = "none";
       document.getElementById("not-configured-message").style.display = "block";
       document.getElementById("dashboard-updated").textContent = "";
       return;
@@ -276,7 +297,46 @@ async function loadDashboard() {
   } catch (error) {
     console.error("Error loading dashboard:", error);
     document.getElementById("dashboard-stats").style.display = "none";
+    document.getElementById("current-settings").style.display = "none";
     document.getElementById("not-configured-message").style.display = "block";
+  }
+}
+
+// Update order period from dashboard and refresh analysis
+async function updateOrderPeriodFromDashboard() {
+  const input = document.getElementById("dashboard-order-period");
+  const value = parseInt(input.value);
+
+  if (!value || value < 1 || value > 365) {
+    showToast("Please enter a valid order period (1-365 days)", "error");
+    return;
+  }
+
+  try {
+    // Fetch current settings first
+    const currentSettings = await api.get("/settings");
+    if (!currentSettings.success) {
+      throw new Error("Failed to fetch current settings");
+    }
+
+    // Update with new order period
+    const result = await api.post("/settings", {
+      sales_period_days: currentSettings.settings.sales_period_days || 60,
+      order_period_days: value,
+      threshold_multiplier: currentSettings.settings.threshold_multiplier || 1.0,
+      items_per_page: currentSettings.settings.items_per_page || 100
+    });
+
+    if (result.success) {
+      showToast("Order period updated", "success");
+      // Refresh dashboard to reflect changes
+      refreshDashboard();
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error updating order period:", error);
+    showToast(`Error: ${error.message}`, "error");
   }
 }
 

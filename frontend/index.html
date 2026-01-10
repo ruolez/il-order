@@ -93,6 +93,22 @@
           </div>
         </div>
 
+        <div class="current-settings" id="current-settings">
+          <h2>Current Settings</h2>
+          <div class="settings-display">
+            <div class="setting-item">
+              <span class="setting-label">Sales Analysis Period</span>
+              <span class="setting-value" id="display-sales-period">--</span>
+            </div>
+            <div class="setting-item editable">
+              <span class="setting-label">Order Period</span>
+              <input type="number" id="dashboard-order-period" class="setting-input" min="1" max="365" />
+              <span class="setting-unit">days</span>
+              <button class="btn btn-small btn-primary" onclick="updateOrderPeriodFromDashboard()">Update</button>
+            </div>
+          </div>
+        </div>
+
         <div
           id="not-configured-message"
           class="info-card"
