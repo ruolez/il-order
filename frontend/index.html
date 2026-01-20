@@ -223,6 +223,30 @@
                 </svg>
                 Grouped
               </button>
+              <button
+                type="button"
+                class="view-toggle-btn"
+                id="compact-view-btn"
+                onclick="toggleCompactView()"
+                title="Toggle compact view to hide less important columns"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                </svg>
+                Compact
+              </button>
             </div>
             <label class="checkbox-label">
               <input
@@ -271,21 +295,21 @@
                   On Hand<span class="sort-indicator"></span>
                 </th>
                 <th
-                  class="sortable"
+                  class="sortable hide-in-compact"
                   data-sort="case_qty"
                   onclick="sortInventory('case_qty')"
                 >
                   Case Qty<span class="sort-indicator"></span>
                 </th>
                 <th
-                  class="sortable"
+                  class="sortable hide-in-compact"
                   data-sort="threshold"
                   onclick="sortInventory('threshold')"
                 >
                   Threshold<span class="sort-indicator"></span>
                 </th>
                 <th
-                  class="sortable"
+                  class="sortable hide-in-compact"
                   data-sort="last_supplier"
                   onclick="sortInventory('last_supplier')"
                 >
@@ -306,7 +330,7 @@
                   Suggested Qty<span class="sort-indicator"></span>
                 </th>
                 <th>Order Qty</th>
-                <th>Cases</th>
+                <th class="hide-in-compact">Cases</th>
                 <th>Actions</th>
               </tr>
             </thead>

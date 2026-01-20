@@ -2025,3 +2025,57 @@ input[type="checkbox"] {
     transform: translateY(20px);
   }
 }
+
+/* ===== Compact View for Inventory Table ===== */
+
+/* Hide columns when compact view is active */
+.compact-view .hide-in-compact {
+  display: none !important;
+}
+
+/* Reduced padding in compact mode */
+.compact-view .data-table th,
+.compact-view .data-table td {
+  padding: 8px 10px;
+}
+
+/* Compact action buttons - icon only with tooltips */
+.compact-view .action-btn {
+  padding: 4px 8px;
+  min-width: 32px;
+}
+
+.compact-view .action-btn-text {
+  display: none;
+}
+
+.compact-view .action-btn-icon {
+  display: inline;
+}
+
+/* Default state: show text, hide icon */
+.action-btn-icon {
+  display: none;
+}
+
+/* Compact view toggle button active state */
+#compact-view-btn.active {
+  background: var(--color-accent-emphasis);
+  color: var(--color-fg-on-emphasis);
+}
+
+#compact-view-btn.active:hover {
+  background: #0860ca;
+}
+
+/* Compact badge with threshold */
+.badge-with-threshold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-with-threshold .threshold-value {
+  font-size: 10px;
+  opacity: 0.85;
+}

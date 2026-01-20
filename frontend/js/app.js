@@ -49,7 +49,8 @@ let ordersSortBy = "suggested_qty";
 let ordersSortOrder = "desc";
 
 // View mode state
-let inventoryViewMode = localStorage.getItem('inventoryViewMode') || 'table';
+let inventoryViewMode = localStorage.getItem("inventoryViewMode") || "table";
+let isCompactView = localStorage.getItem("inventoryCompactView") === "true";
 
 // Pending order navigation state
 let pendingOrderSupplier = null;
@@ -160,7 +161,7 @@ function showExcludedSuppliersModal() {
             Restore
           </button>
         </div>
-      `
+      `,
           )
           .join("")
       : '<p class="no-excluded-message">No suppliers are hidden</p>';
@@ -230,6 +231,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load app settings first (includes items per page)
   await loadAppSettings();
 
+  // Initialize compact view state
+  initCompactView();
+
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
@@ -247,7 +251,7 @@ async function loadDashboard() {
     // Fetch summary and settings in parallel
     const [summaryResult, settingsResult] = await Promise.all([
       api.get("/analysis/summary"),
-      api.get("/settings")
+      api.get("/settings"),
     ]);
 
     // Display settings
@@ -256,7 +260,8 @@ async function loadDashboard() {
 
       // Sales period display
       const salesPeriod = settings.sales_period_days || 60;
-      document.getElementById("display-sales-period").textContent = `Last ${salesPeriod} Days`;
+      document.getElementById("display-sales-period").textContent =
+        `Last ${salesPeriod} Days`;
 
       // Order period editable input
       const orderPeriod = settings.order_period_days || 28;
@@ -323,8 +328,9 @@ async function updateOrderPeriodFromDashboard() {
     const result = await api.post("/settings", {
       sales_period_days: currentSettings.settings.sales_period_days || 60,
       order_period_days: value,
-      threshold_multiplier: currentSettings.settings.threshold_multiplier || 1.0,
-      items_per_page: currentSettings.settings.items_per_page || 100
+      threshold_multiplier:
+        currentSettings.settings.threshold_multiplier || 1.0,
+      items_per_page: currentSettings.settings.items_per_page || 100,
     });
 
     if (result.success) {
@@ -367,8 +373,8 @@ async function loadInventory(page = 1, search = "") {
   }
 
   // Initialize view toggle buttons state
-  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === inventoryViewMode);
+  document.querySelectorAll(".view-toggle-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.view === inventoryViewMode);
   });
 
   currentPage = page;
@@ -376,14 +382,14 @@ async function loadInventory(page = 1, search = "") {
   const currentFilter = document.getElementById("inventory-filter").value;
 
   // Show/hide containers based on view mode
-  const tableContainer = document.getElementById('inventory-table-container');
-  const cardsContainer = document.getElementById('supplier-cards-container');
-  const pagination = document.getElementById('inventory-pagination');
+  const tableContainer = document.getElementById("inventory-table-container");
+  const cardsContainer = document.getElementById("supplier-cards-container");
+  const pagination = document.getElementById("inventory-pagination");
 
   try {
     let endpoint;
 
-    if (inventoryViewMode === 'grouped') {
+    if (inventoryViewMode === "grouped") {
       // Grouped view: fetch ALL products (no pagination) to group by supplier
       endpoint = `/products?limit=0&filter=${currentFilter}`;
       if (search) {
@@ -395,12 +401,12 @@ async function loadInventory(page = 1, search = "") {
       // Sort by supplier for grouped view
       endpoint += `&sort_by=last_supplier&sort_order=asc`;
 
-      tableContainer.style.display = 'none';
-      cardsContainer.style.display = '';
-      pagination.style.display = 'none';
+      tableContainer.style.display = "none";
+      cardsContainer.style.display = "";
+      pagination.style.display = "none";
 
       // Show loading in cards container
-      document.getElementById('supplier-cards-grid').innerHTML =
+      document.getElementById("supplier-cards-grid").innerHTML =
         '<div class="info-card"><p>Loading suppliers...</p></div>';
     } else {
       // Table view: use pagination
@@ -414,9 +420,9 @@ async function loadInventory(page = 1, search = "") {
       }
       endpoint += `&sort_by=${inventorySortBy}&sort_order=${inventorySortOrder}`;
 
-      tableContainer.style.display = '';
-      cardsContainer.style.display = 'none';
-      pagination.style.display = '';
+      tableContainer.style.display = "";
+      cardsContainer.style.display = "none";
+      pagination.style.display = "";
     }
 
     const result = await api.get(endpoint);
@@ -429,7 +435,7 @@ async function loadInventory(page = 1, search = "") {
     totalProducts = result.total_count;
     totalPages = Math.ceil(totalProducts / itemsPerPage);
 
-    if (inventoryViewMode === 'grouped') {
+    if (inventoryViewMode === "grouped") {
       await loadExcludedSuppliers();
       renderGroupedView(allProducts);
     } else {
@@ -440,8 +446,8 @@ async function loadInventory(page = 1, search = "") {
     updateSortIndicators("inventory");
   } catch (error) {
     console.error("Error loading inventory:", error);
-    if (inventoryViewMode === 'grouped') {
-      document.getElementById('supplier-cards-grid').innerHTML =
+    if (inventoryViewMode === "grouped") {
+      document.getElementById("supplier-cards-grid").innerHTML =
         `<div class="info-card"><p>Error: ${error.message}</p></div>`;
     } else {
       tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
@@ -504,7 +510,9 @@ function renderInventoryTable(products, skipFilter = false) {
       // Check if this product is already selected
       const isSelected = inventorySelectedItems.has(upc);
       // Use stored order_qty if selected, otherwise use suggested_qty
-      const orderQty = isSelected ? (inventorySelectedItems.get(upc).order_qty || suggestedQty) : suggestedQty;
+      const orderQty = isSelected
+        ? inventorySelectedItems.get(upc).order_qty || suggestedQty
+        : suggestedQty;
       const cases = Math.ceil(orderQty / unitQty2);
 
       let statusClass = "badge-success";
@@ -518,24 +526,42 @@ function renderInventoryTable(products, skipFilter = false) {
         statusText = "Reorder";
       }
 
+      // In compact mode, show threshold in the status badge
+      let statusBadgeHtml;
+      if (isCompactView && !isExcluded) {
+        statusBadgeHtml = `<span class="badge ${statusClass} badge-with-threshold">${statusText}<span class="threshold-value">(${threshold})</span></span>`;
+      } else {
+        statusBadgeHtml = `<span class="badge ${statusClass}">${statusText}</span>`;
+      }
+
       const rowClass = isExcluded ? "product-excluded" : "";
-      const excludeBtn = isExcluded
-        ? `<button class="action-btn include" onclick="toggleExclude('${upc}')">Include</button>`
-        : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
+
+      // Action buttons: show icons in compact mode, text in full mode
+      const viewBtnHtml = isCompactView
+        ? `<button class="action-btn view" onclick="viewProduct('${upc}')" title="View details">👁</button>`
+        : `<button class="action-btn view" onclick="viewProduct('${upc}')">View</button>`;
+
+      const excludeBtnHtml = isExcluded
+        ? isCompactView
+          ? `<button class="action-btn include" onclick="toggleExclude('${upc}')" title="Include product">✓</button>`
+          : `<button class="action-btn include" onclick="toggleExclude('${upc}')">Include</button>`
+        : isCompactView
+          ? `<button class="action-btn exclude" onclick="toggleExclude('${upc}')" title="Exclude product">⊘</button>`
+          : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
-                <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? 'checked' : ''} onchange="handleInventoryCheckboxChange(this)" /></td>
+                <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc || "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyOnHand.toLocaleString()}</td>
-                <td>${unitQty2.toLocaleString()}</td>
-                <td>
+                <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
+                <td class="hide-in-compact">
                     ${threshold.toLocaleString()}
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
                 </td>
-                <td class="supplier-cell" title="${product.last_supplier || ''}">${product.last_supplier || '-'}</td>
-                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td class="supplier-cell hide-in-compact" title="${product.last_supplier || ""}">${product.last_supplier || "-"}</td>
+                <td>${statusBadgeHtml}</td>
                 <td>${suggestedQty.toLocaleString()}</td>
                 <td>
                     <input type="number" class="inventory-order-qty-input"
@@ -545,10 +571,10 @@ function renderInventoryTable(products, skipFilter = false) {
                            data-unit-qty="${unitQty2}"
                            onchange="updateInventoryCases(this)" />
                 </td>
-                <td class="inventory-cases-cell">${cases}</td>
+                <td class="inventory-cases-cell hide-in-compact">${cases}</td>
                 <td>
-                    <button class="action-btn view" onclick="viewProduct('${upc}')">View</button>
-                    ${excludeBtn}
+                    ${viewBtnHtml}
+                    ${excludeBtnHtml}
                 </td>
             </tr>
         `;
@@ -564,25 +590,26 @@ function renderInventoryTable(products, skipFilter = false) {
 // Handle individual checkbox change in inventory table
 function handleInventoryCheckboxChange(checkbox) {
   const upc = checkbox.dataset.upc;
-  const row = checkbox.closest('tr');
+  const row = checkbox.closest("tr");
 
   if (checkbox.checked) {
     // Extract and store product data from the row
-    const product = allProducts.find(p => p.ProductUPC === upc) || {};
-    const orderQtyInput = row.querySelector('.inventory-order-qty-input');
+    const product = allProducts.find((p) => p.ProductUPC === upc) || {};
+    const orderQtyInput = row.querySelector(".inventory-order-qty-input");
     const orderQty = parseInt(orderQtyInput?.value) || 0;
     const unitQty2 = product.UnitQty2 || 1;
 
     inventorySelectedItems.set(upc, {
       upc: upc,
-      description: product.ProductDescription || row.cells[2]?.textContent || '-',
+      description:
+        product.ProductDescription || row.cells[2]?.textContent || "-",
       on_hand: product.QuantOnHand || 0,
       case_qty: unitQty2,
       threshold: product.threshold || 0,
       suggested_qty: product.suggested_qty || 0,
       order_qty: orderQty,
       cases: Math.ceil(orderQty / unitQty2),
-      unit_cost: parseFloat(product.UnitCost) || 0
+      unit_cost: parseFloat(product.UnitCost) || 0,
     });
   } else {
     inventorySelectedItems.delete(upc);
@@ -597,14 +624,14 @@ function updateInventoryCases(input) {
   const qty = parseInt(input.value) || 0;
   const unitQty = parseFloat(input.dataset.unitQty) || 1;
   const cases = Math.ceil(qty / unitQty);
-  const row = input.closest('tr');
-  const casesCell = row.querySelector('.inventory-cases-cell');
+  const row = input.closest("tr");
+  const casesCell = row.querySelector(".inventory-cases-cell");
   if (casesCell) {
     casesCell.textContent = cases;
   }
 
   // Update stored data if item is checked
-  const checkbox = row.querySelector('.inventory-checkbox');
+  const checkbox = row.querySelector(".inventory-checkbox");
   const upc = input.dataset.upc;
   if (checkbox && checkbox.checked && upc && inventorySelectedItems.has(upc)) {
     const data = inventorySelectedItems.get(upc);
@@ -615,48 +642,49 @@ function updateInventoryCases(input) {
 
 // Show/hide floating export bar based on selection count
 function updateInventoryExportBar() {
-  const bar = document.getElementById('inventory-export-bar');
+  const bar = document.getElementById("inventory-export-bar");
   if (!bar) return;
 
   const count = inventorySelectedItems.size;
   if (count > 0) {
-    bar.classList.remove('hidden');
-    document.getElementById('inventory-selected-count').textContent =
-      `${count} item${count !== 1 ? 's' : ''} selected`;
+    bar.classList.remove("hidden");
+    document.getElementById("inventory-selected-count").textContent =
+      `${count} item${count !== 1 ? "s" : ""} selected`;
   } else {
-    bar.classList.add('hidden');
+    bar.classList.add("hidden");
   }
 }
 
 // Toggle select all checkbox in inventory table header
 function toggleInventorySelectAll(checkbox) {
-  const checkboxes = document.querySelectorAll('.inventory-checkbox');
+  const checkboxes = document.querySelectorAll(".inventory-checkbox");
   const shouldCheck = checkbox.checked; // Capture the intended state
 
-  checkboxes.forEach(cb => {
+  checkboxes.forEach((cb) => {
     if (cb.checked !== shouldCheck) {
       cb.checked = shouldCheck;
       // Manually handle the selection instead of calling handleInventoryCheckboxChange
       // to avoid updateInventorySelectAllState() changing the header checkbox mid-loop
       const upc = cb.dataset.upc;
-      const row = cb.closest('tr');
+      const row = cb.closest("tr");
 
       if (shouldCheck) {
-        const product = allProducts.find(p => p.ProductUPC === upc) || {};
-        const orderQtyInput = row.querySelector('.inventory-order-qty-input');
+        const product = allProducts.find((p) => p.ProductUPC === upc) || {};
+        const orderQtyInput = row.querySelector(".inventory-order-qty-input");
         const orderQty = parseInt(orderQtyInput?.value) || 0;
         const unitQty2 = product.UnitQty2 || 1;
 
         inventorySelectedItems.set(upc, {
           upc: upc,
-          description: product.ProductDescription || row.cells[2]?.textContent || '-',
+          description:
+            product.ProductDescription || row.cells[2]?.textContent || "-",
           on_hand: product.QuantOnHand || 0,
           case_qty: unitQty2,
           threshold: product.threshold || 0,
           suggested_qty: product.suggested_qty || 0,
           order_qty: orderQty,
           cases: Math.ceil(orderQty / unitQty2),
-          unit_cost: parseFloat(product.UnitCost) || 0
+          unit_cost: parseFloat(product.UnitCost) || 0,
         });
       } else {
         inventorySelectedItems.delete(upc);
@@ -670,26 +698,31 @@ function toggleInventorySelectAll(checkbox) {
 
 // Update select all checkbox state based on individual selections
 function updateInventorySelectAllState() {
-  const selectAll = document.getElementById('inventory-select-all');
+  const selectAll = document.getElementById("inventory-select-all");
   if (!selectAll) return;
 
-  const checkboxes = document.querySelectorAll('.inventory-checkbox');
+  const checkboxes = document.querySelectorAll(".inventory-checkbox");
   if (checkboxes.length === 0) {
     selectAll.checked = false;
     selectAll.indeterminate = false;
     return;
   }
 
-  const checkedCount = document.querySelectorAll('.inventory-checkbox:checked').length;
+  const checkedCount = document.querySelectorAll(
+    ".inventory-checkbox:checked",
+  ).length;
   selectAll.checked = checkedCount === checkboxes.length;
-  selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+  selectAll.indeterminate =
+    checkedCount > 0 && checkedCount < checkboxes.length;
 }
 
 // Clear all inventory selections
 function clearInventorySelection() {
   inventorySelectedItems.clear();
-  document.querySelectorAll('.inventory-checkbox').forEach(cb => cb.checked = false);
-  const selectAll = document.getElementById('inventory-select-all');
+  document
+    .querySelectorAll(".inventory-checkbox")
+    .forEach((cb) => (cb.checked = false));
+  const selectAll = document.getElementById("inventory-select-all");
   if (selectAll) {
     selectAll.checked = false;
     selectAll.indeterminate = false;
@@ -701,43 +734,43 @@ function clearInventorySelection() {
 async function exportInventoryToExcel() {
   const columnsParam = getInventorySelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
   if (inventorySelectedItems.size === 0) {
-    showToast('No items selected', 'error');
+    showToast("No items selected", "error");
     return;
   }
 
   const items = Array.from(inventorySelectedItems.values());
-  const columns = columnsParam ? columnsParam.split(',') : null;
+  const columns = columnsParam ? columnsParam.split(",") : null;
 
   try {
-    const response = await fetch('/api/inventory/export/excel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, columns })
+    const response = await fetch("/api/inventory/export/excel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items, columns }),
     });
 
     if (response.ok) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.download = `inventory-export-${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      showToast('Excel exported successfully!', 'success');
+      showToast("Excel exported successfully!", "success");
     } else {
       const error = await response.json();
-      throw new Error(error.error || 'Export failed');
+      throw new Error(error.error || "Export failed");
     }
   } catch (error) {
-    console.error('Error exporting to Excel:', error);
-    showToast(`Error: ${error.message}`, 'error');
+    console.error("Error exporting to Excel:", error);
+    showToast(`Error: ${error.message}`, "error");
   }
 }
 
@@ -745,43 +778,43 @@ async function exportInventoryToExcel() {
 async function exportInventoryToPDF() {
   const columnsParam = getInventorySelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
   if (inventorySelectedItems.size === 0) {
-    showToast('No items selected', 'error');
+    showToast("No items selected", "error");
     return;
   }
 
   const items = Array.from(inventorySelectedItems.values());
-  const columns = columnsParam ? columnsParam.split(',') : null;
+  const columns = columnsParam ? columnsParam.split(",") : null;
 
   try {
-    const response = await fetch('/api/inventory/export/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, columns })
+    const response = await fetch("/api/inventory/export/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items, columns }),
     });
 
     if (response.ok) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `inventory-export-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      showToast('PDF exported successfully!', 'success');
+      showToast("PDF exported successfully!", "success");
     } else {
       const error = await response.json();
-      throw new Error(error.error || 'Export failed');
+      throw new Error(error.error || "Export failed");
     }
   } catch (error) {
-    console.error('Error exporting to PDF:', error);
-    showToast(`Error: ${error.message}`, 'error');
+    console.error("Error exporting to PDF:", error);
+    showToast(`Error: ${error.message}`, "error");
   }
 }
 
@@ -789,63 +822,74 @@ async function exportInventoryToPDF() {
 
 // Reuse the same column config as orders
 const inventoryExportColumnConfig = [
-  { id: 'upc', label: 'UPC', default: true },
-  { id: 'description', label: 'Description', default: true },
-  { id: 'on_hand', label: 'On Hand', default: true },
-  { id: 'threshold', label: 'Threshold', default: true },
-  { id: 'suggested_qty', label: 'Suggested Qty', default: true },
-  { id: 'order_qty', label: 'Order Qty', default: true },
-  { id: 'cases', label: 'Cases', default: true },
-  { id: 'unit_cost', label: 'Unit Cost', default: true },
-  { id: 'total', label: 'Total', default: true },
+  { id: "upc", label: "UPC", default: true },
+  { id: "description", label: "Description", default: true },
+  { id: "on_hand", label: "On Hand", default: true },
+  { id: "threshold", label: "Threshold", default: true },
+  { id: "suggested_qty", label: "Suggested Qty", default: true },
+  { id: "order_qty", label: "Order Qty", default: true },
+  { id: "cases", label: "Cases", default: true },
+  { id: "unit_cost", label: "Unit Cost", default: true },
+  { id: "total", label: "Total", default: true },
 ];
 
 // Track selected inventory export columns - load from localStorage or use defaults
 function loadInventoryExportColumns() {
-  const saved = localStorage.getItem('inventoryExportColumns');
+  const saved = localStorage.getItem("inventoryExportColumns");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      const validColumns = parsed.filter(col =>
-        inventoryExportColumnConfig.some(c => c.id === col)
+      const validColumns = parsed.filter((col) =>
+        inventoryExportColumnConfig.some((c) => c.id === col),
       );
       if (validColumns.length > 0) {
         return new Set(validColumns);
       }
     } catch (e) {
-      console.warn('Failed to parse saved inventory export columns:', e);
+      console.warn("Failed to parse saved inventory export columns:", e);
     }
   }
-  return new Set(inventoryExportColumnConfig.filter(c => c.default).map(c => c.id));
+  return new Set(
+    inventoryExportColumnConfig.filter((c) => c.default).map((c) => c.id),
+  );
 }
 
 function saveInventoryExportColumns() {
-  localStorage.setItem('inventoryExportColumns', JSON.stringify(Array.from(inventoryExportColumns)));
+  localStorage.setItem(
+    "inventoryExportColumns",
+    JSON.stringify(Array.from(inventoryExportColumns)),
+  );
 }
 
 let inventoryExportColumns = loadInventoryExportColumns();
 
 function initInventoryColumnSelector() {
-  const container = document.getElementById('inventory-column-selector-options');
+  const container = document.getElementById(
+    "inventory-column-selector-options",
+  );
   if (!container) return;
 
-  container.innerHTML = inventoryExportColumnConfig.map(col => `
+  container.innerHTML = inventoryExportColumnConfig
+    .map(
+      (col) => `
     <div class="column-option">
       <input type="checkbox" id="inv-col-${col.id}"
-             ${inventoryExportColumns.has(col.id) ? 'checked' : ''}
+             ${inventoryExportColumns.has(col.id) ? "checked" : ""}
              onchange="toggleInventoryColumn('${col.id}')" />
       <label for="inv-col-${col.id}">${col.label}</label>
     </div>
-  `).join('');
+  `,
+    )
+    .join("");
 }
 
 function toggleInventoryColumnSelector() {
-  const panel = document.getElementById('inventory-column-selector-panel');
-  const btn = document.querySelector('#inventory-export-bar .btn-columns');
+  const panel = document.getElementById("inventory-column-selector-panel");
+  const btn = document.querySelector("#inventory-export-bar .btn-columns");
 
   if (panel) {
-    panel.classList.toggle('active');
-    btn?.classList.toggle('active');
+    panel.classList.toggle("active");
+    btn?.classList.toggle("active");
   }
 }
 
@@ -860,11 +904,13 @@ function toggleInventoryColumn(columnId) {
 
 function selectAllInventoryColumns(select) {
   if (select) {
-    inventoryExportColumnConfig.forEach(col => inventoryExportColumns.add(col.id));
+    inventoryExportColumnConfig.forEach((col) =>
+      inventoryExportColumns.add(col.id),
+    );
   } else {
     inventoryExportColumns.clear();
   }
-  inventoryExportColumnConfig.forEach(col => {
+  inventoryExportColumnConfig.forEach((col) => {
     const checkbox = document.getElementById(`inv-col-${col.id}`);
     if (checkbox) checkbox.checked = select;
   });
@@ -876,25 +922,31 @@ function getInventorySelectedColumnsParam() {
     return null;
   }
   if (inventoryExportColumns.size === inventoryExportColumnConfig.length) {
-    return '';
+    return "";
   }
-  return Array.from(inventoryExportColumns).join(',');
+  return Array.from(inventoryExportColumns).join(",");
 }
 
 // Close inventory column selector when clicking outside
-document.addEventListener('click', (e) => {
-  const panel = document.getElementById('inventory-column-selector-panel');
-  const wrapper = e.target.closest('.column-selector-wrapper');
-  const isInInventoryBar = e.target.closest('#inventory-export-bar');
+document.addEventListener("click", (e) => {
+  const panel = document.getElementById("inventory-column-selector-panel");
+  const wrapper = e.target.closest(".column-selector-wrapper");
+  const isInInventoryBar = e.target.closest("#inventory-export-bar");
 
-  if (panel && panel.classList.contains('active') && (!wrapper || !isInInventoryBar)) {
-    panel.classList.remove('active');
-    document.querySelector('#inventory-export-bar .btn-columns')?.classList.remove('active');
+  if (
+    panel &&
+    panel.classList.contains("active") &&
+    (!wrapper || !isInInventoryBar)
+  ) {
+    panel.classList.remove("active");
+    document
+      .querySelector("#inventory-export-bar .btn-columns")
+      ?.classList.remove("active");
   }
 });
 
 // Initialize inventory column selector on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   initInventoryColumnSelector();
 });
 
@@ -933,21 +985,57 @@ function toggleShowExcluded() {
 // Set inventory view mode (table or grouped)
 function setInventoryView(mode) {
   inventoryViewMode = mode;
-  localStorage.setItem('inventoryViewMode', mode);
+  localStorage.setItem("inventoryViewMode", mode);
 
   // Update toggle button states
-  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === mode);
+  document.querySelectorAll(".view-toggle-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.view === mode);
   });
 
   // Reload data - grouped view needs ALL products, table view uses pagination
-  loadInventory(mode === 'table' ? currentPage : 1, currentSearch);
+  loadInventory(mode === "table" ? currentPage : 1, currentSearch);
+}
+
+// Toggle compact view (hide less important columns)
+function toggleCompactView() {
+  isCompactView = !isCompactView;
+  localStorage.setItem("inventoryCompactView", isCompactView);
+
+  // Update button state
+  const btn = document.getElementById("compact-view-btn");
+  if (btn) {
+    btn.classList.toggle("active", isCompactView);
+  }
+
+  // Toggle compact class on table container
+  const tableContainer = document.getElementById("inventory-table-container");
+  if (tableContainer) {
+    tableContainer.classList.toggle("compact-view", isCompactView);
+  }
+
+  // Re-render the table to update badge format and action buttons
+  if (inventoryViewMode === "table" && allProducts.length > 0) {
+    renderInventoryTable(allProducts, true);
+  }
+}
+
+// Initialize compact view state on page load
+function initCompactView() {
+  const btn = document.getElementById("compact-view-btn");
+  if (btn) {
+    btn.classList.toggle("active", isCompactView);
+  }
+
+  const tableContainer = document.getElementById("inventory-table-container");
+  if (tableContainer) {
+    tableContainer.classList.toggle("compact-view", isCompactView);
+  }
 }
 
 // Render grouped view (supplier cards)
 function renderGroupedView(products) {
-  const container = document.getElementById('supplier-cards-container');
-  const grid = document.getElementById('supplier-cards-grid');
+  const container = document.getElementById("supplier-cards-container");
+  const grid = document.getElementById("supplier-cards-grid");
 
   if (!products || products.length === 0) {
     grid.innerHTML = '<div class="info-card"><p>No products found</p></div>';
@@ -956,21 +1044,22 @@ function renderGroupedView(products) {
 
   // Group products by supplier
   const supplierGroups = {};
-  products.forEach(p => {
-    const supplier = p.last_supplier || 'No Supplier';
+  products.forEach((p) => {
+    const supplier = p.last_supplier || "No Supplier";
     if (!supplierGroups[supplier]) {
       supplierGroups[supplier] = {
         name: supplier,
         products: [],
         reorderCount: 0,
-        estimatedOrderCost: 0
+        estimatedOrderCost: 0,
       };
     }
     supplierGroups[supplier].products.push(p);
     if (p.needs_reorder) {
       supplierGroups[supplier].reorderCount++;
       // Calculate estimated order cost: suggested_qty × UnitCost
-      supplierGroups[supplier].estimatedOrderCost += (p.suggested_qty || 0) * (parseFloat(p.UnitCost) || 0);
+      supplierGroups[supplier].estimatedOrderCost +=
+        (p.suggested_qty || 0) * (parseFloat(p.UnitCost) || 0);
     }
   });
 
@@ -981,7 +1070,7 @@ function renderGroupedView(products) {
   const visibleSuppliers = [];
   const hiddenSuppliers = [];
 
-  Object.values(supplierGroups).forEach(group => {
+  Object.values(supplierGroups).forEach((group) => {
     if (excludedSuppliers.has(group.name)) {
       hiddenSuppliers.push(group);
     } else {
@@ -991,31 +1080,34 @@ function renderGroupedView(products) {
 
   // Sort visible by estimated order cost, "No Supplier" at end
   visibleSuppliers.sort((a, b) => {
-    if (a.name === 'No Supplier') return 1;
-    if (b.name === 'No Supplier') return -1;
+    if (a.name === "No Supplier") return 1;
+    if (b.name === "No Supplier") return -1;
     return b.estimatedOrderCost - a.estimatedOrderCost;
   });
 
   // Build hidden suppliers indicator HTML
-  let hiddenIndicatorHtml = '';
+  let hiddenIndicatorHtml = "";
   if (hiddenSuppliers.length > 0) {
     hiddenIndicatorHtml = `
       <div class="hidden-suppliers-indicator">
-        <span>${hiddenSuppliers.length} supplier${hiddenSuppliers.length > 1 ? 's' : ''} hidden</span>
+        <span>${hiddenSuppliers.length} supplier${hiddenSuppliers.length > 1 ? "s" : ""} hidden</span>
         <button type="button" class="btn-text" onclick="showExcludedSuppliersModal()">Manage</button>
       </div>
     `;
   }
 
   // Render cards with exclude button
-  const cardsHtml = visibleSuppliers.map(group => {
-    const isNoSupplier = group.name === 'No Supplier';
-    const cardClass = isNoSupplier ? 'supplier-card no-supplier' : 'supplier-card';
-    const currentFilter = document.getElementById('inventory-filter').value;
-    const escapedName = escapeHtml(group.name);
-    const escapedNameForJs = escapedName.replace(/'/g, "\\'");
+  const cardsHtml = visibleSuppliers
+    .map((group) => {
+      const isNoSupplier = group.name === "No Supplier";
+      const cardClass = isNoSupplier
+        ? "supplier-card no-supplier"
+        : "supplier-card";
+      const currentFilter = document.getElementById("inventory-filter").value;
+      const escapedName = escapeHtml(group.name);
+      const escapedNameForJs = escapedName.replace(/'/g, "\\'");
 
-    return `
+      return `
       <div class="${cardClass}">
         <div class="supplier-card-content" onclick="navigateToOrdersWithSupplier('${escapedNameForJs}', '${currentFilter}')">
           <div class="supplier-card-name">
@@ -1027,8 +1119,8 @@ function renderGroupedView(products) {
           </div>
           <div class="supplier-card-stats">
             <span class="stat">${group.products.length} products</span>
-            ${group.reorderCount > 0 ? `<span class="stat reorder">${group.reorderCount} need reorder</span>` : ''}
-            ${group.estimatedOrderCost > 0 ? `<span class="stat value">$${group.estimatedOrderCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} est. order</span>` : ''}
+            ${group.reorderCount > 0 ? `<span class="stat reorder">${group.reorderCount} need reorder</span>` : ""}
+            ${group.estimatedOrderCost > 0 ? `<span class="stat value">$${group.estimatedOrderCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} est. order</span>` : ""}
           </div>
         </div>
         <div class="supplier-card-actions">
@@ -1046,10 +1138,13 @@ function renderGroupedView(products) {
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   // Insert hidden indicator before grid by replacing container inner HTML
-  const existingIndicator = container.querySelector('.hidden-suppliers-indicator');
+  const existingIndicator = container.querySelector(
+    ".hidden-suppliers-indicator",
+  );
   if (existingIndicator) {
     existingIndicator.remove();
   }
@@ -1057,7 +1152,7 @@ function renderGroupedView(products) {
   grid.innerHTML = cardsHtml;
 
   if (hiddenIndicatorHtml) {
-    grid.insertAdjacentHTML('beforebegin', hiddenIndicatorHtml);
+    grid.insertAdjacentHTML("beforebegin", hiddenIndicatorHtml);
   }
 }
 
@@ -1065,28 +1160,28 @@ function renderGroupedView(products) {
 function navigateToOrdersWithSupplier(supplierName, inventoryFilter) {
   // Map inventory filter to orders filter
   const filterMap = {
-    'all': 'all',
-    'reorder': 'needs_reorder',
-    'stocked': 'sufficient'
+    all: "all",
+    reorder: "needs_reorder",
+    stocked: "sufficient",
   };
 
   pendingOrderSupplier = supplierName;
-  pendingOrderFilter = filterMap[inventoryFilter] || 'all';
+  pendingOrderFilter = filterMap[inventoryFilter] || "all";
   pendingOrderAutoLoad = true;
 
   // For "No Supplier", pass the actual products instead of relying on API filter
-  if (supplierName === 'No Supplier' && cachedSupplierGroups['No Supplier']) {
-    pendingNoSupplierProducts = cachedSupplierGroups['No Supplier'].products;
+  if (supplierName === "No Supplier" && cachedSupplierGroups["No Supplier"]) {
+    pendingNoSupplierProducts = cachedSupplierGroups["No Supplier"].products;
   } else {
     pendingNoSupplierProducts = null;
   }
 
-  navigateTo('orders');
+  navigateTo("orders");
 }
 
 // Helper function to escape HTML
 function escapeHtml(text) {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
@@ -1120,7 +1215,8 @@ function sortOrders(column) {
 function updateSortIndicators(table) {
   const tableId = table === "inventory" ? "inventory-table" : "order-table";
   const sortBy = table === "inventory" ? inventorySortBy : ordersSortBy;
-  const sortOrder = table === "inventory" ? inventorySortOrder : ordersSortOrder;
+  const sortOrder =
+    table === "inventory" ? inventorySortOrder : ordersSortOrder;
 
   // Remove all indicators
   document.querySelectorAll(`#${tableId} th .sort-indicator`).forEach((el) => {
@@ -1167,10 +1263,12 @@ async function viewProduct(upc) {
     document.getElementById("modal-qty-on-hand").textContent = (
       product.QuantOnHand || 0
     ).toLocaleString();
-    document.getElementById("modal-threshold").textContent =
-      Math.ceil(salesData.monthly_average);
-    document.getElementById("modal-monthly-avg").textContent =
-      Math.ceil(salesData.monthly_average);
+    document.getElementById("modal-threshold").textContent = Math.ceil(
+      salesData.monthly_average,
+    );
+    document.getElementById("modal-monthly-avg").textContent = Math.ceil(
+      salesData.monthly_average,
+    );
     document.getElementById("modal-daily-avg").textContent =
       salesData.daily_average.toFixed(2);
 
@@ -1180,8 +1278,7 @@ async function viewProduct(upc) {
       salesData.invoice_count;
     document.getElementById("modal-unit-cost").textContent =
       `$${parseFloat(product.UnitCost || 0).toFixed(2)}`;
-    document.getElementById("modal-case-qty").value =
-      product.UnitQty2 || "";
+    document.getElementById("modal-case-qty").value = product.UnitQty2 || "";
 
     // Set cost override placeholder to show current system cost
     const systemCost = parseFloat(product.UnitCost || 0);
@@ -1198,7 +1295,8 @@ async function viewProduct(upc) {
         override.manual_order_qty || "";
       document.getElementById("override-order-period-days").value =
         override.manual_order_period_days || "";
-      costInput.value = override.manual_unit_cost != null ? override.manual_unit_cost : "";
+      costInput.value =
+        override.manual_unit_cost != null ? override.manual_unit_cost : "";
       document.getElementById("override-notes").value = override.notes || "";
     } else {
       document.getElementById("override-exclude").checked = false;
@@ -1268,7 +1366,9 @@ async function saveOverride(e) {
     manual_order_qty: document.getElementById("override-order-qty").value
       ? parseInt(document.getElementById("override-order-qty").value)
       : null,
-    manual_order_period_days: document.getElementById("override-order-period-days").value
+    manual_order_period_days: document.getElementById(
+      "override-order-period-days",
+    ).value
       ? parseInt(document.getElementById("override-order-period-days").value)
       : null,
     manual_unit_cost: document.getElementById("override-unit-cost").value
@@ -1417,9 +1517,13 @@ async function loadOrderPage() {
         let found = false;
 
         for (let i = 0; i < options.length; i++) {
-          const optionName = options[i].dataset.name || options[i].textContent.split(' (')[0].trim();
-          if (optionName === pendingOrderSupplier ||
-              (pendingOrderSupplier === 'No Supplier' && options[i].value === '')) {
+          const optionName =
+            options[i].dataset.name ||
+            options[i].textContent.split(" (")[0].trim();
+          if (
+            optionName === pendingOrderSupplier ||
+            (pendingOrderSupplier === "No Supplier" && options[i].value === "")
+          ) {
             select.selectedIndex = i;
             found = true;
             break;
@@ -1427,7 +1531,7 @@ async function loadOrderPage() {
         }
 
         // If supplier name was "No Supplier", select "All Suppliers"
-        if (!found && pendingOrderSupplier === 'No Supplier') {
+        if (!found && pendingOrderSupplier === "No Supplier") {
           select.selectedIndex = 0;
         }
 
@@ -1436,7 +1540,7 @@ async function loadOrderPage() {
 
       // Handle pending filter
       if (pendingOrderFilter) {
-        document.getElementById('order-filter').value = pendingOrderFilter;
+        document.getElementById("order-filter").value = pendingOrderFilter;
         pendingOrderFilter = null;
       }
 
@@ -1454,7 +1558,8 @@ async function loadOrderPage() {
 async function loadNeedsReorder() {
   const supplierId = document.getElementById("supplier-select").value;
   const supplierSelect = document.getElementById("supplier-select");
-  const selectedSupplierName = supplierSelect.selectedOptions[0]?.dataset.name || null;
+  const selectedSupplierName =
+    supplierSelect.selectedOptions[0]?.dataset.name || null;
   const filterMode = document.getElementById("order-filter").value;
   const container = document.getElementById("order-items-container");
   const tbody = document.getElementById("order-tbody");
@@ -1469,7 +1574,7 @@ async function loadNeedsReorder() {
     // Check if we have pending "No Supplier" products from inventory grouped view
     if (pendingNoSupplierProducts) {
       // Transform inventory products to match the order table format
-      products = pendingNoSupplierProducts.map(p => {
+      products = pendingNoSupplierProducts.map((p) => {
         const unitQty2 = p.UnitQty2 || 1;
         const suggestedQty = p.suggested_qty || 0;
         return {
@@ -1480,29 +1585,30 @@ async function loadNeedsReorder() {
           threshold: p.threshold || 0,
           suggested_qty: suggestedQty,
           cases_needed: Math.ceil(suggestedQty / unitQty2),
-          status: p.needs_reorder ? 'needs_reorder' : 'sufficient',
+          status: p.needs_reorder ? "needs_reorder" : "sufficient",
           UnitCost: p.UnitCost,
-          last_supplier: p.last_supplier
+          last_supplier: p.last_supplier,
         };
       });
 
       // Apply filter
-      if (filterMode === 'needs_reorder') {
-        products = products.filter(p => p.status === 'needs_reorder');
-      } else if (filterMode === 'sufficient') {
-        products = products.filter(p => p.status === 'sufficient');
+      if (filterMode === "needs_reorder") {
+        products = products.filter((p) => p.status === "needs_reorder");
+      } else if (filterMode === "sufficient") {
+        products = products.filter((p) => p.status === "sufficient");
       }
 
       // Apply sorting
       if (ordersSortBy) {
-        const sortKey = ordersSortBy === 'description' ? 'ProductDescription' : ordersSortBy;
+        const sortKey =
+          ordersSortBy === "description" ? "ProductDescription" : ordersSortBy;
         products.sort((a, b) => {
-          let aVal = a[sortKey] || '';
-          let bVal = b[sortKey] || '';
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          if (aVal < bVal) return ordersSortOrder === 'asc' ? -1 : 1;
-          if (aVal > bVal) return ordersSortOrder === 'asc' ? 1 : -1;
+          let aVal = a[sortKey] || "";
+          let bVal = b[sortKey] || "";
+          if (typeof aVal === "string") aVal = aVal.toLowerCase();
+          if (typeof bVal === "string") bVal = bVal.toLowerCase();
+          if (aVal < bVal) return ordersSortOrder === "asc" ? -1 : 1;
+          if (aVal > bVal) return ordersSortOrder === "asc" ? 1 : -1;
           return 0;
         });
       }
@@ -1548,10 +1654,12 @@ async function loadNeedsReorder() {
     // Sort products: current supplier first, then historical supplier, then sufficient
     if (selectedSupplierName) {
       products.sort((a, b) => {
-        const aHistorical = a.last_supplier && a.last_supplier !== selectedSupplierName;
-        const bHistorical = b.last_supplier && b.last_supplier !== selectedSupplierName;
-        const aNeedsReorder = a.status === 'needs_reorder';
-        const bNeedsReorder = b.status === 'needs_reorder';
+        const aHistorical =
+          a.last_supplier && a.last_supplier !== selectedSupplierName;
+        const bHistorical =
+          b.last_supplier && b.last_supplier !== selectedSupplierName;
+        const aNeedsReorder = a.status === "needs_reorder";
+        const bNeedsReorder = b.status === "needs_reorder";
 
         // Primary: needs_reorder first, sufficient last
         if (aNeedsReorder !== bNeedsReorder) {
@@ -1566,21 +1674,25 @@ async function loadNeedsReorder() {
         }
 
         // Tertiary: by description
-        return (a.ProductDescription || '').localeCompare(b.ProductDescription || '');
+        return (a.ProductDescription || "").localeCompare(
+          b.ProductDescription || "",
+        );
       });
     }
 
     tbody.innerHTML = products
       .map((product) => {
         const needsReorder = product.status === "needs_reorder";
-        const isHistoricalSupplier = selectedSupplierName &&
+        const isHistoricalSupplier =
+          selectedSupplierName &&
           product.last_supplier &&
           product.last_supplier !== selectedSupplierName;
         const statusBadge = needsReorder
           ? '<span class="badge badge-error">Reorder</span>'
           : '<span class="badge badge-success">OK</span>';
         // Only auto-check if needs_reorder AND has suggested qty AND is NOT historical supplier
-        const shouldCheck = needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
+        const shouldCheck =
+          needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
 
         // Build row classes
         const rowClasses = [];
@@ -1613,10 +1725,13 @@ async function loadNeedsReorder() {
       .join("");
 
     const hasSelectableItems = products.some((p) => {
-      const isHistorical = selectedSupplierName &&
+      const isHistorical =
+        selectedSupplierName &&
         p.last_supplier &&
         p.last_supplier !== selectedSupplierName;
-      return p.status === "needs_reorder" && p.suggested_qty > 0 && !isHistorical;
+      return (
+        p.status === "needs_reorder" && p.suggested_qty > 0 && !isHistorical
+      );
     });
     document.getElementById("select-all-orders").checked = hasSelectableItems;
     updateOrderSummary();
@@ -1683,65 +1798,72 @@ let loadedOrderProducts = [];
 
 // ============== Column Selector for Export ==============
 const exportColumnConfig = [
-  { id: 'upc', label: 'UPC', default: true },
-  { id: 'description', label: 'Description', default: true },
-  { id: 'on_hand', label: 'On Hand', default: true },
-  { id: 'threshold', label: 'Threshold', default: true },
-  { id: 'suggested_qty', label: 'Suggested Qty', default: true },
-  { id: 'order_qty', label: 'Order Qty', default: true },
-  { id: 'cases', label: 'Cases', default: true },
-  { id: 'unit_cost', label: 'Unit Cost', default: true },
-  { id: 'total', label: 'Total', default: true },
+  { id: "upc", label: "UPC", default: true },
+  { id: "description", label: "Description", default: true },
+  { id: "on_hand", label: "On Hand", default: true },
+  { id: "threshold", label: "Threshold", default: true },
+  { id: "suggested_qty", label: "Suggested Qty", default: true },
+  { id: "order_qty", label: "Order Qty", default: true },
+  { id: "cases", label: "Cases", default: true },
+  { id: "unit_cost", label: "Unit Cost", default: true },
+  { id: "total", label: "Total", default: true },
 ];
 
 // Track selected export columns - load from localStorage or use defaults
 function loadExportColumns() {
-  const saved = localStorage.getItem('exportColumns');
+  const saved = localStorage.getItem("exportColumns");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
       // Validate that saved columns are still valid
-      const validColumns = parsed.filter(col =>
-        exportColumnConfig.some(c => c.id === col)
+      const validColumns = parsed.filter((col) =>
+        exportColumnConfig.some((c) => c.id === col),
       );
       if (validColumns.length > 0) {
         return new Set(validColumns);
       }
     } catch (e) {
-      console.warn('Failed to parse saved export columns:', e);
+      console.warn("Failed to parse saved export columns:", e);
     }
   }
   // Return defaults if nothing saved or invalid
-  return new Set(exportColumnConfig.filter(c => c.default).map(c => c.id));
+  return new Set(exportColumnConfig.filter((c) => c.default).map((c) => c.id));
 }
 
 function saveExportColumns() {
-  localStorage.setItem('exportColumns', JSON.stringify(Array.from(exportColumns)));
+  localStorage.setItem(
+    "exportColumns",
+    JSON.stringify(Array.from(exportColumns)),
+  );
 }
 
 let exportColumns = loadExportColumns();
 
 function initColumnSelector() {
-  const container = document.getElementById('column-selector-options');
+  const container = document.getElementById("column-selector-options");
   if (!container) return;
 
-  container.innerHTML = exportColumnConfig.map(col => `
+  container.innerHTML = exportColumnConfig
+    .map(
+      (col) => `
     <div class="column-option">
       <input type="checkbox" id="col-${col.id}"
-             ${exportColumns.has(col.id) ? 'checked' : ''}
+             ${exportColumns.has(col.id) ? "checked" : ""}
              onchange="toggleColumn('${col.id}')" />
       <label for="col-${col.id}">${col.label}</label>
     </div>
-  `).join('');
+  `,
+    )
+    .join("");
 }
 
 function toggleColumnSelector() {
-  const panel = document.getElementById('column-selector-panel');
-  const btn = document.querySelector('.btn-columns');
+  const panel = document.getElementById("column-selector-panel");
+  const btn = document.querySelector(".btn-columns");
 
   if (panel) {
-    panel.classList.toggle('active');
-    btn?.classList.toggle('active');
+    panel.classList.toggle("active");
+    btn?.classList.toggle("active");
   }
 }
 
@@ -1756,12 +1878,12 @@ function toggleColumn(columnId) {
 
 function selectAllColumns(select) {
   if (select) {
-    exportColumnConfig.forEach(col => exportColumns.add(col.id));
+    exportColumnConfig.forEach((col) => exportColumns.add(col.id));
   } else {
     exportColumns.clear();
   }
   // Update checkboxes
-  exportColumnConfig.forEach(col => {
+  exportColumnConfig.forEach((col) => {
     const checkbox = document.getElementById(`col-${col.id}`);
     if (checkbox) checkbox.checked = select;
   });
@@ -1773,24 +1895,24 @@ function getSelectedColumnsParam() {
     return null; // No columns selected
   }
   if (exportColumns.size === exportColumnConfig.length) {
-    return ''; // All columns selected, no param needed
+    return ""; // All columns selected, no param needed
   }
-  return Array.from(exportColumns).join(',');
+  return Array.from(exportColumns).join(",");
 }
 
 // Close column selector when clicking outside
-document.addEventListener('click', (e) => {
-  const panel = document.getElementById('column-selector-panel');
-  const wrapper = e.target.closest('.column-selector-wrapper');
+document.addEventListener("click", (e) => {
+  const panel = document.getElementById("column-selector-panel");
+  const wrapper = e.target.closest(".column-selector-wrapper");
 
-  if (panel && panel.classList.contains('active') && !wrapper) {
-    panel.classList.remove('active');
-    document.querySelector('.btn-columns')?.classList.remove('active');
+  if (panel && panel.classList.contains("active") && !wrapper) {
+    panel.classList.remove("active");
+    document.querySelector(".btn-columns")?.classList.remove("active");
   }
 });
 
 // Initialize column selector on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   initColumnSelector();
 });
 
@@ -1861,7 +1983,7 @@ async function saveOrderDraft() {
 async function saveAndExportExcel() {
   const columnsParam = getSelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
@@ -1878,7 +2000,7 @@ async function saveAndExportExcel() {
 async function saveAndExportPDF() {
   const columnsParam = getSelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
@@ -1920,7 +2042,7 @@ function updateOrderSummary() {
   document.getElementById("order-total-qty").textContent =
     totalQty.toLocaleString();
   document.getElementById("order-total-cost").textContent =
-    `$${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    `$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // Order History
@@ -1958,7 +2080,7 @@ async function loadOrderHistory() {
         if (order.status === "archived") statusClass = "badge-secondary";
 
         const totalCost = parseFloat(order.total_cost || 0);
-        const formattedCost = `$${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formattedCost = `$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         return `
                 <tr data-id="${order.id}">
@@ -2001,7 +2123,7 @@ async function viewOrder(orderId) {
             <h3>${order.name || "Untitled Order"}</h3>
             <p>Created: ${order.created_at ? new Date(order.created_at).toLocaleString() : "-"}</p>
             <p>Status: ${order.status}</p>
-            <p>Items: ${summary.total_items} | Total Qty: ${summary.total_qty.toLocaleString()} | Est. Cost: $${summary.total_cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p>Items: ${summary.total_items} | Total Qty: ${summary.total_qty.toLocaleString()} | Est. Cost: $${summary.total_cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <hr>
             <table class="data-table" style="margin-top: 1rem;">
                 <thead>
@@ -2056,7 +2178,7 @@ async function viewOrder(orderId) {
 function exportOrderExcel(orderId) {
   const columnsParam = getSelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
@@ -2070,7 +2192,7 @@ function exportOrderExcel(orderId) {
 function exportOrderPDF(orderId) {
   const columnsParam = getSelectedColumnsParam();
   if (columnsParam === null) {
-    showToast('Please select at least one column to export', 'error');
+    showToast("Please select at least one column to export", "error");
     return;
   }
 
