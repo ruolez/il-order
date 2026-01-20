@@ -92,7 +92,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   font-size: 14px;
   line-height: 1.5;
   color: var(--color-fg-default);
@@ -147,7 +149,9 @@ body {
   color: var(--color-navbar-text);
   font-weight: 500;
   font-size: 14px;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .nav-link:hover {
@@ -168,7 +172,9 @@ body {
 
 .nav-link.nav-icon svg {
   stroke: var(--color-navbar-text);
-  transition: transform var(--transition-normal), stroke var(--transition-fast);
+  transition:
+    transform var(--transition-normal),
+    stroke var(--transition-fast);
 }
 
 .nav-link.nav-icon.active svg {
@@ -246,7 +252,9 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   border: 1px solid var(--color-border-default);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .stat-card.clickable {
@@ -393,7 +401,9 @@ body {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -462,6 +472,31 @@ body {
   font-size: 14px;
 }
 
+/* Info message (inline status) */
+.info-message {
+  padding: var(--spacing-md);
+  color: var(--color-fg-muted);
+  font-size: 14px;
+  text-align: center;
+  background: var(--color-accent-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.info-message.error {
+  color: var(--color-danger-fg);
+  background: #fef2f2;
+}
+
+/* Excluded products table */
+.excluded-products-table {
+  margin-top: var(--spacing-sm);
+}
+
+.excluded-products-table th,
+.excluded-products-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;
@@ -488,7 +523,9 @@ body {
   background-color: var(--color-canvas-default);
   color: var(--color-fg-default);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .search-box input:focus {
@@ -710,7 +747,9 @@ body {
   background-color: var(--color-canvas-default);
   color: var(--color-fg-default);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
   box-shadow: var(--shadow-inset);
 }
 
@@ -1560,7 +1599,9 @@ input[type="checkbox"] {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .view-toggle-btn:not(:last-child) {
@@ -1838,7 +1879,9 @@ input[type="checkbox"] {
   align-items: center;
   gap: var(--spacing-md);
   z-index: 1000;
-  transition: opacity var(--transition-normal), transform var(--transition-normal);
+  transition:
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
 }
 
 .floating-export-bar.hidden {
@@ -1901,7 +1944,9 @@ input[type="checkbox"] {
   cursor: pointer;
   font-weight: 500;
   font-size: 14px;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .btn-clear-selection:hover {

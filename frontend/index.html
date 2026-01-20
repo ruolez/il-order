@@ -17,10 +17,27 @@
         <a href="#" class="nav-link" data-page="inventory">Inventory</a>
         <a href="#" class="nav-link" data-page="orders">Orders</a>
         <a href="#" class="nav-link" data-page="history">History</a>
-        <a href="#" class="nav-link nav-icon" data-page="settings" title="Settings">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <a
+          href="#"
+          class="nav-link nav-icon"
+          data-page="settings"
+          title="Settings"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+            ></path>
           </svg>
         </a>
       </div>
@@ -102,9 +119,20 @@
             </div>
             <div class="setting-item editable">
               <span class="setting-label">Order Period</span>
-              <input type="number" id="dashboard-order-period" class="setting-input" min="1" max="365" />
+              <input
+                type="number"
+                id="dashboard-order-period"
+                class="setting-input"
+                min="1"
+                max="365"
+              />
               <span class="setting-unit">days</span>
-              <button class="btn btn-small btn-primary" onclick="updateOrderPeriodFromDashboard()">Update</button>
+              <button
+                class="btn btn-small btn-primary"
+                onclick="updateOrderPeriodFromDashboard()"
+              >
+                Update
+              </button>
             </div>
           </div>
         </div>
@@ -145,8 +173,23 @@
               <option value="stocked">Stocked</option>
             </select>
             <div class="view-toggle">
-              <button type="button" class="view-toggle-btn active" data-view="table" onclick="setInventoryView('table')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button
+                type="button"
+                class="view-toggle-btn active"
+                data-view="table"
+                onclick="setInventoryView('table')"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <line x1="8" y1="6" x2="21" y2="6"></line>
                   <line x1="8" y1="12" x2="21" y2="12"></line>
                   <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -156,8 +199,23 @@
                 </svg>
                 Table
               </button>
-              <button type="button" class="view-toggle-btn" data-view="grouped" onclick="setInventoryView('grouped')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button
+                type="button"
+                class="view-toggle-btn"
+                data-view="grouped"
+                onclick="setInventoryView('grouped')"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <rect x="3" y="3" width="7" height="7"></rect>
                   <rect x="14" y="3" width="7" height="7"></rect>
                   <rect x="14" y="14" width="7" height="7"></rect>
@@ -177,19 +235,76 @@
           </div>
         </div>
 
-        <div class="table-container scrollable-table" id="inventory-table-container">
+        <div
+          class="table-container scrollable-table"
+          id="inventory-table-container"
+        >
           <table class="data-table" id="inventory-table">
             <thead>
               <tr>
-                <th><input type="checkbox" id="inventory-select-all" onchange="toggleInventorySelectAll(this)" /></th>
-                <th class="sortable" data-sort="upc" onclick="sortInventory('upc')">UPC<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="description" onclick="sortInventory('description')">Description<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="on_hand" onclick="sortInventory('on_hand')">On Hand<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="case_qty" onclick="sortInventory('case_qty')">Case Qty<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="threshold" onclick="sortInventory('threshold')">Threshold<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="last_supplier" onclick="sortInventory('last_supplier')">Last Supplier<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="status" onclick="sortInventory('status')">Status<span class="sort-indicator"></span></th>
-                <th class="sortable" data-sort="suggested_qty" onclick="sortInventory('suggested_qty')">Suggested Qty<span class="sort-indicator"></span></th>
+                <th>
+                  <input
+                    type="checkbox"
+                    id="inventory-select-all"
+                    onchange="toggleInventorySelectAll(this)"
+                  />
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="upc"
+                  onclick="sortInventory('upc')"
+                >
+                  UPC<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="description"
+                  onclick="sortInventory('description')"
+                >
+                  Description<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="on_hand"
+                  onclick="sortInventory('on_hand')"
+                >
+                  On Hand<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="case_qty"
+                  onclick="sortInventory('case_qty')"
+                >
+                  Case Qty<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="threshold"
+                  onclick="sortInventory('threshold')"
+                >
+                  Threshold<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="last_supplier"
+                  onclick="sortInventory('last_supplier')"
+                >
+                  Last Supplier<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="status"
+                  onclick="sortInventory('status')"
+                >
+                  Status<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="suggested_qty"
+                  onclick="sortInventory('suggested_qty')"
+                >
+                  Suggested Qty<span class="sort-indicator"></span>
+                </th>
                 <th>Order Qty</th>
                 <th>Cases</th>
                 <th>Actions</th>
@@ -203,7 +318,11 @@
           </table>
         </div>
 
-        <div class="supplier-cards-container" id="supplier-cards-container" style="display: none;">
+        <div
+          class="supplier-cards-container"
+          id="supplier-cards-container"
+          style="display: none"
+        >
           <div class="supplier-cards-grid" id="supplier-cards-grid">
             <!-- Supplier cards will be rendered here -->
           </div>
@@ -229,19 +348,48 @@
 
         <!-- Floating Export Bar for Inventory -->
         <div id="inventory-export-bar" class="floating-export-bar hidden">
-          <span id="inventory-selected-count" class="selected-count">0 items selected</span>
-          <button onclick="clearInventorySelection()" class="btn-clear-selection">Clear</button>
+          <span id="inventory-selected-count" class="selected-count"
+            >0 items selected</span
+          >
+          <button
+            onclick="clearInventorySelection()"
+            class="btn-clear-selection"
+          >
+            Clear
+          </button>
           <div class="column-selector-wrapper">
-            <button type="button" class="btn btn-outline btn-columns" onclick="toggleInventoryColumnSelector()">
+            <button
+              type="button"
+              class="btn btn-outline btn-columns"
+              onclick="toggleInventoryColumnSelector()"
+            >
               Columns <span class="chevron">▼</span>
             </button>
-            <div id="inventory-column-selector-panel" class="column-selector-panel">
+            <div
+              id="inventory-column-selector-panel"
+              class="column-selector-panel"
+            >
               <div class="column-selector-header">
                 <span>Export Columns</span>
-                <button type="button" class="btn-text" onclick="selectAllInventoryColumns(true)">All</button>
-                <button type="button" class="btn-text" onclick="selectAllInventoryColumns(false)">None</button>
+                <button
+                  type="button"
+                  class="btn-text"
+                  onclick="selectAllInventoryColumns(true)"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  class="btn-text"
+                  onclick="selectAllInventoryColumns(false)"
+                >
+                  None
+                </button>
               </div>
-              <div class="column-selector-options" id="inventory-column-selector-options">
+              <div
+                class="column-selector-options"
+                id="inventory-column-selector-options"
+              >
                 <!-- Populated by JavaScript -->
               </div>
             </div>
@@ -299,15 +447,63 @@
                 <thead>
                   <tr>
                     <th><input type="checkbox" id="select-all-orders" /></th>
-                    <th class="sortable" data-sort="status" onclick="sortOrders('status')">Status<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="upc" onclick="sortOrders('upc')">UPC<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="description" onclick="sortOrders('description')">Description<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="on_hand" onclick="sortOrders('on_hand')">On Hand<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="case_qty" onclick="sortOrders('case_qty')">Case Qty<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="threshold" onclick="sortOrders('threshold')">Threshold<span class="sort-indicator"></span></th>
-                    <th class="sortable" data-sort="suggested_qty" onclick="sortOrders('suggested_qty')">Suggested Qty<span class="sort-indicator"></span></th>
+                    <th
+                      class="sortable"
+                      data-sort="status"
+                      onclick="sortOrders('status')"
+                    >
+                      Status<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="upc"
+                      onclick="sortOrders('upc')"
+                    >
+                      UPC<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="description"
+                      onclick="sortOrders('description')"
+                    >
+                      Description<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="on_hand"
+                      onclick="sortOrders('on_hand')"
+                    >
+                      On Hand<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="case_qty"
+                      onclick="sortOrders('case_qty')"
+                    >
+                      Case Qty<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="threshold"
+                      onclick="sortOrders('threshold')"
+                    >
+                      Threshold<span class="sort-indicator"></span>
+                    </th>
+                    <th
+                      class="sortable"
+                      data-sort="suggested_qty"
+                      onclick="sortOrders('suggested_qty')"
+                    >
+                      Suggested Qty<span class="sort-indicator"></span>
+                    </th>
                     <th>Order Qty</th>
-                    <th class="sortable" data-sort="cases" onclick="sortOrders('cases')">Cases<span class="sort-indicator"></span></th>
+                    <th
+                      class="sortable"
+                      data-sort="cases"
+                      onclick="sortOrders('cases')"
+                    >
+                      Cases<span class="sort-indicator"></span>
+                    </th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -326,16 +522,35 @@
 
             <div class="order-actions">
               <div class="column-selector-wrapper">
-                <button type="button" class="btn btn-outline btn-columns" onclick="toggleColumnSelector()">
+                <button
+                  type="button"
+                  class="btn btn-outline btn-columns"
+                  onclick="toggleColumnSelector()"
+                >
                   Columns <span class="chevron">▼</span>
                 </button>
                 <div id="column-selector-panel" class="column-selector-panel">
                   <div class="column-selector-header">
                     <span>Export Columns</span>
-                    <button type="button" class="btn-text" onclick="selectAllColumns(true)">All</button>
-                    <button type="button" class="btn-text" onclick="selectAllColumns(false)">None</button>
+                    <button
+                      type="button"
+                      class="btn-text"
+                      onclick="selectAllColumns(true)"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-text"
+                      onclick="selectAllColumns(false)"
+                    >
+                      None
+                    </button>
                   </div>
-                  <div class="column-selector-options" id="column-selector-options">
+                  <div
+                    class="column-selector-options"
+                    id="column-selector-options"
+                  >
                     <!-- Populated by JavaScript -->
                   </div>
                 </div>
@@ -478,7 +693,13 @@
               </div>
               <div class="form-group">
                 <label for="order-period">Order Period (Days)</label>
-                <input type="number" id="order-period" min="1" max="365" value="28">
+                <input
+                  type="number"
+                  id="order-period"
+                  min="1"
+                  max="365"
+                  value="28"
+                />
                 <small>Number of days of stock to order</small>
               </div>
               <div class="form-group">
@@ -512,6 +733,17 @@
                 </button>
               </div>
             </form>
+          </div>
+
+          <!-- Excluded Products -->
+          <div class="settings-card">
+            <h2>Excluded Products</h2>
+            <p class="subtitle">
+              Products excluded from inventory and order calculations
+            </p>
+            <div id="excluded-products-container">
+              <div class="loading">Loading excluded products...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -578,8 +810,19 @@
             <div class="info-row">
               <span class="info-label">Case Qty (UnitQty2):</span>
               <div class="editable-field">
-                <input type="number" id="modal-case-qty" min="1" placeholder="Not set">
-                <button type="button" class="btn btn-small btn-primary" onclick="saveCaseQty()">Save</button>
+                <input
+                  type="number"
+                  id="modal-case-qty"
+                  min="1"
+                  placeholder="Not set"
+                />
+                <button
+                  type="button"
+                  class="btn btn-small btn-primary"
+                  onclick="saveCaseQty()"
+                >
+                  Save
+                </button>
               </div>
             </div>
           </div>
@@ -618,7 +861,9 @@
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="override-order-period-days">Order Period (Days)</label>
+                  <label for="override-order-period-days"
+                    >Order Period (Days)</label
+                  >
                   <input
                     type="number"
                     id="override-order-period-days"
@@ -626,7 +871,9 @@
                     min="1"
                     max="365"
                   />
-                  <small>Override the global order period for this product</small>
+                  <small
+                    >Override the global order period for this product</small
+                  >
                 </div>
                 <div class="form-group">
                   <label for="override-unit-cost">Cost Override</label>

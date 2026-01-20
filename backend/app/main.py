@@ -503,13 +503,27 @@ def toggle_product_exclusion(upc):
 
 @app.route('/api/products/excluded', methods=['GET'])
 def get_excluded_products():
-    """Get list of products excluded from orders."""
+    """Get list of products excluded from orders with descriptions."""
     try:
         excluded = pg.get_excluded_products()
+        excluded_list = [dict(p) for p in excluded]
+
+        mssql = get_mssql_manager()
+        sql_configured = mssql is not None
+
+        if sql_configured and excluded_list:
+            for item in excluded_list:
+                product = mssql.get_product_by_upc(item['product_upc'])
+                if product:
+                    item['description'] = product.get('ProductDescription', '')
+                else:
+                    item['description'] = '(Product not found)'
+
         return jsonify({
             'success': True,
-            'products': [dict(p) for p in excluded],
-            'count': len(excluded)
+            'products': excluded_list,
+            'count': len(excluded_list),
+            'sql_configured': sql_configured
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -786,15 +800,19 @@ def get_summary():
         settings = pg.get_settings()
         sales_period = int(settings.get('sales_period_days', 60))
 
-        total_products = len(products)
-        needs_reorder_count = 0
-
         overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
+        excluded_upcs = pg.get_excluded_upcs()
+
+        # Filter out excluded products
+        active_products = [p for p in products if p['ProductUPC'] not in excluded_upcs]
+
+        total_products = len(active_products)
+        needs_reorder_count = 0
 
         # Get all sales data in a single query (optimized)
         all_sales_data = mssql.get_all_sales_data(sales_period)
 
-        for product in products:
+        for product in active_products:
             upc = product['ProductUPC']
             override = overrides.get(upc)
 
