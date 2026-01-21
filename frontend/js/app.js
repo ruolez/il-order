@@ -775,13 +775,14 @@ async function saveInventoryAsOrderDraft() {
   const items = Array.from(inventorySelectedItems.values());
 
   // Build order items from inventory selection
+  // Backend expects: upc, description, on_hand, threshold, suggested_qty, order_qty, unit_qty2, unit_cost
   const orderItems = items.map((item) => ({
-    product_upc: item.upc,
-    product_description: item.description,
-    current_qty: item.on_hand || 0,
+    upc: item.upc,
+    description: item.description,
+    on_hand: item.on_hand || 0,
     threshold: item.threshold || 0,
     suggested_qty: item.suggested_qty || 0,
-    final_qty: item.order_qty || item.suggested_qty || 0,
+    order_qty: item.order_qty || item.suggested_qty || 0,
     unit_qty2: item.case_qty || 1,
     unit_cost: item.unit_cost || 0,
   }));
@@ -797,7 +798,7 @@ async function saveInventoryAsOrderDraft() {
     });
 
     if (result.success) {
-      return result.order_id;
+      return result.id;
     } else {
       throw new Error(result.error);
     }
