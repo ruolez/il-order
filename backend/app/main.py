@@ -641,6 +641,166 @@ def get_products_by_supplier(supplier_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/suppliers/<int:supplier_id>/details', methods=['GET'])
+def get_supplier_details(supplier_id):
+    """Get supplier details for PO ship-to fields."""
+    try:
+        mssql = get_mssql_manager()
+        if not mssql:
+            return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
+
+        supplier = mssql.get_supplier_details(supplier_id)
+        if not supplier:
+            return jsonify({'success': False, 'error': 'Supplier not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'supplier': dict(supplier)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============== Purchase Order Endpoints ==============
+
+@app.route('/api/po/validate-number', methods=['POST'])
+def validate_po_number():
+    """Validate if a PO number is available (not already used)."""
+    try:
+        mssql = get_mssql_manager()
+        if not mssql:
+            return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
+
+        data = request.get_json()
+        po_number = data.get('po_number', '').strip()
+
+        if not po_number:
+            return jsonify({'success': True, 'valid': False, 'message': 'PO number is required'})
+
+        if len(po_number) > 20:
+            return jsonify({'success': True, 'valid': False, 'message': 'PO number must be 20 characters or less'})
+
+        result = mssql.validate_po_number(po_number)
+        return jsonify({
+            'success': True,
+            'valid': result['valid'],
+            'message': result['message']
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/orders/<int:order_id>/create-po', methods=['POST'])
+def create_purchase_order(order_id):
+    """Create a Purchase Order in MS SQL from an order draft."""
+    try:
+        mssql = get_mssql_manager()
+        if not mssql:
+            return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
+
+        # Get the order draft
+        order = pg.get_order_draft(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        data = request.get_json()
+        po_number = data.get('po_number', '').strip()
+        supplier_id = data.get('supplier_id') or order.get('supplier_id')
+
+        # Validate PO number
+        if not po_number:
+            return jsonify({'success': False, 'error': 'PO number is required'}), 400
+
+        if len(po_number) > 20:
+            return jsonify({'success': False, 'error': 'PO number must be 20 characters or less'}), 400
+
+        validation = mssql.validate_po_number(po_number)
+        if not validation['valid']:
+            return jsonify({'success': False, 'error': validation['message']}), 400
+
+        # Validate supplier
+        if not supplier_id:
+            return jsonify({'success': False, 'error': 'Supplier is required'}), 400
+
+        # Get supplier details for ship-to fields
+        supplier = mssql.get_supplier_details(int(supplier_id))
+        if not supplier:
+            return jsonify({'success': False, 'error': 'Supplier not found'}), 404
+
+        # Get order items
+        items = pg.get_order_draft_items(order_id)
+        if not items:
+            return jsonify({'success': False, 'error': 'Order has no items'}), 400
+
+        # Get product details from MS SQL for PO line items
+        upcs = [item['product_upc'] for item in items]
+        products = mssql.get_products_for_po(upcs)
+
+        # Check for missing products
+        missing_upcs = [upc for upc in upcs if upc not in products]
+        if missing_upcs:
+            return jsonify({
+                'success': False,
+                'error': f'Products not found in system: {", ".join(missing_upcs[:5])}{"..." if len(missing_upcs) > 5 else ""}'
+            }), 400
+
+        # Prepare PO header data
+        po_data = {
+            'po_number': po_number,
+            'supplier_id': int(supplier_id),
+            'business_name': supplier.get('BusinessName', ''),
+            'account_no': supplier.get('AccountNo', ''),
+            'po_title': order.get('name') or 'IL-Order Export',
+            'shipto': supplier.get('BusinessName', ''),
+            'ship_address1': supplier.get('Address1', ''),
+            'ship_address2': supplier.get('Address2', ''),
+            'ship_contact': supplier.get('Contactname', ''),
+            'ship_city': supplier.get('City', ''),
+            'ship_state': supplier.get('State', ''),
+            'ship_zipcode': supplier.get('ZipCode', ''),
+            'ship_phone': supplier.get('Phone_Number', '')
+        }
+
+        # Prepare PO line items
+        po_items = []
+        for item in items:
+            upc = item['product_upc']
+            product = products.get(upc, {})
+            qty_ordered = item['final_qty'] or 0
+            unit_cost = float(item['unit_cost'] or 0)
+
+            po_items.append({
+                'product_id': product.get('ProductID'),
+                'cate_id': product.get('CateID'),
+                'sub_cate_id': product.get('SubCateID'),
+                'unit_desc': product.get('UnitDesc', ''),
+                'product_sku': product.get('ProductSKU', ''),
+                'product_upc': upc,
+                'product_description': item['product_description'] or '',
+                'item_weight': product.get('ItemWeight'),
+                'qty_ordered': qty_ordered,
+                'unit_cost': unit_cost,
+                'extended_cost': qty_ordered * unit_cost
+            })
+
+        # Create the purchase order
+        result = mssql.create_purchase_order(po_data, po_items)
+
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'po_id': result['po_id'],
+                'po_number': result['po_number']
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to create purchase order'}), 500
+
+    except QueryError as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============== Analysis Endpoints ==============
 
 @app.route('/api/analysis/needs-reorder', methods=['GET'])

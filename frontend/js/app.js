@@ -2093,8 +2093,8 @@ async function loadOrderHistory() {
                     <td><span class="badge ${statusClass}">${order.status}</span></td>
                     <td class="action-cell">
                         <button class="action-btn view" onclick="viewOrder(${order.id})">View</button>
-                        <button class="action-btn export" onclick="exportOrderExcel(${order.id})">Excel</button>
-                        <button class="action-btn export" onclick="exportOrderPDF(${order.id})">PDF</button>
+                        <button class="action-btn export" onclick="exportOrderExcelWithPo(${order.id})">Excel</button>
+                        <button class="action-btn export" onclick="exportOrderPDFWithPo(${order.id})">PDF</button>
                         <button class="action-btn delete" onclick="deleteOrder(${order.id})">Delete</button>
                     </td>
                 </tr>
@@ -2220,5 +2220,418 @@ async function deleteOrder(orderId) {
   } catch (error) {
     console.error("Error deleting order:", error);
     showToast(`Error deleting order: ${error.message}`, "error");
+  }
+}
+
+// ============== Purchase Order Creation Modal ==============
+
+// Store current PO creation state
+let poCreationState = {
+  orderId: null,
+  exportType: null,
+  supplierId: null,
+  supplierName: null,
+};
+
+// Show initial PO creation prompt
+function showCreatePoPrompt(
+  orderId,
+  exportType,
+  supplierId = null,
+  supplierName = null,
+) {
+  poCreationState = { orderId, exportType, supplierId, supplierName };
+
+  const modal = document.createElement("div");
+  modal.className = "modal active";
+  modal.id = "create-po-modal";
+
+  modal.innerHTML = `
+    <div class="modal-content po-modal">
+      <div class="modal-header">
+        <h2>Create Purchase Order?</h2>
+        <button class="modal-close" onclick="closeCreatePoModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Would you like to create a Purchase Order in the system for this export?</p>
+        <div class="po-modal-actions">
+          <button type="button" class="btn btn-primary" onclick="handlePoYes()">
+            Yes, Create PO
+          </button>
+          <button type="button" class="btn btn-outline" onclick="skipPoCreation()">
+            No, Just Export
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeCreatePoModal();
+  });
+
+  document.body.appendChild(modal);
+}
+
+// Handle "Yes" to PO creation - check if supplier is selected
+async function handlePoYes() {
+  const { orderId, supplierId } = poCreationState;
+
+  // If no supplier selected, show supplier selection
+  if (!supplierId) {
+    showSupplierSelectionForPo();
+  } else {
+    showPoNumberInput();
+  }
+}
+
+// Show supplier selection modal
+async function showSupplierSelectionForPo() {
+  const modal = document.getElementById("create-po-modal");
+  if (!modal) return;
+
+  try {
+    const result = await api.get("/suppliers");
+    if (!result.success) throw new Error(result.error);
+
+    const suppliersHtml = result.suppliers
+      .map(
+        (s) => `
+        <option value="${s.SupplierID}" data-name="${escapeHtml(s.BusinessName)}">
+          ${escapeHtml(s.BusinessName)}
+        </option>
+      `,
+      )
+      .join("");
+
+    modal.querySelector(".modal-content").innerHTML = `
+      <div class="modal-header">
+        <h2>Select Supplier</h2>
+        <button class="modal-close" onclick="closeCreatePoModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Please select a supplier for the Purchase Order:</p>
+        <div class="form-group">
+          <select id="po-supplier-select" class="form-control">
+            <option value="">-- Select Supplier --</option>
+            ${suppliersHtml}
+          </select>
+        </div>
+        <div class="po-modal-actions">
+          <button type="button" class="btn btn-primary" onclick="handleSupplierSelected()">
+            Continue
+          </button>
+          <button type="button" class="btn btn-outline" onclick="showCreatePoPrompt(poCreationState.orderId, poCreationState.exportType, poCreationState.supplierId, poCreationState.supplierName)">
+            Back
+          </button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(`Error loading suppliers: ${error.message}`, "error");
+    closeCreatePoModal();
+  }
+}
+
+// Handle supplier selection
+function handleSupplierSelected() {
+  const select = document.getElementById("po-supplier-select");
+  const selectedOption = select.selectedOptions[0];
+
+  if (!select.value) {
+    showToast("Please select a supplier", "error");
+    return;
+  }
+
+  poCreationState.supplierId = select.value;
+  poCreationState.supplierName =
+    selectedOption.dataset.name || selectedOption.textContent.trim();
+
+  showPoNumberInput();
+}
+
+// Show PO number input modal
+function showPoNumberInput() {
+  const modal = document.getElementById("create-po-modal");
+  if (!modal) return;
+
+  const supplierInfo = poCreationState.supplierName
+    ? `<p class="po-supplier-info">Supplier: <strong>${escapeHtml(poCreationState.supplierName)}</strong></p>`
+    : "";
+
+  modal.querySelector(".modal-content").innerHTML = `
+    <div class="modal-header">
+      <h2>Enter PO Number</h2>
+      <button class="modal-close" onclick="closeCreatePoModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      ${supplierInfo}
+      <div class="form-group">
+        <label for="po-number-input">PO Number (max 20 characters)</label>
+        <div class="po-number-input-wrapper">
+          <input type="text" id="po-number-input" class="form-control"
+                 maxlength="20" placeholder="Enter PO number..."
+                 onblur="validatePoNumberInput()"
+                 oninput="clearPoValidation()" />
+          <span id="po-validation-icon" class="po-validation-icon"></span>
+        </div>
+        <div id="po-validation-message" class="po-validation-message"></div>
+      </div>
+      <div class="po-modal-actions">
+        <button type="button" id="po-create-btn" class="btn btn-primary" onclick="createPoAndExport()">
+          Create PO & Export
+        </button>
+        <button type="button" class="btn btn-outline" onclick="skipPoCreation()">
+          Skip, Just Export
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Focus the input
+  setTimeout(() => {
+    document.getElementById("po-number-input")?.focus();
+  }, 100);
+}
+
+// Validate PO number on blur
+async function validatePoNumberInput() {
+  const input = document.getElementById("po-number-input");
+  const icon = document.getElementById("po-validation-icon");
+  const message = document.getElementById("po-validation-message");
+  const createBtn = document.getElementById("po-create-btn");
+
+  const poNumber = input?.value.trim();
+
+  if (!poNumber) {
+    icon.textContent = "";
+    icon.className = "po-validation-icon";
+    message.textContent = "";
+    message.className = "po-validation-message";
+    return;
+  }
+
+  // Show loading state
+  icon.textContent = "...";
+  icon.className = "po-validation-icon validating";
+  message.textContent = "Validating...";
+  message.className = "po-validation-message";
+
+  try {
+    const result = await api.post("/po/validate-number", {
+      po_number: poNumber,
+    });
+
+    if (result.success && result.valid) {
+      icon.textContent = "✓";
+      icon.className = "po-validation-icon valid";
+      message.textContent = result.message;
+      message.className = "po-validation-message valid";
+      createBtn.disabled = false;
+    } else {
+      icon.textContent = "✗";
+      icon.className = "po-validation-icon invalid";
+      message.textContent =
+        result.message || result.error || "Invalid PO number";
+      message.className = "po-validation-message invalid";
+      createBtn.disabled = true;
+    }
+  } catch (error) {
+    icon.textContent = "!";
+    icon.className = "po-validation-icon error";
+    message.textContent = `Error: ${error.message}`;
+    message.className = "po-validation-message invalid";
+    createBtn.disabled = true;
+  }
+}
+
+// Clear validation state when typing
+function clearPoValidation() {
+  const icon = document.getElementById("po-validation-icon");
+  const message = document.getElementById("po-validation-message");
+  const createBtn = document.getElementById("po-create-btn");
+
+  if (icon) {
+    icon.textContent = "";
+    icon.className = "po-validation-icon";
+  }
+  if (message) {
+    message.textContent = "";
+    message.className = "po-validation-message";
+  }
+  if (createBtn) {
+    createBtn.disabled = false;
+  }
+}
+
+// Create PO and then export
+async function createPoAndExport() {
+  const { orderId, exportType, supplierId } = poCreationState;
+  const poNumber = document.getElementById("po-number-input")?.value.trim();
+
+  if (!poNumber) {
+    showToast("Please enter a PO number", "error");
+    return;
+  }
+
+  const createBtn = document.getElementById("po-create-btn");
+  if (createBtn) {
+    createBtn.disabled = true;
+    createBtn.textContent = "Creating...";
+  }
+
+  try {
+    const result = await api.post(`/orders/${orderId}/create-po`, {
+      po_number: poNumber,
+      supplier_id: supplierId,
+    });
+
+    if (result.success) {
+      showToast(
+        `Purchase Order ${result.po_number} created successfully!`,
+        "success",
+      );
+      closeCreatePoModal();
+      performExport(orderId, exportType);
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error creating PO:", error);
+    showToast(`Error creating PO: ${error.message}`, "error");
+
+    if (createBtn) {
+      createBtn.disabled = false;
+      createBtn.textContent = "Create PO & Export";
+    }
+  }
+}
+
+// Skip PO creation and just export
+function skipPoCreation() {
+  const { orderId, exportType } = poCreationState;
+  closeCreatePoModal();
+  performExport(orderId, exportType);
+}
+
+// Perform the actual export
+function performExport(orderId, exportType) {
+  const columnsParam = getSelectedColumnsParam();
+
+  let url;
+  if (exportType === "excel") {
+    url = `/api/orders/${orderId}/export/excel`;
+  } else {
+    url = `/api/orders/${orderId}/export/pdf`;
+  }
+
+  if (columnsParam) {
+    url += `?columns=${columnsParam}`;
+  }
+
+  window.location.href = url;
+}
+
+// Close the PO modal
+function closeCreatePoModal() {
+  const modal = document.getElementById("create-po-modal");
+  if (modal) {
+    modal.remove();
+  }
+  poCreationState = {
+    orderId: null,
+    exportType: null,
+    supplierId: null,
+    supplierName: null,
+  };
+}
+
+// Modified saveAndExportExcel - now shows PO prompt
+async function saveAndExportExcelWithPo() {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast("Please select at least one column to export", "error");
+    return;
+  }
+
+  const orderId = await saveOrderDraft();
+  if (orderId) {
+    // Get supplier info from the order page
+    const supplierSelect = document.getElementById("supplier-select");
+    const supplierId = supplierSelect?.value || null;
+    const supplierName =
+      supplierSelect?.selectedOptions[0]?.dataset.name || null;
+
+    showCreatePoPrompt(orderId, "excel", supplierId, supplierName);
+  }
+}
+
+// Modified saveAndExportPDF - now shows PO prompt
+async function saveAndExportPDFWithPo() {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast("Please select at least one column to export", "error");
+    return;
+  }
+
+  const orderId = await saveOrderDraft();
+  if (orderId) {
+    // Get supplier info from the order page
+    const supplierSelect = document.getElementById("supplier-select");
+    const supplierId = supplierSelect?.value || null;
+    const supplierName =
+      supplierSelect?.selectedOptions[0]?.dataset.name || null;
+
+    showCreatePoPrompt(orderId, "pdf", supplierId, supplierName);
+  }
+}
+
+// Modified exportOrderExcel for history page - now shows PO prompt
+async function exportOrderExcelWithPo(orderId) {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast("Please select at least one column to export", "error");
+    return;
+  }
+
+  // Fetch order to get supplier info
+  try {
+    const result = await api.get(`/orders/${orderId}`);
+    if (result.success) {
+      const supplierId = result.order.supplier_id || null;
+      const supplierName = result.order.supplier_name || null;
+      showCreatePoPrompt(orderId, "excel", supplierId, supplierName);
+    } else {
+      // If we can't get order details, just show prompt without supplier
+      showCreatePoPrompt(orderId, "excel");
+    }
+  } catch (error) {
+    // Fall back to prompt without supplier info
+    showCreatePoPrompt(orderId, "excel");
+  }
+}
+
+// Modified exportOrderPDF for history page - now shows PO prompt
+async function exportOrderPDFWithPo(orderId) {
+  const columnsParam = getSelectedColumnsParam();
+  if (columnsParam === null) {
+    showToast("Please select at least one column to export", "error");
+    return;
+  }
+
+  // Fetch order to get supplier info
+  try {
+    const result = await api.get(`/orders/${orderId}`);
+    if (result.success) {
+      const supplierId = result.order.supplier_id || null;
+      const supplierName = result.order.supplier_name || null;
+      showCreatePoPrompt(orderId, "pdf", supplierId, supplierName);
+    } else {
+      // If we can't get order details, just show prompt without supplier
+      showCreatePoPrompt(orderId, "pdf");
+    }
+  } catch (error) {
+    // Fall back to prompt without supplier info
+    showCreatePoPrompt(orderId, "pdf");
   }
 }

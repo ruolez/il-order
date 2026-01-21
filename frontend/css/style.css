@@ -1063,6 +1063,73 @@ input[type="checkbox"] {
   padding: var(--spacing-lg);
 }
 
+/* Purchase Order Modal Styles */
+.po-modal {
+  max-width: 450px;
+}
+
+.po-modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  justify-content: flex-end;
+}
+
+.po-supplier-info {
+  background-color: var(--color-canvas-subtle);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: 14px;
+}
+
+.po-number-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.po-number-input-wrapper input {
+  padding-right: 36px;
+}
+
+.po-validation-icon {
+  position: absolute;
+  right: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.po-validation-icon.validating {
+  color: var(--color-fg-muted);
+}
+
+.po-validation-icon.valid {
+  color: var(--color-success-fg);
+}
+
+.po-validation-icon.invalid {
+  color: var(--color-danger-fg);
+}
+
+.po-validation-icon.error {
+  color: var(--color-attention-fg);
+}
+
+.po-validation-message {
+  font-size: 12px;
+  margin-top: var(--spacing-xs);
+  min-height: 18px;
+}
+
+.po-validation-message.valid {
+  color: var(--color-success-fg);
+}
+
+.po-validation-message.invalid {
+  color: var(--color-danger-fg);
+}
+
 /* Product info in modal */
 .product-info {
   margin-bottom: var(--spacing-lg);

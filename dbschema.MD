@@ -41,6 +41,25 @@ CREATE TABLE [Items_BinLocations] (
 	[Discontinued] [bit] NULL,
 
 
+[dbo].[Suppliers_tbl](
+	[SupplierID] [int] IDENTITY(1,1) NOT NULL,
+	[AccountNo] [nvarchar](13) NULL,
+	[StateTaxID] [nvarchar](24) NULL,
+	[BusinessName] [nvarchar](50) NULL,
+	[Address1] [nvarchar](32) NULL,
+	[Address2] [nvarchar](32) NULL,
+	[City] [nvarchar](24) NULL,
+	[State] [nvarchar](3) NULL,
+	[ZipCode] [nvarchar](10) NULL,
+	[Phone_Number] [nvarchar](13) NULL,
+	[Fax_Number] [nvarchar](13) NULL,
+	[Contactname] [nvarchar](50) NULL,
+	[Email] [nvarchar](100) NULL,
+	[web_url] [nvarchar](255) NULL,
+	[Notes] [ntext] NULL,
+	[Discontinued] [bit] NULL,
+
+
 
  [dbo].[Invoices_tbl](
 	[InvoiceID] [int] IDENTITY(1,1) NOT NULL,

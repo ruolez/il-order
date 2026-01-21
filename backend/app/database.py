@@ -782,6 +782,179 @@ class MSSQLManager:
             return {row['ProductUPC']: row['last_supplier'] for row in rows}
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
+    def get_supplier_details(self, supplier_id: int) -> Optional[Dict[str, Any]]:
+        """Get supplier details for PO ship-to fields."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    SupplierID, BusinessName, AccountNo,
+                    Address1, Address2, City, State, ZipCode,
+                    Phone_Number, Contactname
+                FROM Suppliers_tbl
+                WHERE SupplierID = %s
+            """, (supplier_id,))
+            return cursor.fetchone()
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
+    def get_products_for_po(self, upcs: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Batch lookup products by UPC for PO line item creation."""
+        if not upcs:
+            return {}
+
+        with self.get_cursor() as cursor:
+            placeholders = ', '.join(['%s'] * len(upcs))
+            cursor.execute(f"""
+                SELECT
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.CateID, i.SubCateID, i.UnitQty2, i.ItemWeight, i.UnitCost,
+                    u.UnitDesc
+                FROM Items_tbl i
+                LEFT JOIN Units_tbl u ON i.UnitID2 = u.UnitID
+                WHERE i.ProductUPC IN ({placeholders})
+            """, tuple(upcs))
+            rows = cursor.fetchall()
+
+            result = {}
+            for row in rows:
+                result[row['ProductUPC']] = {
+                    'ProductID': row['ProductID'],
+                    'ProductSKU': row['ProductSKU'],
+                    'ProductDescription': row['ProductDescription'],
+                    'CateID': row['CateID'],
+                    'SubCateID': row['SubCateID'],
+                    'UnitQty': row['UnitQty2'] or 1,
+                    'UnitDesc': row['UnitDesc'] or '',
+                    'ItemWeight': row['ItemWeight'],
+                    'UnitCost': row['UnitCost']
+                }
+            return result
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
+    def validate_po_number(self, po_number: str) -> Dict[str, Any]:
+        """Check if PO number already exists in PurchaseOrders_tbl."""
+        with self.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM PurchaseOrders_tbl WHERE PoNumber = %s
+            """, (po_number,))
+            row = cursor.fetchone()
+            exists = (row['count'] or 0) > 0
+
+            if exists:
+                return {'valid': False, 'message': 'PO number already exists'}
+            return {'valid': True, 'message': 'PO number is available'}
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
+    def create_purchase_order(self, po_data: Dict[str, Any], line_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Create a purchase order with header and detail records."""
+        from datetime import datetime, timedelta
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            try:
+                # Calculate totals
+                po_total = sum(item.get('extended_cost', 0) for item in line_items)
+                total_qty_ordered = sum(item.get('qty_ordered', 0) for item in line_items)
+                no_lines = len(line_items)
+
+                today = datetime.now()
+                exp_date = today + timedelta(days=365)
+
+                # Insert PO header
+                cursor.execute("""
+                    INSERT INTO PurchaseOrders_tbl (
+                        PoDate, RequiredDate, PoNumber, SupplierID, BusinessName, AccountNo,
+                        PoTitle, Status, Shipto, ShipAddress1, ShipAddress2, ShipContact,
+                        ShipCity, ShipState, ShipZipCode, ShipPhoneNo, EmployeeID, TermID,
+                        ShipperID, PoTotal, NoLines, TotQtyOrd, TotQtyRcv, Notes
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s
+                    )
+                """, (
+                    today,  # PoDate
+                    today,  # RequiredDate
+                    po_data.get('po_number', ''),
+                    po_data.get('supplier_id'),
+                    po_data.get('business_name', ''),
+                    po_data.get('account_no', ''),
+                    po_data.get('po_title', 'IL-Order Export'),
+                    0,  # Status = 0
+                    po_data.get('shipto', ''),
+                    po_data.get('ship_address1', ''),
+                    po_data.get('ship_address2', ''),
+                    po_data.get('ship_contact', ''),
+                    po_data.get('ship_city', ''),
+                    po_data.get('ship_state', ''),
+                    po_data.get('ship_zipcode', ''),
+                    po_data.get('ship_phone', ''),
+                    0,  # EmployeeID
+                    0,  # TermID
+                    0,  # ShipperID
+                    po_total,
+                    no_lines,
+                    total_qty_ordered,
+                    0,  # TotQtyRcv = 0
+                    None  # Notes
+                ))
+
+                # Get the generated PoID using SCOPE_IDENTITY()
+                cursor.execute("SELECT SCOPE_IDENTITY() as po_id")
+                po_id_row = cursor.fetchone()
+                po_id = int(po_id_row['po_id'])
+
+                # Insert PO detail records
+                for item in line_items:
+                    cursor.execute("""
+                        INSERT INTO PurchaseOrdersDetails_tbl (
+                            PoID, ProductID, CateID, SubCateID, UnitDesc, UnitQty,
+                            ProductSKU, ProductUPC, SupplierSKU, ProductDescription,
+                            ItemSize, ExpDate, ReasonID, QtyOrdered, QtyReceived,
+                            ItemWeight, UnitCost, ExtendedCost, DateReceived, Committedln, Flag
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        po_id,
+                        item.get('product_id'),
+                        item.get('cate_id'),
+                        item.get('sub_cate_id'),
+                        item.get('unit_desc', ''),
+                        1,  # UnitQty = 1
+                        item.get('product_sku', ''),
+                        item.get('product_upc', ''),
+                        None,  # SupplierSKU
+                        item.get('product_description', ''),
+                        None,  # ItemSize
+                        exp_date,  # ExpDate = today + 1 year
+                        None,  # ReasonID
+                        item.get('qty_ordered', 0),
+                        0,  # QtyReceived = 0
+                        item.get('item_weight'),
+                        item.get('unit_cost', 0),
+                        item.get('extended_cost', 0),
+                        None,  # DateReceived
+                        0,  # Committedln
+                        0   # Flag
+                    ))
+
+                conn.commit()
+                return {
+                    'success': True,
+                    'po_id': po_id,
+                    'po_number': po_data.get('po_number', '')
+                }
+
+            except Exception as e:
+                conn.rollback()
+                raise QueryError(f"Failed to create purchase order: {e}")
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products_with_sales(self, days: int = 60, search: str = None,
                                  limit: int = None, offset: int = None,
                                  sort_by: str = 'description', sort_order: str = 'asc') -> Dict[str, Any]:
