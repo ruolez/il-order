@@ -622,6 +622,7 @@ body {
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .data-table th {
@@ -642,7 +643,35 @@ body {
   border-bottom: 1px solid var(--color-border-muted);
   font-size: 14px;
   color: var(--color-fg-default);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* Inventory table column widths */
+#inventory-table th:nth-child(1),
+#inventory-table td:nth-child(1) { width: 40px; } /* Checkbox */
+#inventory-table th:nth-child(2),
+#inventory-table td:nth-child(2) { width: 130px; } /* UPC */
+#inventory-table th:nth-child(3),
+#inventory-table td:nth-child(3) { width: auto; white-space: normal; word-wrap: break-word; } /* Description - flexible */
+#inventory-table th:nth-child(4),
+#inventory-table td:nth-child(4) { width: 80px; } /* On Hand */
+#inventory-table th:nth-child(5),
+#inventory-table td:nth-child(5) { width: 80px; } /* Case Qty */
+#inventory-table th:nth-child(6),
+#inventory-table td:nth-child(6) { width: 120px; } /* Threshold */
+#inventory-table th:nth-child(7),
+#inventory-table td:nth-child(7) { width: 140px; } /* Last Supplier */
+#inventory-table th:nth-child(8),
+#inventory-table td:nth-child(8) { width: 85px; } /* Status */
+#inventory-table th:nth-child(9),
+#inventory-table td:nth-child(9) { width: 100px; } /* Suggested Qty */
+#inventory-table th:nth-child(10),
+#inventory-table td:nth-child(10) { width: 90px; } /* Order Qty */
+#inventory-table th:nth-child(11),
+#inventory-table td:nth-child(11) { width: 60px; } /* Cases */
+#inventory-table th:nth-child(12),
+#inventory-table td:nth-child(12) { width: 120px; } /* Actions */
 
 .data-table tbody tr:hover {
   background-color: var(--color-canvas-subtle);
