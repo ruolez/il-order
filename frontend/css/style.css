@@ -649,7 +649,7 @@ body {
 
 /* Inventory table column widths */
 #inventory-table th:nth-child(1),
-#inventory-table td:nth-child(1) { width: 40px; } /* Checkbox */
+#inventory-table td:nth-child(1) { width: 40px; text-overflow: clip; overflow: visible; } /* Checkbox */
 #inventory-table th:nth-child(2),
 #inventory-table td:nth-child(2) { width: 130px; } /* UPC */
 #inventory-table th:nth-child(3),
@@ -2080,6 +2080,12 @@ input[type="checkbox"] {
 .btn-clear-selection:hover {
   background: var(--color-canvas-subtle);
   color: var(--color-fg-default);
+}
+
+/* Checkbox column fix - prevent ellipsis in checkbox cells */
+.data-table td:first-child {
+  text-overflow: clip;
+  overflow: visible;
 }
 
 /* Inventory table checkbox column */
