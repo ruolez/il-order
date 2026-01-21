@@ -863,9 +863,9 @@ class MSSQLManager:
                 total_qty_ordered = sum(item.get('qty_ordered', 0) for item in line_items)
                 no_lines = len(line_items)
 
-                today = datetime.now()
+                today = datetime.now().date()  # Date only, no time
                 # ExpDate is nvarchar(20) in the schema, format as string
-                exp_date_str = (today + timedelta(days=365)).strftime('%m/%d/%Y')
+                exp_date_str = (datetime.now() + timedelta(days=365)).strftime('%m/%d/%Y')
 
                 # Insert PO header with truncated string fields per schema:
                 # PoNumber: nvarchar(20), BusinessName: nvarchar(50), AccountNo: nvarchar(13)
