@@ -979,8 +979,8 @@ body {
 
 /* Quantity input in order table */
 .qty-input {
-  width: 80px;
-  padding: 3px 8px;
+  width: 70px;
+  padding: 3px 6px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-sm);
   text-align: center;
@@ -2098,8 +2098,8 @@ input[type="checkbox"] {
 
 /* Order qty input in inventory table */
 .inventory-order-qty-input {
-  width: 80px;
-  padding: 4px 8px;
+  width: 70px;
+  padding: 4px 6px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-sm);
   text-align: center;
