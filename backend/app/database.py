@@ -864,9 +864,14 @@ class MSSQLManager:
                 no_lines = len(line_items)
 
                 today = datetime.now()
-                exp_date = today + timedelta(days=365)
+                # ExpDate is nvarchar(20) in the schema, format as string
+                exp_date_str = (today + timedelta(days=365)).strftime('%m/%d/%Y')
 
-                # Insert PO header with truncated string fields
+                # Insert PO header with truncated string fields per schema:
+                # PoNumber: nvarchar(20), BusinessName: nvarchar(50), AccountNo: nvarchar(13)
+                # PoTitle: nvarchar(50), Shipto: nvarchar(50), ShipAddress1/2: nvarchar(50)
+                # ShipContact: nvarchar(50), ShipCity: nvarchar(24), ShipState: nvarchar(3)
+                # ShipZipCode: nvarchar(10), ShipPhoneNo: nvarchar(13)
                 cursor.execute("""
                     INSERT INTO PurchaseOrders_tbl (
                         PoDate, RequiredDate, PoNumber, SupplierID, BusinessName, AccountNo,
@@ -884,18 +889,18 @@ class MSSQLManager:
                     today,  # RequiredDate
                     truncate(po_data.get('po_number', ''), 20),
                     po_data.get('supplier_id'),
-                    truncate(po_data.get('business_name', ''), 100),
-                    truncate(po_data.get('account_no', ''), 50),
-                    truncate(po_data.get('po_title', 'IL-Order Export'), 100),
+                    truncate(po_data.get('business_name', ''), 50),
+                    truncate(po_data.get('account_no', ''), 13),
+                    truncate(po_data.get('po_title', 'IL-Order Export'), 50),
                     0,  # Status = 0
-                    truncate(po_data.get('shipto', ''), 100),
-                    truncate(po_data.get('ship_address1', ''), 100),
-                    truncate(po_data.get('ship_address2', ''), 100),
-                    truncate(po_data.get('ship_contact', ''), 100),
-                    truncate(po_data.get('ship_city', ''), 50),
-                    truncate(po_data.get('ship_state', ''), 50),
-                    truncate(po_data.get('ship_zipcode', ''), 20),
-                    truncate(po_data.get('ship_phone', ''), 30),
+                    truncate(po_data.get('shipto', ''), 50),
+                    truncate(po_data.get('ship_address1', ''), 50),
+                    truncate(po_data.get('ship_address2', ''), 50),
+                    truncate(po_data.get('ship_contact', ''), 50),
+                    truncate(po_data.get('ship_city', ''), 24),
+                    truncate(po_data.get('ship_state', ''), 3),
+                    truncate(po_data.get('ship_zipcode', ''), 10),
+                    truncate(po_data.get('ship_phone', ''), 13),
                     0,  # EmployeeID
                     0,  # TermID
                     0,  # ShipperID
@@ -911,8 +916,16 @@ class MSSQLManager:
                 po_id_row = cursor.fetchone()
                 po_id = int(po_id_row['po_id'])
 
-                # Insert PO detail records with truncated string fields
+                # Insert PO detail records with truncated string fields per schema:
+                # UnitDesc: nvarchar(50), ProductSKU: nvarchar(20), ProductUPC: nvarchar(20)
+                # ProductDescription: nvarchar(50), ItemSize: nvarchar(10), ExpDate: nvarchar(20)
+                # ItemWeight: nvarchar(10)
                 for item in line_items:
+                    # Truncate ItemWeight to string if it exists
+                    item_weight = item.get('item_weight')
+                    if item_weight is not None:
+                        item_weight = truncate(str(item_weight), 10)
+
                     cursor.execute("""
                         INSERT INTO PurchaseOrdersDetails_tbl (
                             PoID, ProductID, CateID, SubCateID, UnitDesc, UnitQty,
@@ -932,16 +945,16 @@ class MSSQLManager:
                         item.get('sub_cate_id'),
                         truncate(item.get('unit_desc', ''), 50),
                         1,  # UnitQty = 1
-                        truncate(item.get('product_sku', ''), 50),
-                        truncate(item.get('product_upc', ''), 50),
+                        truncate(item.get('product_sku', ''), 20),
+                        truncate(item.get('product_upc', ''), 20),
                         None,  # SupplierSKU
-                        truncate(item.get('product_description', ''), 200),
+                        truncate(item.get('product_description', ''), 50),
                         None,  # ItemSize
-                        exp_date,  # ExpDate = today + 1 year
+                        exp_date_str,  # ExpDate as string (nvarchar(20))
                         None,  # ReasonID
                         item.get('qty_ordered', 0),
                         0,  # QtyReceived = 0
-                        item.get('item_weight'),
+                        item_weight,
                         item.get('unit_cost', 0),
                         item.get('extended_cost', 0),
                         None,  # DateReceived
