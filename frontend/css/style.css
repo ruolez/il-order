@@ -667,11 +667,14 @@ body {
 #inventory-table th:nth-child(9),
 #inventory-table td:nth-child(9) { width: 100px; } /* Suggested Qty */
 #inventory-table th:nth-child(10),
-#inventory-table td:nth-child(10) { width: 90px; } /* Order Qty */
+#inventory-table td:nth-child(10) { width: 90px; text-overflow: clip; overflow: visible; } /* Order Qty */
 #inventory-table th:nth-child(11),
 #inventory-table td:nth-child(11) { width: 60px; } /* Cases */
 #inventory-table th:nth-child(12),
 #inventory-table td:nth-child(12) { width: 120px; } /* Actions */
+
+/* Order table - prevent ellipsis on Order Qty input column */
+#order-table td:nth-child(9) { text-overflow: clip; overflow: visible; }
 
 .data-table tbody tr:hover {
   background-color: var(--color-canvas-subtle);
