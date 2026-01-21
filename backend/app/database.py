@@ -848,6 +848,12 @@ class MSSQLManager:
         """Create a purchase order with header and detail records."""
         from datetime import datetime, timedelta
 
+        def truncate(value: Any, max_length: int) -> Optional[str]:
+            """Truncate string to max length, return None if value is None."""
+            if value is None:
+                return None
+            return str(value)[:max_length] if value else ''
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -860,7 +866,7 @@ class MSSQLManager:
                 today = datetime.now()
                 exp_date = today + timedelta(days=365)
 
-                # Insert PO header
+                # Insert PO header with truncated string fields
                 cursor.execute("""
                     INSERT INTO PurchaseOrders_tbl (
                         PoDate, RequiredDate, PoNumber, SupplierID, BusinessName, AccountNo,
@@ -876,20 +882,20 @@ class MSSQLManager:
                 """, (
                     today,  # PoDate
                     today,  # RequiredDate
-                    po_data.get('po_number', ''),
+                    truncate(po_data.get('po_number', ''), 20),
                     po_data.get('supplier_id'),
-                    po_data.get('business_name', ''),
-                    po_data.get('account_no', ''),
-                    po_data.get('po_title', 'IL-Order Export'),
+                    truncate(po_data.get('business_name', ''), 100),
+                    truncate(po_data.get('account_no', ''), 50),
+                    truncate(po_data.get('po_title', 'IL-Order Export'), 100),
                     0,  # Status = 0
-                    po_data.get('shipto', ''),
-                    po_data.get('ship_address1', ''),
-                    po_data.get('ship_address2', ''),
-                    po_data.get('ship_contact', ''),
-                    po_data.get('ship_city', ''),
-                    po_data.get('ship_state', ''),
-                    po_data.get('ship_zipcode', ''),
-                    po_data.get('ship_phone', ''),
+                    truncate(po_data.get('shipto', ''), 100),
+                    truncate(po_data.get('ship_address1', ''), 100),
+                    truncate(po_data.get('ship_address2', ''), 100),
+                    truncate(po_data.get('ship_contact', ''), 100),
+                    truncate(po_data.get('ship_city', ''), 50),
+                    truncate(po_data.get('ship_state', ''), 50),
+                    truncate(po_data.get('ship_zipcode', ''), 20),
+                    truncate(po_data.get('ship_phone', ''), 30),
                     0,  # EmployeeID
                     0,  # TermID
                     0,  # ShipperID
@@ -905,7 +911,7 @@ class MSSQLManager:
                 po_id_row = cursor.fetchone()
                 po_id = int(po_id_row['po_id'])
 
-                # Insert PO detail records
+                # Insert PO detail records with truncated string fields
                 for item in line_items:
                     cursor.execute("""
                         INSERT INTO PurchaseOrdersDetails_tbl (
@@ -924,12 +930,12 @@ class MSSQLManager:
                         item.get('product_id'),
                         item.get('cate_id'),
                         item.get('sub_cate_id'),
-                        item.get('unit_desc', ''),
+                        truncate(item.get('unit_desc', ''), 50),
                         1,  # UnitQty = 1
-                        item.get('product_sku', ''),
-                        item.get('product_upc', ''),
+                        truncate(item.get('product_sku', ''), 50),
+                        truncate(item.get('product_upc', ''), 50),
                         None,  # SupplierSKU
-                        item.get('product_description', ''),
+                        truncate(item.get('product_description', ''), 200),
                         None,  # ItemSize
                         exp_date,  # ExpDate = today + 1 year
                         None,  # ReasonID

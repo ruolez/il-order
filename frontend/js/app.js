@@ -730,7 +730,7 @@ function clearInventorySelection() {
   updateInventoryExportBar();
 }
 
-// Export selected inventory items to Excel
+// Export selected inventory items to Excel (with PO creation option)
 async function exportInventoryToExcel() {
   const columnsParam = getInventorySelectedColumnsParam();
   if (columnsParam === null) {
@@ -743,38 +743,14 @@ async function exportInventoryToExcel() {
     return;
   }
 
-  const items = Array.from(inventorySelectedItems.values());
-  const columns = columnsParam ? columnsParam.split(",") : null;
-
-  try {
-    const response = await fetch("/api/inventory/export/excel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, columns }),
-    });
-
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().split("T")[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      showToast("Excel exported successfully!", "success");
-    } else {
-      const error = await response.json();
-      throw new Error(error.error || "Export failed");
-    }
-  } catch (error) {
-    console.error("Error exporting to Excel:", error);
-    showToast(`Error: ${error.message}`, "error");
+  // Save as order draft first, then show PO prompt
+  const orderId = await saveInventoryAsOrderDraft();
+  if (orderId) {
+    showCreatePoPrompt(orderId, "excel", null, null);
   }
 }
 
-// Export selected inventory items to PDF
+// Export selected inventory items to PDF (with PO creation option)
 async function exportInventoryToPDF() {
   const columnsParam = getInventorySelectedColumnsParam();
   if (columnsParam === null) {
@@ -787,34 +763,48 @@ async function exportInventoryToPDF() {
     return;
   }
 
+  // Save as order draft first, then show PO prompt
+  const orderId = await saveInventoryAsOrderDraft();
+  if (orderId) {
+    showCreatePoPrompt(orderId, "pdf", null, null);
+  }
+}
+
+// Save selected inventory items as an order draft
+async function saveInventoryAsOrderDraft() {
   const items = Array.from(inventorySelectedItems.values());
-  const columns = columnsParam ? columnsParam.split(",") : null;
+
+  // Build order items from inventory selection
+  const orderItems = items.map((item) => ({
+    product_upc: item.upc,
+    product_description: item.description,
+    current_qty: item.on_hand || 0,
+    threshold: item.threshold || 0,
+    suggested_qty: item.suggested_qty || 0,
+    final_qty: item.order_qty || item.suggested_qty || 0,
+    unit_qty2: item.case_qty || 1,
+    unit_cost: item.unit_cost || 0,
+  }));
+
+  const orderName = `Inventory Export ${new Date().toLocaleString()}`;
 
   try {
-    const response = await fetch("/api/inventory/export/pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, columns }),
+    const result = await api.post("/orders", {
+      name: orderName,
+      supplier_id: null,
+      supplier_name: null,
+      items: orderItems,
     });
 
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().split("T")[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      showToast("PDF exported successfully!", "success");
+    if (result.success) {
+      return result.order_id;
     } else {
-      const error = await response.json();
-      throw new Error(error.error || "Export failed");
+      throw new Error(result.error);
     }
   } catch (error) {
-    console.error("Error exporting to PDF:", error);
+    console.error("Error saving inventory as order:", error);
     showToast(`Error: ${error.message}`, "error");
+    return null;
   }
 }
 
