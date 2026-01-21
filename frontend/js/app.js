@@ -552,12 +552,14 @@ function renderInventoryTable(products, skipFilter = false) {
           : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
 
       // Build effective qty tooltip showing breakdown
-      const qtyTooltip = pendingPoQty > 0
-        ? `On Hand: ${qtyOnHand.toLocaleString()}, On Order: +${pendingPoQty.toLocaleString()}`
-        : "";
-      const qtyDisplayHtml = pendingPoQty > 0
-        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--success); font-size: 10px;">+${pendingPoQty}</sup></span>`
-        : `${effectiveQty.toLocaleString()}`;
+      const qtyTooltip =
+        pendingPoQty > 0
+          ? `On Hand: ${qtyOnHand.toLocaleString()}, On Order: +${pendingPoQty.toLocaleString()}`
+          : "";
+      const qtyDisplayHtml =
+        pendingPoQty > 0
+          ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--success); font-size: 10px;">+${pendingPoQty}</sup></span>`
+          : `${effectiveQty.toLocaleString()}`;
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
@@ -1268,7 +1270,9 @@ async function viewProduct(upc) {
       product.pending_po_qty || 0
     ).toLocaleString();
     document.getElementById("modal-effective-qty").textContent = (
-      product.effective_qty || product.QuantOnHand || 0
+      product.effective_qty ||
+      product.QuantOnHand ||
+      0
     ).toLocaleString();
     document.getElementById("modal-threshold").textContent = Math.ceil(
       salesData.monthly_average,
@@ -2644,3 +2648,39 @@ async function exportOrderPDFWithPo(orderId) {
     showCreatePoPrompt(orderId, "pdf");
   }
 }
+
+// ============== Order Qty TAB Navigation ==============
+// TAB key moves to the next row's Order Qty input for faster data entry
+document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+
+    const target = e.target;
+    const isInventoryQtyInput = target.classList.contains(
+      "inventory-order-qty-input",
+    );
+    const isOrderQtyInput = target.classList.contains("order-qty");
+
+    if (!isInventoryQtyInput && !isOrderQtyInput) return;
+
+    const inputClass = isInventoryQtyInput
+      ? "inventory-order-qty-input"
+      : "order-qty";
+    const tableId = isInventoryQtyInput ? "inventory-table" : "order-table";
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    const allInputs = Array.from(table.querySelectorAll(`.${inputClass}`));
+    const currentIndex = allInputs.indexOf(target);
+    if (currentIndex === -1) return;
+
+    const nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+
+    if (nextIndex >= 0 && nextIndex < allInputs.length) {
+      e.preventDefault();
+      const nextInput = allInputs[nextIndex];
+      nextInput.focus();
+      nextInput.select();
+    }
+  });
+});
