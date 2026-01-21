@@ -206,7 +206,9 @@ def get_products():
                     threshold_type = 'dynamic'
 
                 qty_on_hand = product.get('QuantOnHand') or 0
-                needs_reorder = qty_on_hand < threshold
+                pending_po_qty = product.get('pending_po_qty') or 0
+                effective_qty = product.get('effective_qty') or qty_on_hand
+                needs_reorder = effective_qty < threshold
 
                 # Calculate suggested order quantity (same logic as needs-reorder endpoint)
                 unit_qty2 = product.get('UnitQty2') or 1
@@ -246,6 +248,8 @@ def get_products():
                     'UnitID2': product['UnitID2'],
                     'LastReceived': product['LastReceived'],
                     'LastSold': product['LastSold'],
+                    'pending_po_qty': int(pending_po_qty),
+                    'effective_qty': int(effective_qty),
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
                     'dynamic_threshold': int(dynamic_threshold),
@@ -322,7 +326,9 @@ def get_products():
                     threshold_type = 'dynamic'
 
                 qty_on_hand = product.get('QuantOnHand') or 0
-                needs_reorder = qty_on_hand < threshold
+                pending_po_qty = product.get('pending_po_qty') or 0
+                effective_qty = product.get('effective_qty') or qty_on_hand
+                needs_reorder = effective_qty < threshold
 
                 # Calculate suggested order quantity (same logic as needs-reorder endpoint)
                 unit_qty2 = product.get('UnitQty2') or 1
@@ -356,6 +362,8 @@ def get_products():
                     'UnitID2': product['UnitID2'],
                     'LastReceived': product['LastReceived'],
                     'LastSold': product['LastSold'],
+                    'pending_po_qty': int(pending_po_qty),
+                    'effective_qty': int(effective_qty),
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
                     'dynamic_threshold': int(dynamic_threshold),
@@ -851,7 +859,9 @@ def get_needs_reorder():
                 threshold = dynamic_threshold
 
             qty_on_hand = product.get('QuantOnHand') or 0
-            needs_reorder = qty_on_hand < threshold
+            pending_po_qty = product.get('pending_po_qty') or 0
+            effective_qty = product.get('effective_qty') or qty_on_hand
+            needs_reorder = effective_qty < threshold
 
             unit_qty2 = product.get('UnitQty2') or 1
             if unit_qty2 <= 0:
@@ -880,13 +890,15 @@ def get_needs_reorder():
 
             product_data = {
                 **product,
+                'pending_po_qty': int(pending_po_qty),
+                'effective_qty': int(effective_qty),
                 'threshold': int(threshold),
                 'monthly_average': int(math.ceil(sales_data['monthly_average'])),
                 'daily_average': round(sales_data['daily_average'], 2),
                 'suggested_qty': suggested_qty,
                 'cases_needed': int(cases_needed),
                 'unit_qty2': unit_qty2,
-                'deficit': int(threshold - qty_on_hand),
+                'deficit': int(threshold - effective_qty),
                 'status': 'needs_reorder' if needs_reorder else 'sufficient',
                 'effective_unit_cost': effective_unit_cost,
                 'has_cost_override': override and override.get('manual_unit_cost') is not None,
@@ -988,8 +1000,9 @@ def get_summary():
                 threshold = dynamic_threshold
 
             qty_on_hand = product.get('QuantOnHand') or 0
+            effective_qty = product.get('effective_qty') or qty_on_hand
 
-            if qty_on_hand < threshold:
+            if effective_qty < threshold:
                 needs_reorder_count += 1
 
         return jsonify({

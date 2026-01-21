@@ -531,24 +531,35 @@ class MSSQLManager:
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products(self, search: str = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """Get products from Items_tbl."""
+        """Get products from Items_tbl with pending PO quantities."""
         with self.get_cursor() as cursor:
             query = """
                 SELECT
-                    ProductID, ProductUPC, ProductSKU, ProductDescription,
-                    QuantOnHand, QuantOnOrder, ReorderLevel, ReorderQuant,
-                    UnitCost, UnitPrice, UnitQty2, UnitID2,
-                    LastReceived, LastSold, Discontinued
-                FROM Items_tbl
-                WHERE (Discontinued = 0 OR Discontinued IS NULL)
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
+                    i.UnitCost, i.UnitPrice, i.UnitQty2, i.UnitID2,
+                    i.LastReceived, i.LastSold, i.Discontinued,
+                    ISNULL(po_pending.pending_po_qty, 0) as pending_po_qty,
+                    ISNULL(i.QuantOnHand, 0) + ISNULL(po_pending.pending_po_qty, 0) as effective_qty
+                FROM Items_tbl i
+                LEFT JOIN (
+                    SELECT
+                        pod.ProductUPC,
+                        SUM(ISNULL(pod.QtyOrdered, 0) - ISNULL(pod.QtyReceived, 0)) as pending_po_qty
+                    FROM PurchaseOrdersDetails_tbl pod
+                    INNER JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.Status = 0
+                    GROUP BY pod.ProductUPC
+                ) po_pending ON i.ProductUPC = po_pending.ProductUPC
+                WHERE (i.Discontinued = 0 OR i.Discontinued IS NULL)
             """
             params = []
 
             if search:
-                query += " AND (ProductUPC LIKE %s OR ProductDescription LIKE %s)"
+                query += " AND (i.ProductUPC LIKE %s OR i.ProductDescription LIKE %s)"
                 params.extend([f'%{search}%', f'%{search}%'])
 
-            query += " ORDER BY ProductDescription"
+            query += " ORDER BY i.ProductDescription"
             query += f" OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
 
             cursor.execute(query, tuple(params) if params else None)
@@ -556,41 +567,63 @@ class MSSQLManager:
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_all_products(self, search: str = None) -> List[Dict[str, Any]]:
-        """Get all products without limit (for analysis)."""
+        """Get all products without limit (for analysis) with pending PO quantities."""
         with self.get_cursor() as cursor:
             query = """
                 SELECT
-                    ProductID, ProductUPC, ProductSKU, ProductDescription,
-                    QuantOnHand, QuantOnOrder, ReorderLevel, ReorderQuant,
-                    UnitCost, UnitPrice, UnitQty2, UnitID2,
-                    LastReceived, LastSold, Discontinued
-                FROM Items_tbl
-                WHERE (Discontinued = 0 OR Discontinued IS NULL)
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
+                    i.UnitCost, i.UnitPrice, i.UnitQty2, i.UnitID2,
+                    i.LastReceived, i.LastSold, i.Discontinued,
+                    ISNULL(po_pending.pending_po_qty, 0) as pending_po_qty,
+                    ISNULL(i.QuantOnHand, 0) + ISNULL(po_pending.pending_po_qty, 0) as effective_qty
+                FROM Items_tbl i
+                LEFT JOIN (
+                    SELECT
+                        pod.ProductUPC,
+                        SUM(ISNULL(pod.QtyOrdered, 0) - ISNULL(pod.QtyReceived, 0)) as pending_po_qty
+                    FROM PurchaseOrdersDetails_tbl pod
+                    INNER JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.Status = 0
+                    GROUP BY pod.ProductUPC
+                ) po_pending ON i.ProductUPC = po_pending.ProductUPC
+                WHERE (i.Discontinued = 0 OR i.Discontinued IS NULL)
             """
             params = []
 
             if search:
-                query += " AND (ProductUPC LIKE %s OR ProductDescription LIKE %s)"
+                query += " AND (i.ProductUPC LIKE %s OR i.ProductDescription LIKE %s)"
                 params.extend([f'%{search}%', f'%{search}%'])
 
-            query += " ORDER BY ProductDescription"
+            query += " ORDER BY i.ProductDescription"
 
             cursor.execute(query, tuple(params) if params else None)
             return cursor.fetchall()
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_product_by_upc(self, upc: str) -> Optional[Dict[str, Any]]:
-        """Get a single product by UPC."""
+        """Get a single product by UPC with pending PO quantities."""
         with self.get_cursor() as cursor:
             cursor.execute("""
                 SELECT
-                    ProductID, ProductUPC, ProductSKU, ProductDescription,
-                    QuantOnHand, QuantOnOrder, ReorderLevel, ReorderQuant,
-                    UnitCost, UnitPrice, UnitQty2, UnitID2,
-                    LastReceived, LastSold, Discontinued
-                FROM Items_tbl
-                WHERE ProductUPC = %s
-                  AND (Discontinued = 0 OR Discontinued IS NULL)
+                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
+                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
+                    i.UnitCost, i.UnitPrice, i.UnitQty2, i.UnitID2,
+                    i.LastReceived, i.LastSold, i.Discontinued,
+                    ISNULL(po_pending.pending_po_qty, 0) as pending_po_qty,
+                    ISNULL(i.QuantOnHand, 0) + ISNULL(po_pending.pending_po_qty, 0) as effective_qty
+                FROM Items_tbl i
+                LEFT JOIN (
+                    SELECT
+                        pod.ProductUPC,
+                        SUM(ISNULL(pod.QtyOrdered, 0) - ISNULL(pod.QtyReceived, 0)) as pending_po_qty
+                    FROM PurchaseOrdersDetails_tbl pod
+                    INNER JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.Status = 0
+                    GROUP BY pod.ProductUPC
+                ) po_pending ON i.ProductUPC = po_pending.ProductUPC
+                WHERE i.ProductUPC = %s
+                  AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
             """, (upc,))
             return cursor.fetchone()
 
@@ -684,45 +717,57 @@ class MSSQLManager:
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
     def get_products_by_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
-        """Get products that have been ordered from a specific supplier.
+        """Get products that have been ordered from a specific supplier with pending PO quantities.
 
         Uses optimized UNION query instead of OR JOIN for better index usage.
         """
         with self.get_cursor() as cursor:
             cursor.execute("""
+                WITH PendingPOs AS (
+                    SELECT
+                        pod.ProductUPC,
+                        SUM(ISNULL(pod.QtyOrdered, 0) - ISNULL(pod.QtyReceived, 0)) as pending_po_qty
+                    FROM PurchaseOrdersDetails_tbl pod
+                    INNER JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.Status = 0
+                    GROUP BY pod.ProductUPC
+                ),
+                SupplierProducts AS (
+                    SELECT DISTINCT i.ProductID
+                    FROM Items_tbl i
+                    WHERE i.ProductID IN (
+                        SELECT DISTINCT pod.ProductID
+                        FROM PurchaseOrdersDetails_tbl pod
+                        JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                        WHERE po.SupplierID = %s
+                          AND pod.ProductID IS NOT NULL
+                    )
+                    AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
+
+                    UNION
+
+                    SELECT DISTINCT i.ProductID
+                    FROM Items_tbl i
+                    WHERE i.ProductUPC IN (
+                        SELECT DISTINCT pod.ProductUPC
+                        FROM PurchaseOrdersDetails_tbl pod
+                        JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                        WHERE po.SupplierID = %s
+                          AND pod.ProductUPC IS NOT NULL
+                    )
+                    AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
+                )
                 SELECT
                     i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
                     i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
                     i.UnitCost, i.UnitPrice, i.UnitQty2,
-                    i.LastReceived, i.LastSold
+                    i.LastReceived, i.LastSold,
+                    ISNULL(pp.pending_po_qty, 0) as pending_po_qty,
+                    ISNULL(i.QuantOnHand, 0) + ISNULL(pp.pending_po_qty, 0) as effective_qty
                 FROM Items_tbl i
-                WHERE i.ProductID IN (
-                    SELECT DISTINCT pod.ProductID
-                    FROM PurchaseOrdersDetails_tbl pod
-                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
-                    WHERE po.SupplierID = %s
-                      AND pod.ProductID IS NOT NULL
-                )
-                AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
-
-                UNION
-
-                SELECT
-                    i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
-                    i.QuantOnHand, i.QuantOnOrder, i.ReorderLevel, i.ReorderQuant,
-                    i.UnitCost, i.UnitPrice, i.UnitQty2,
-                    i.LastReceived, i.LastSold
-                FROM Items_tbl i
-                WHERE i.ProductUPC IN (
-                    SELECT DISTINCT pod.ProductUPC
-                    FROM PurchaseOrdersDetails_tbl pod
-                    JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
-                    WHERE po.SupplierID = %s
-                      AND pod.ProductUPC IS NOT NULL
-                )
-                AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
-
-                ORDER BY ProductDescription
+                INNER JOIN SupplierProducts sp ON i.ProductID = sp.ProductID
+                LEFT JOIN PendingPOs pp ON i.ProductUPC = pp.ProductUPC
+                ORDER BY i.ProductDescription
             """, (supplier_id, supplier_id))
             return cursor.fetchall()
 
@@ -978,9 +1023,9 @@ class MSSQLManager:
                                  limit: int = None, offset: int = None,
                                  sort_by: str = 'description', sort_order: str = 'asc') -> Dict[str, Any]:
         """
-        Get products with sales data in a single optimized query.
+        Get products with sales data and pending PO quantities in a single optimized query.
 
-        Combines Items_tbl with aggregated sales data using CTE for efficiency.
+        Combines Items_tbl with aggregated sales data and pending PO quantities using CTEs.
         Returns both products and total count for pagination.
         """
         with self.get_cursor() as cursor:
@@ -1008,7 +1053,7 @@ class MSSQLManager:
             if limit is not None and offset is not None:
                 pagination_clause = f"OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
 
-            # Combined query with CTE for sales aggregation
+            # Combined query with CTEs for sales aggregation and pending PO quantities
             query = f"""
                 WITH SalesData AS (
                     SELECT
@@ -1020,6 +1065,15 @@ class MSSQLManager:
                     WHERE inv.InvoiceDate >= DATEADD(day, -%s, GETDATE())
                       AND inv.Void = 0
                     GROUP BY d.ProductUPC
+                ),
+                PendingPOs AS (
+                    SELECT
+                        pod.ProductUPC,
+                        SUM(ISNULL(pod.QtyOrdered, 0) - ISNULL(pod.QtyReceived, 0)) as pending_po_qty
+                    FROM PurchaseOrdersDetails_tbl pod
+                    INNER JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
+                    WHERE po.Status = 0
+                    GROUP BY pod.ProductUPC
                 )
                 SELECT
                     i.ProductID, i.ProductUPC, i.ProductSKU, i.ProductDescription,
@@ -1029,9 +1083,12 @@ class MSSQLManager:
                     ISNULL(s.total_sold, 0) as total_sold,
                     ISNULL(s.invoice_count, 0) as invoice_count,
                     CEILING(ISNULL(s.total_sold, 0) / (%s / 30.0)) as monthly_average,
-                    ISNULL(s.total_sold, 0) / CAST(%s as FLOAT) as daily_average
+                    ISNULL(s.total_sold, 0) / CAST(%s as FLOAT) as daily_average,
+                    ISNULL(pp.pending_po_qty, 0) as pending_po_qty,
+                    ISNULL(i.QuantOnHand, 0) + ISNULL(pp.pending_po_qty, 0) as effective_qty
                 FROM Items_tbl i
                 LEFT JOIN SalesData s ON i.ProductUPC = s.ProductUPC
+                LEFT JOIN PendingPOs pp ON i.ProductUPC = pp.ProductUPC
                 WHERE (i.Discontinued = 0 OR i.Discontinued IS NULL)
                 {search_clause}
                 ORDER BY {order_column} {order_dir}

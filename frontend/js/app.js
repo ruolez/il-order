@@ -501,6 +501,8 @@ function renderInventoryTable(products, skipFilter = false) {
   tbody.innerHTML = filtered
     .map((product) => {
       const qtyOnHand = product.QuantOnHand || 0;
+      const pendingPoQty = product.pending_po_qty || 0;
+      const effectiveQty = product.effective_qty || qtyOnHand;
       const threshold = product.threshold || 0;
       const isExcluded = product.excluded || false;
       const suggestedQty = product.suggested_qty || 0;
@@ -549,12 +551,20 @@ function renderInventoryTable(products, skipFilter = false) {
           ? `<button class="action-btn exclude" onclick="toggleExclude('${upc}')" title="Exclude product">⊘</button>`
           : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
 
+      // Build effective qty tooltip showing breakdown
+      const qtyTooltip = pendingPoQty > 0
+        ? `On Hand: ${qtyOnHand.toLocaleString()}, On Order: +${pendingPoQty.toLocaleString()}`
+        : "";
+      const qtyDisplayHtml = pendingPoQty > 0
+        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--success); font-size: 10px;">+${pendingPoQty}</sup></span>`
+        : `${effectiveQty.toLocaleString()}`;
+
       return `
             <tr class="${rowClass}" data-upc="${upc}">
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc || "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                <td>${qtyOnHand.toLocaleString()}</td>
+                <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
                     ${threshold.toLocaleString()}
@@ -603,7 +613,7 @@ function handleInventoryCheckboxChange(checkbox) {
       upc: upc,
       description:
         product.ProductDescription || row.cells[2]?.textContent || "-",
-      on_hand: product.QuantOnHand || 0,
+      on_hand: product.effective_qty || product.QuantOnHand || 0,
       case_qty: unitQty2,
       threshold: product.threshold || 0,
       suggested_qty: product.suggested_qty || 0,
@@ -678,7 +688,7 @@ function toggleInventorySelectAll(checkbox) {
           upc: upc,
           description:
             product.ProductDescription || row.cells[2]?.textContent || "-",
-          on_hand: product.QuantOnHand || 0,
+          on_hand: product.effective_qty || product.QuantOnHand || 0,
           case_qty: unitQty2,
           threshold: product.threshold || 0,
           suggested_qty: product.suggested_qty || 0,
@@ -1254,6 +1264,12 @@ async function viewProduct(upc) {
     document.getElementById("modal-qty-on-hand").textContent = (
       product.QuantOnHand || 0
     ).toLocaleString();
+    document.getElementById("modal-pending-po-qty").textContent = (
+      product.pending_po_qty || 0
+    ).toLocaleString();
+    document.getElementById("modal-effective-qty").textContent = (
+      product.effective_qty || product.QuantOnHand || 0
+    ).toLocaleString();
     document.getElementById("modal-threshold").textContent = Math.ceil(
       salesData.monthly_average,
     );
@@ -1572,6 +1588,8 @@ async function loadNeedsReorder() {
           ProductUPC: p.ProductUPC,
           ProductDescription: p.ProductDescription,
           QuantOnHand: p.QuantOnHand || 0,
+          pending_po_qty: p.pending_po_qty || 0,
+          effective_qty: p.effective_qty || p.QuantOnHand || 0,
           unit_qty2: unitQty2,
           threshold: p.threshold || 0,
           suggested_qty: suggestedQty,
@@ -1697,7 +1715,7 @@ async function loadNeedsReorder() {
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC || "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
-                    <td>${(product.QuantOnHand || 0).toLocaleString()}</td>
+                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--success); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
                     <td>${product.suggested_qty.toLocaleString()}</td>
