@@ -67,6 +67,9 @@ let excludedSuppliers = new Set();
 // Inventory selection state (for export from inventory)
 let inventorySelectedItems = new Map(); // UPC -> product data
 
+// Cart localStorage key
+const CART_STORAGE_KEY = "inventoryCartItems";
+
 // Load application settings (including items per page)
 async function loadAppSettings() {
   try {
@@ -233,6 +236,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize compact view state
   initCompactView();
+
+  // Load cart from localStorage
+  loadCartFromStorage();
 
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", (e) => {
@@ -440,6 +446,7 @@ async function loadInventory(page = 1, search = "") {
       renderGroupedView(allProducts);
     } else {
       renderInventoryTable(allProducts, true);
+      syncCheckboxesWithCart();
       updatePagination();
     }
 
@@ -627,6 +634,8 @@ function handleInventoryCheckboxChange(checkbox) {
     inventorySelectedItems.delete(upc);
   }
 
+  saveCartToStorage();
+  renderCartSidebar();
   updateInventoryExportBar();
   updateInventorySelectAllState();
 }
@@ -649,6 +658,8 @@ function updateInventoryCases(input) {
     const data = inventorySelectedItems.get(upc);
     data.order_qty = qty;
     data.cases = cases;
+    saveCartToStorage();
+    renderCartSidebar();
   }
 }
 
@@ -704,7 +715,9 @@ function toggleInventorySelectAll(checkbox) {
     }
   });
 
-  // Update the export bar once after all checkboxes are processed
+  // Save and update UI after all checkboxes are processed
+  saveCartToStorage();
+  renderCartSidebar();
   updateInventoryExportBar();
 }
 
@@ -728,9 +741,191 @@ function updateInventorySelectAllState() {
     checkedCount > 0 && checkedCount < checkboxes.length;
 }
 
+// ============== Cart Sidebar Functions ==============
+
+// Load cart from localStorage on page load
+function loadCartFromStorage() {
+  try {
+    const saved = localStorage.getItem(CART_STORAGE_KEY);
+    if (saved) {
+      const items = JSON.parse(saved);
+      inventorySelectedItems.clear();
+      items.forEach((item) => inventorySelectedItems.set(item.upc, item));
+      renderCartSidebar();
+      updateInventoryExportBar();
+    }
+  } catch (e) {
+    console.error("Failed to load cart from storage:", e);
+  }
+}
+
+// Save cart to localStorage
+function saveCartToStorage() {
+  try {
+    const items = Array.from(inventorySelectedItems.values());
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {
+    console.error("Failed to save cart to storage:", e);
+  }
+}
+
+// Render cart sidebar content
+function renderCartSidebar() {
+  const list = document.getElementById("cart-items-list");
+  if (!list) return;
+
+  const items = Array.from(inventorySelectedItems.values());
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="cart-empty">No items in cart</div>';
+  } else {
+    list.innerHTML = items
+      .map(
+        (item) => `
+      <div class="cart-item" data-upc="${item.upc}">
+        <div class="cart-item-info">
+          <span class="cart-item-desc" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</span>
+          <span class="cart-item-upc">${item.upc}</span>
+        </div>
+        <div class="cart-item-qty">
+          <input type="number" class="cart-qty-input" value="${item.order_qty || 0}"
+                 min="0" data-upc="${item.upc}"
+                 onchange="updateCartItemQty(this)" />
+        </div>
+        <button class="cart-item-remove" onclick="removeFromCart('${item.upc}')" title="Remove">&times;</button>
+      </div>
+    `,
+      )
+      .join("");
+  }
+
+  updateCartSummary();
+  updateCartBadge();
+}
+
+// Update cart summary totals
+function updateCartSummary() {
+  const items = Array.from(inventorySelectedItems.values());
+  const totalItems = items.length;
+  const totalQty = items.reduce((sum, item) => sum + (item.order_qty || 0), 0);
+  const totalCost = items.reduce(
+    (sum, item) => sum + (item.order_qty || 0) * (item.unit_cost || 0),
+    0,
+  );
+
+  const itemsEl = document.getElementById("cart-summary-items");
+  const qtyEl = document.getElementById("cart-summary-qty");
+  const costEl = document.getElementById("cart-summary-cost");
+
+  if (itemsEl) itemsEl.textContent = totalItems;
+  if (qtyEl) qtyEl.textContent = totalQty.toLocaleString();
+  if (costEl) costEl.textContent = "$" + totalCost.toFixed(2);
+}
+
+// Update cart tab badge
+function updateCartBadge() {
+  const count = inventorySelectedItems.size;
+  const badge = document.getElementById("cart-tab-count");
+  if (badge) {
+    badge.textContent = count;
+    badge.classList.toggle("visible", count > 0);
+  }
+}
+
+// Toggle cart sidebar open/closed
+function toggleCartSidebar() {
+  const sidebar = document.getElementById("inventory-cart-sidebar");
+  if (sidebar) {
+    sidebar.classList.toggle("collapsed");
+  }
+}
+
+// Remove item from cart
+function removeFromCart(upc) {
+  inventorySelectedItems.delete(upc);
+  saveCartToStorage();
+  renderCartSidebar();
+  syncCheckboxesWithCart();
+  updateInventoryExportBar();
+}
+
+// Update cart item quantity from cart input
+function updateCartItemQty(input) {
+  const upc = input.dataset.upc;
+  const qty = parseInt(input.value) || 0;
+  if (inventorySelectedItems.has(upc)) {
+    const item = inventorySelectedItems.get(upc);
+    item.order_qty = qty;
+    item.cases = Math.ceil(qty / (item.case_qty || 1));
+    saveCartToStorage();
+    updateCartSummary();
+    // Also update inventory table if visible
+    syncInventoryRowWithCart(upc);
+  }
+}
+
+// Clear entire cart
+function clearCart() {
+  inventorySelectedItems.clear();
+  saveCartToStorage();
+  renderCartSidebar();
+  syncCheckboxesWithCart();
+  updateInventoryExportBar();
+}
+
+// Sync checkboxes with cart state (after search/filter/pagination)
+function syncCheckboxesWithCart() {
+  document.querySelectorAll(".inventory-checkbox").forEach((cb) => {
+    const upc = cb.dataset.upc;
+    const isInCart = inventorySelectedItems.has(upc);
+    cb.checked = isInCart;
+
+    // Also sync order qty input if item is in cart
+    if (isInCart) {
+      const row = cb.closest("tr");
+      const input = row?.querySelector(".inventory-order-qty-input");
+      if (input) {
+        const cartItem = inventorySelectedItems.get(upc);
+        input.value = cartItem.order_qty || 0;
+        const casesCell = row.querySelector(".inventory-cases-cell");
+        if (casesCell) casesCell.textContent = cartItem.cases || 0;
+      }
+    }
+  });
+  updateInventorySelectAllState();
+}
+
+// Sync single inventory row with cart (when qty changes in cart)
+function syncInventoryRowWithCart(upc) {
+  const checkbox = document.querySelector(
+    `.inventory-checkbox[data-upc="${upc}"]`,
+  );
+  if (checkbox) {
+    const row = checkbox.closest("tr");
+    const input = row?.querySelector(".inventory-order-qty-input");
+    const cartItem = inventorySelectedItems.get(upc);
+    if (input && cartItem) {
+      input.value = cartItem.order_qty;
+      const casesCell = row.querySelector(".inventory-cases-cell");
+      if (casesCell) casesCell.textContent = cartItem.cases || 0;
+    }
+  }
+}
+
+// Export from cart (alias for existing function)
+function exportCartToExcel() {
+  if (inventorySelectedItems.size === 0) {
+    showToast("No items in cart to export", "error");
+    return;
+  }
+  exportInventoryToExcel();
+}
+
 // Clear all inventory selections
 function clearInventorySelection() {
   inventorySelectedItems.clear();
+  saveCartToStorage();
+  renderCartSidebar();
   document
     .querySelectorAll(".inventory-checkbox")
     .forEach((cb) => (cb.checked = false));
@@ -955,8 +1150,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function searchProducts() {
   const searchTerm = document.getElementById("inventory-search").value.trim();
-  // Clear selections when search changes
-  clearInventorySelection();
+  // Selections persist across searches (cart behavior)
   loadInventory(1, searchTerm);
 }
 
@@ -1485,9 +1679,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterSelect = document.getElementById("inventory-filter");
   if (filterSelect) {
     filterSelect.addEventListener("change", () => {
-      // Clear selections when filter changes
-      clearInventorySelection();
-      // Reload from server with new filter
+      // Selections persist across filter changes (cart behavior)
       loadInventory(1, currentSearch);
     });
   }
