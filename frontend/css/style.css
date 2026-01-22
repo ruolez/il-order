@@ -2227,6 +2227,45 @@ input[type="checkbox"] {
   opacity: 0.85;
 }
 
+/* ===== Navbar Cart Button ===== */
+
+.nav-cart-btn {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nav-cart-btn svg {
+  stroke: var(--color-navbar-text);
+  transition: stroke var(--transition-fast);
+}
+
+.nav-cart-btn:hover svg {
+  stroke: var(--color-navbar-text);
+}
+
+.nav-cart-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--color-danger-emphasis);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.nav-cart-badge.visible {
+  display: flex;
+}
+
 /* ===== Cart Sidebar ===== */
 
 .cart-sidebar {
@@ -2245,52 +2284,7 @@ input[type="checkbox"] {
 }
 
 .cart-sidebar.collapsed {
-  transform: translateX(280px);
-}
-
-.cart-sidebar-tab {
-  position: absolute;
-  left: -40px;
-  top: 100px;
-  width: 40px;
-  height: 80px;
-  background: var(--color-accent-emphasis);
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-fg-on-emphasis);
-  gap: 4px;
-  transition: background var(--transition-fast);
-}
-
-.cart-sidebar-tab:hover {
-  background: #0860ca;
-}
-
-.cart-sidebar-tab svg {
-  width: 20px;
-  height: 20px;
-}
-
-.cart-count-badge {
-  background: var(--color-danger-emphasis);
-  color: white;
-  font-size: 11px;
-  font-weight: 600;
-  min-width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-}
-
-.cart-count-badge.visible {
-  display: flex;
+  transform: translateX(100%);
 }
 
 .cart-sidebar-content {
@@ -2438,14 +2432,9 @@ input[type="checkbox"] {
 @media (max-width: 768px) {
   .cart-sidebar {
     width: 100%;
-    transform: translateX(100%);
   }
 
   .cart-sidebar.collapsed {
-    transform: translateX(calc(100% - 40px));
-  }
-
-  .cart-sidebar-tab {
-    left: -40px;
+    transform: translateX(100%);
   }
 }

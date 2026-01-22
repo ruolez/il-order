@@ -822,10 +822,10 @@ function updateCartSummary() {
   if (costEl) costEl.textContent = "$" + totalCost.toFixed(2);
 }
 
-// Update cart tab badge
+// Update cart navbar badge
 function updateCartBadge() {
   const count = inventorySelectedItems.size;
-  const badge = document.getElementById("cart-tab-count");
+  const badge = document.getElementById("nav-cart-badge");
   if (badge) {
     badge.textContent = count;
     badge.classList.toggle("visible", count > 0);
