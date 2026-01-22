@@ -2231,18 +2231,24 @@ input[type="checkbox"] {
 
 .nav-cart-btn {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  margin-left: var(--spacing-sm);
   background: none;
   border: none;
   cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.nav-cart-btn:hover {
+  background-color: var(--color-navbar-hover);
 }
 
 .nav-cart-btn svg {
   stroke: var(--color-navbar-text);
   transition: stroke var(--transition-fast);
-}
-
-.nav-cart-btn:hover svg {
-  stroke: var(--color-navbar-text);
 }
 
 .nav-cart-badge {
