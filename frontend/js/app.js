@@ -2696,6 +2696,7 @@ async function createPoAndExport() {
         `Purchase Order ${result.po_number} created successfully!`,
         "success",
       );
+      clearCart();
       closeCreatePoModal();
       performExport(orderId, exportType);
     } else {
