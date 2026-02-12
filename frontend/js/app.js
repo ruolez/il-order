@@ -565,7 +565,7 @@ function renderInventoryTable(products, skipFilter = false) {
           : "";
       const qtyDisplayHtml =
         pendingPoQty > 0
-          ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--success); font-size: 10px;">+${pendingPoQty}</sup></span>`
+          ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--color-success-fg); font-size: 10px;">+${pendingPoQty}</sup></span>`
           : `${effectiveQty.toLocaleString()}`;
 
       return `
@@ -1911,7 +1911,7 @@ async function loadNeedsReorder() {
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC || "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
-                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--success); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}</td>
+                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
                     <td>${product.suggested_qty.toLocaleString()}</td>
