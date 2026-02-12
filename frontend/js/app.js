@@ -559,14 +559,24 @@ function renderInventoryTable(products, skipFilter = false) {
           : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
 
       // Build effective qty tooltip showing breakdown
-      const qtyTooltip =
-        pendingPoQty > 0
-          ? `On Hand: ${qtyOnHand.toLocaleString()}, On Order: +${pendingPoQty.toLocaleString()}`
-          : "";
-      const qtyDisplayHtml =
-        pendingPoQty > 0
-          ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}<sup style="color: var(--color-success-fg); font-size: 10px;">+${pendingPoQty}</sup></span>`
-          : `${effectiveQty.toLocaleString()}`;
+      const qipQty = product.qip_qty || 0;
+      const tooltipParts = [`On Hand: ${qtyOnHand.toLocaleString()}`];
+      if (pendingPoQty > 0)
+        tooltipParts.push(`On Order: +${pendingPoQty.toLocaleString()}`);
+      if (qipQty > 0)
+        tooltipParts.push(`In Progress: -${qipQty.toLocaleString()}`);
+      const qtyTooltip = tooltipParts.join(", ");
+
+      let superscripts = "";
+      if (pendingPoQty > 0)
+        superscripts += `<sup style="color: var(--color-success-fg); font-size: 10px;">+${pendingPoQty}</sup>`;
+      if (qipQty > 0)
+        superscripts += `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${qipQty}</sup>`;
+
+      const needsTooltip = pendingPoQty > 0 || qipQty > 0;
+      const qtyDisplayHtml = needsTooltip
+        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}${superscripts}</span>`
+        : `${effectiveQty.toLocaleString()}`;
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
@@ -1463,6 +1473,9 @@ async function viewProduct(upc) {
     document.getElementById("modal-pending-po-qty").textContent = (
       product.pending_po_qty || 0
     ).toLocaleString();
+    document.getElementById("modal-qip-qty").textContent = (
+      product.qip_qty || 0
+    ).toLocaleString();
     document.getElementById("modal-effective-qty").textContent = (
       product.effective_qty ||
       product.QuantOnHand ||
@@ -1785,6 +1798,7 @@ async function loadNeedsReorder() {
           ProductDescription: p.ProductDescription,
           QuantOnHand: p.QuantOnHand || 0,
           pending_po_qty: p.pending_po_qty || 0,
+          qip_qty: p.qip_qty || 0,
           effective_qty: p.effective_qty || p.QuantOnHand || 0,
           unit_qty2: unitQty2,
           threshold: p.threshold || 0,
@@ -1911,7 +1925,7 @@ async function loadNeedsReorder() {
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC || "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
-                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}</td>
+                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
                     <td>${product.suggested_qty.toLocaleString()}</td>

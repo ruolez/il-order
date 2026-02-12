@@ -382,6 +382,33 @@ CREATE TABLE [Items_BinLocations] (
 ***S2S DB TABLES END***
 
 ***DB_ADMIN DB TABLES***
+[dbo].[QuotationsInProgress](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[StartDate] [datetime] NULL,
+	[EndDate] [datetime] NULL,
+	[Status] [varchar](255) NULL,
+	[SourceDB] [varchar](255) NULL,
+	[QuotationNumber] [varchar](255) NULL,
+	[Packer] [varchar](255) NULL,
+	[Checker] [varchar](255) NULL,
+	[PauseDate] [datetime] NULL,
+	[PauseReason] [varchar](255) NULL,
+	[AccountNo] [varchar](255) NULL,
+	[SalesRepID] [int] NULL,
+	[ProductDescription] [varchar](255) NULL,
+	[ProductUPC] [varchar](255) NULL,
+	[ProductSKU] [varchar](255) NULL,
+	[Qty] [int] NULL,
+	[CateID] [int] NULL,
+	[SubCateID] [int] NULL,
+	[tempField1] [varchar](255) NULL,
+	[tempField2] [varchar](255) NULL,
+	[tempField3] [varchar](255) NULL,
+	[flag1] [bit] NULL,
+	[flag2] [bit] NULL,
+	[flag3] [bit] NULL,
+
+
 [dbo].[QuotationDetails](
 	[id] [int] IDENTITY(1,1) NOT NULL,
 	[DateCreate] [datetime] NULL,

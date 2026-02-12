@@ -752,6 +752,15 @@
                   required
                 />
               </div>
+              <div class="form-group">
+                <label for="sql-admin-database">Admin Database</label>
+                <input
+                  type="text"
+                  id="sql-admin-database"
+                  placeholder="e.g., DB_ADMIN (optional)"
+                />
+                <small>Database containing QuotationsInProgress table</small>
+              </div>
               <div class="form-actions">
                 <button
                   type="button"
@@ -759,6 +768,13 @@
                   onclick="testConnection()"
                 >
                   Test Connection
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline"
+                  onclick="testAdminConnection()"
+                >
+                  Test Admin DB
                 </button>
                 <button type="submit" class="btn btn-primary">
                   Save Configuration
@@ -873,6 +889,10 @@
             <div class="info-card-small">
               <span class="card-value" id="modal-pending-po-qty">0</span>
               <span class="card-label">On Order (PO)</span>
+            </div>
+            <div class="info-card-small">
+              <span class="card-value" id="modal-qip-qty" style="color: var(--error);">0</span>
+              <span class="card-label">In Progress (QIP)</span>
             </div>
             <div class="info-card-small highlight">
               <span class="card-value" id="modal-effective-qty">0</span>

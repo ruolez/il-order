@@ -36,6 +36,12 @@ def get_mssql_manager():
     )
 
 
+def get_admin_db_name():
+    """Get the admin database name from stored config."""
+    config = pg.get_sql_config_with_password()
+    return config.get('admin_database') if config else None
+
+
 # Health check
 @app.route('/health')
 def health():
@@ -98,7 +104,8 @@ def save_sql_config():
             database=data['database'],
             username=data['username'],
             password=data['password'],
-            name=data.get('name', 'default')
+            name=data.get('name', 'default'),
+            admin_database=data.get('admin_database')
         )
 
         return jsonify({'success': True, 'id': config_id})
@@ -127,6 +134,33 @@ def test_connection():
                     'success': False,
                     'error': 'No SQL configuration found. Please save configuration first.'
                 }), 400
+
+        result = mssql.test_connection()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/test-admin-connection', methods=['POST'])
+def test_admin_connection():
+    """Test MS SQL Server admin database connection."""
+    try:
+        data = request.get_json()
+
+        server = data.get('server')
+        username = data.get('username')
+        password = data.get('password')
+        admin_database = data.get('admin_database')
+
+        if not all([server, username, password, admin_database]):
+            return jsonify({'success': False, 'error': 'Server, username, password, and admin database are required'}), 400
+
+        mssql = MSSQLManager(
+            server=server,
+            database=admin_database,
+            username=username,
+            password=password
+        )
 
         result = mssql.test_connection()
         return jsonify(result)
@@ -166,6 +200,10 @@ def get_products():
 
         # Get last supplier mapping for all products
         last_suppliers = mssql.get_last_suppliers_for_products()
+
+        # Get quotations-in-progress quantities from admin DB
+        admin_db_name = get_admin_db_name()
+        qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
 
         # For filtered views (reorder/healthy), we need to process all products
         # because threshold depends on PostgreSQL overrides
@@ -207,7 +245,8 @@ def get_products():
 
                 qty_on_hand = product.get('QuantOnHand') or 0
                 pending_po_qty = product.get('pending_po_qty') or 0
-                effective_qty = product.get('effective_qty') or qty_on_hand
+                qip_qty = qip_data.get(upc, 0)
+                effective_qty = qty_on_hand + pending_po_qty - qip_qty
                 needs_reorder = effective_qty < threshold
 
                 # Calculate suggested order quantity (same logic as needs-reorder endpoint)
@@ -249,6 +288,7 @@ def get_products():
                     'LastReceived': product['LastReceived'],
                     'LastSold': product['LastSold'],
                     'pending_po_qty': int(pending_po_qty),
+                    'qip_qty': int(qip_qty),
                     'effective_qty': int(effective_qty),
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
@@ -327,7 +367,8 @@ def get_products():
 
                 qty_on_hand = product.get('QuantOnHand') or 0
                 pending_po_qty = product.get('pending_po_qty') or 0
-                effective_qty = product.get('effective_qty') or qty_on_hand
+                qip_qty = qip_data.get(upc, 0)
+                effective_qty = qty_on_hand + pending_po_qty - qip_qty
                 needs_reorder = effective_qty < threshold
 
                 # Calculate suggested order quantity (same logic as needs-reorder endpoint)
@@ -363,6 +404,7 @@ def get_products():
                     'LastReceived': product['LastReceived'],
                     'LastSold': product['LastSold'],
                     'pending_po_qty': int(pending_po_qty),
+                    'qip_qty': int(qip_qty),
                     'effective_qty': int(effective_qty),
                     'threshold': int(threshold),
                     'threshold_type': threshold_type,
@@ -432,6 +474,18 @@ def get_product(upc):
         sales_period = int(settings.get('sales_period_days', 60))
         sales_data = mssql.get_sales_data(upc, sales_period)
         override = pg.get_product_override(upc)
+
+        # Get QIP quantity for this product
+        admin_db_name = get_admin_db_name()
+        qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
+        qip_qty = qip_data.get(upc, 0)
+
+        # Adjust effective_qty with QIP
+        product = dict(product)
+        qty_on_hand = product.get('QuantOnHand') or 0
+        pending_po_qty = product.get('pending_po_qty') or 0
+        product['qip_qty'] = qip_qty
+        product['effective_qty'] = qty_on_hand + pending_po_qty - qip_qty
 
         return jsonify({
             'success': True,
@@ -840,6 +894,10 @@ def get_needs_reorder():
         all_sales_data = mssql.get_all_sales_data(sales_period)
         last_suppliers = mssql.get_last_suppliers_for_products()
 
+        # Get quotations-in-progress quantities from admin DB
+        admin_db_name = get_admin_db_name()
+        qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
+
         for product in products:
             upc = product['ProductUPC']
 
@@ -860,7 +918,8 @@ def get_needs_reorder():
 
             qty_on_hand = product.get('QuantOnHand') or 0
             pending_po_qty = product.get('pending_po_qty') or 0
-            effective_qty = product.get('effective_qty') or qty_on_hand
+            qip_qty = qip_data.get(upc, 0)
+            effective_qty = qty_on_hand + pending_po_qty - qip_qty
             needs_reorder = effective_qty < threshold
 
             unit_qty2 = product.get('UnitQty2') or 1
@@ -891,6 +950,7 @@ def get_needs_reorder():
             product_data = {
                 **product,
                 'pending_po_qty': int(pending_po_qty),
+                'qip_qty': int(qip_qty),
                 'effective_qty': int(effective_qty),
                 'threshold': int(threshold),
                 'monthly_average': int(math.ceil(sales_data['monthly_average'])),
@@ -984,6 +1044,10 @@ def get_summary():
         # Get all sales data in a single query (optimized)
         all_sales_data = mssql.get_all_sales_data(sales_period)
 
+        # Get quotations-in-progress quantities from admin DB
+        admin_db_name = get_admin_db_name()
+        qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
+
         for product in active_products:
             upc = product['ProductUPC']
             override = overrides.get(upc)
@@ -1000,7 +1064,9 @@ def get_summary():
                 threshold = dynamic_threshold
 
             qty_on_hand = product.get('QuantOnHand') or 0
-            effective_qty = product.get('effective_qty') or qty_on_hand
+            pending_po_qty = product.get('pending_po_qty') or 0
+            qip_qty = qip_data.get(upc, 0)
+            effective_qty = qty_on_hand + pending_po_qty - qip_qty
 
             if effective_qty < threshold:
                 needs_reorder_count += 1

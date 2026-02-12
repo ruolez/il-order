@@ -116,6 +116,10 @@ class PostgresManager:
                     END IF;
                 END $$;
             """)
+            # Migration: Add admin_database column to sql_config
+            cursor.execute("""
+                ALTER TABLE sql_config ADD COLUMN IF NOT EXISTS admin_database VARCHAR(100)
+            """)
             # Migration: Create excluded_suppliers table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS excluded_suppliers (
@@ -158,7 +162,7 @@ class PostgresManager:
         """Get the active SQL Server configuration."""
         with self.get_cursor() as cursor:
             cursor.execute("""
-                SELECT id, name, server, database, username, is_active, created_at
+                SELECT id, name, server, database, username, admin_database, is_active, created_at
                 FROM sql_config
                 WHERE is_active = TRUE
                 ORDER BY id DESC
@@ -170,7 +174,7 @@ class PostgresManager:
         """Get SQL config including password (for internal use only)."""
         with self.get_cursor() as cursor:
             cursor.execute("""
-                SELECT id, name, server, database, username, password, is_active
+                SELECT id, name, server, database, username, password, admin_database, is_active
                 FROM sql_config
                 WHERE is_active = TRUE
                 ORDER BY id DESC
@@ -178,7 +182,8 @@ class PostgresManager:
             """)
             return cursor.fetchone()
 
-    def save_sql_config(self, server: str, database: str, username: str, password: str, name: str = 'default') -> int:
+    def save_sql_config(self, server: str, database: str, username: str, password: str,
+                        name: str = 'default', admin_database: str = None) -> int:
         """Save SQL Server configuration."""
         with self.get_cursor() as cursor:
             # Deactivate existing configs
@@ -186,10 +191,10 @@ class PostgresManager:
 
             # Insert new config
             cursor.execute("""
-                INSERT INTO sql_config (name, server, database, username, password, is_active)
-                VALUES (%s, %s, %s, %s, %s, TRUE)
+                INSERT INTO sql_config (name, server, database, username, password, admin_database, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, TRUE)
                 RETURNING id
-            """, (name, server, database, username, password))
+            """, (name, server, database, username, password, admin_database))
 
             result = cursor.fetchone()
             return result['id']
@@ -1117,3 +1122,34 @@ class MSSQLManager:
                 'products': products,
                 'total_count': total_count
             }
+
+    @handle_db_errors(max_retries=3, base_delay=1.0)
+    def get_qip_quantities(self, admin_database: str) -> Dict[str, int]:
+        """Get quotations-in-progress quantities from the admin database.
+
+        Connects to the admin DB (same server/credentials, different database)
+        and returns a mapping of ProductUPC -> total qty in progress.
+        """
+        if not admin_database:
+            return {}
+        try:
+            conn = pymssql.connect(
+                server=self.server,
+                database=admin_database,
+                user=self.username,
+                password=self.password,
+                as_dict=True
+            )
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT ProductUPC, SUM(ISNULL(Qty, 0)) as qip_qty
+                    FROM QuotationsInProgress
+                    GROUP BY ProductUPC
+                """)
+                rows = cursor.fetchall()
+                return {row['ProductUPC']: int(row['qip_qty'] or 0) for row in rows}
+            finally:
+                conn.close()
+        except Exception:
+            return {}

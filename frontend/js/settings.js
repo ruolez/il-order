@@ -18,6 +18,8 @@ async function loadSqlConfig() {
         result.config.database || "";
       document.getElementById("sql-username").value =
         result.config.username || "";
+      document.getElementById("sql-admin-database").value =
+        result.config.admin_database || "";
       // Password is not returned for security
     }
   } catch (error) {
@@ -33,6 +35,7 @@ async function saveSqlConfig(e) {
     database: document.getElementById("sql-database").value,
     username: document.getElementById("sql-username").value,
     password: document.getElementById("sql-password").value,
+    admin_database: document.getElementById("sql-admin-database").value || null,
   };
 
   try {
@@ -78,6 +81,44 @@ async function testConnection() {
   } catch (error) {
     statusDiv.className = "status-message error";
     statusDiv.textContent = `Connection error: ${error.message}`;
+  }
+}
+
+async function testAdminConnection() {
+  const adminDb = document.getElementById("sql-admin-database").value;
+  if (!adminDb) {
+    showToast("Please enter an Admin Database name first", "error");
+    return;
+  }
+
+  const statusDiv = document.getElementById("connection-status");
+  statusDiv.className = "status-message";
+  statusDiv.style.display = "block";
+  statusDiv.textContent = "Testing admin DB connection...";
+  statusDiv.style.backgroundColor = "var(--primary-light)";
+  statusDiv.style.color = "var(--primary)";
+  statusDiv.style.border = "1px solid var(--primary)";
+
+  const config = {
+    server: document.getElementById("sql-server").value,
+    username: document.getElementById("sql-username").value,
+    password: document.getElementById("sql-password").value,
+    admin_database: adminDb,
+  };
+
+  try {
+    const result = await api.post("/test-admin-connection", config);
+
+    if (result.success) {
+      statusDiv.className = "status-message success";
+      statusDiv.textContent = `Admin DB connection successful! Connected to: ${result.database}`;
+    } else {
+      statusDiv.className = "status-message error";
+      statusDiv.textContent = `Admin DB connection failed: ${result.error}`;
+    }
+  } catch (error) {
+    statusDiv.className = "status-message error";
+    statusDiv.textContent = `Admin DB connection error: ${error.message}`;
   }
 }
 
