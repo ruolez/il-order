@@ -187,7 +187,7 @@ body {
 
 /* Main container */
 .container {
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
   padding: var(--spacing-lg) var(--spacing-xl);
 }
@@ -666,7 +666,9 @@ body {
 } /* Description - flexible */
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
-  width: 100px;
+  width: 120px;
+  text-overflow: clip;
+  overflow: visible;
 } /* On Hand */
 #inventory-table th:nth-child(5),
 #inventory-table td:nth-child(5) {
