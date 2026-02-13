@@ -167,6 +167,8 @@ async function saveAnalysisSettings(e) {
 
     if (result.success) {
       showToast("Settings saved successfully", "success");
+      inventoryLoaded = false;
+      ordersLoaded = false;
     } else {
       throw new Error(result.error);
     }

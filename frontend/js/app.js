@@ -64,6 +64,10 @@ let cachedSupplierGroups = {};
 // Excluded suppliers cache (for grouped view)
 let excludedSuppliers = new Set();
 
+// Section load state (skip re-fetch when navigating back)
+let inventoryLoaded = false;
+let ordersLoaded = false;
+
 // Inventory selection state (for export from inventory)
 let inventorySelectedItems = new Map(); // UPC -> product data
 
@@ -209,10 +213,14 @@ function navigateTo(pageName) {
       loadDashboard();
       break;
     case "inventory":
-      loadAppSettings().then(() => loadInventory());
+      if (!inventoryLoaded || pendingFilter) {
+        loadAppSettings().then(() => loadInventory());
+      }
       break;
     case "orders":
-      loadOrderPage();
+      if (!ordersLoaded || pendingOrderSupplier || pendingOrderAutoLoad) {
+        loadOrderPage();
+      }
       break;
     case "history":
       loadOrderHistory();
@@ -227,6 +235,16 @@ function navigateTo(pageName) {
 function navigateToInventoryWithFilter(filter) {
   pendingFilter = filter;
   navigateTo("inventory");
+}
+
+function refreshInventory() {
+  inventoryLoaded = false;
+  loadAppSettings().then(() => loadInventory(currentPage, currentSearch));
+}
+
+function refreshOrders() {
+  ordersLoaded = false;
+  loadOrderPage();
 }
 
 // Initialize navigation event listeners
@@ -341,6 +359,8 @@ async function updateOrderPeriodFromDashboard() {
 
     if (result.success) {
       showToast("Order period updated", "success");
+      inventoryLoaded = false;
+      ordersLoaded = false;
       // Refresh dashboard to reflect changes
       refreshDashboard();
     } else {
@@ -451,6 +471,7 @@ async function loadInventory(page = 1, search = "") {
     }
 
     updateSortIndicators("inventory");
+    inventoryLoaded = true;
   } catch (error) {
     console.error("Error loading inventory:", error);
     if (inventoryViewMode === "grouped") {
@@ -1765,6 +1786,8 @@ async function loadOrderPage() {
         pendingOrderAutoLoad = false;
         loadNeedsReorder();
       }
+
+      ordersLoaded = true;
     }
   } catch (error) {
     console.error("Error loading suppliers:", error);
@@ -2711,6 +2734,8 @@ async function createPoAndExport() {
         "success",
       );
       clearCart();
+      ordersLoaded = false;
+      inventoryLoaded = false;
       closeCreatePoModal();
       performExport(orderId, exportType);
     } else {
