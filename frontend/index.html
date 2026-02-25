@@ -353,13 +353,6 @@
                 >
                   Status<span class="sort-indicator"></span>
                 </th>
-                <th
-                  class="sortable"
-                  data-sort="suggested_qty"
-                  onclick="sortInventory('suggested_qty')"
-                >
-                  Suggested Qty<span class="sort-indicator"></span>
-                </th>
                 <th>Order Qty</th>
                 <th class="hide-in-compact">Cases</th>
                 <th>Actions</th>
@@ -367,7 +360,7 @@
             </thead>
             <tbody id="inventory-tbody">
               <tr>
-                <td colspan="12" class="loading">Loading products...</td>
+                <td colspan="11" class="loading">Loading products...</td>
               </tr>
             </tbody>
           </table>
@@ -587,13 +580,6 @@
                       onclick="sortOrders('threshold')"
                     >
                       Threshold<span class="sort-indicator"></span>
-                    </th>
-                    <th
-                      class="sortable"
-                      data-sort="suggested_qty"
-                      onclick="sortOrders('suggested_qty')"
-                    >
-                      Suggested Qty<span class="sort-indicator"></span>
                     </th>
                     <th>Order Qty</th>
                     <th

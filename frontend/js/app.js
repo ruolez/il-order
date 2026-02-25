@@ -45,7 +45,7 @@ let showExcludedProducts = false;
 // Sorting state
 let inventorySortBy = "description";
 let inventorySortOrder = "asc";
-let ordersSortBy = "suggested_qty";
+let ordersSortBy = "description";
 let ordersSortOrder = "desc";
 
 // View mode state
@@ -612,7 +612,6 @@ function renderInventoryTable(products, skipFilter = false) {
                 </td>
                 <td class="supplier-cell hide-in-compact" title="${product.last_supplier || ""}">${product.last_supplier || "-"}</td>
                 <td>${statusBadgeHtml}</td>
-                <td>${suggestedQty.toLocaleString()}</td>
                 <td>
                     <input type="number" class="inventory-order-qty-input"
                            value="${orderQty}"
@@ -1055,7 +1054,6 @@ const inventoryExportColumnConfig = [
   { id: "description", label: "Description", default: true },
   { id: "on_hand", label: "On Hand", default: true },
   { id: "threshold", label: "Threshold", default: true },
-  { id: "suggested_qty", label: "Suggested Qty", default: true },
   { id: "order_qty", label: "Order Qty", default: true },
   { id: "cases", label: "Cases", default: true },
   { id: "unit_cost", label: "Unit Cost", default: true },
@@ -1951,7 +1949,6 @@ async function loadNeedsReorder() {
                     <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
-                    <td>${product.suggested_qty.toLocaleString()}</td>
                     <td>
                         <input type="number" class="qty-input order-qty"
                                value="${product.suggested_qty}"
@@ -2044,7 +2041,6 @@ const exportColumnConfig = [
   { id: "description", label: "Description", default: true },
   { id: "on_hand", label: "On Hand", default: true },
   { id: "threshold", label: "Threshold", default: true },
-  { id: "suggested_qty", label: "Suggested Qty", default: true },
   { id: "order_qty", label: "Order Qty", default: true },
   { id: "cases", label: "Cases", default: true },
   { id: "unit_cost", label: "Unit Cost", default: true },
@@ -2178,9 +2174,8 @@ function getOrderData() {
         upc: upc,
         description: row.cells[3].textContent,
         on_hand: parseFloat(row.cells[4].textContent.replace(/,/g, "")) || 0,
-        threshold: parseFloat(row.cells[5].textContent.replace(/,/g, "")) || 0,
-        suggested_qty:
-          parseFloat(row.cells[6].textContent.replace(/,/g, "")) || 0,
+        threshold: parseFloat(row.cells[6].textContent.replace(/,/g, "")) || 0,
+        suggested_qty: product.suggested_qty || 0,
         order_qty: parseInt(qtyInput ? qtyInput.value : 0) || 0,
         unit_qty2: product.unit_qty2 || 1,
         unit_cost: unitCost,
