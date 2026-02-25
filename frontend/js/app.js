@@ -602,7 +602,7 @@ function renderInventoryTable(products, skipFilter = false) {
       return `
             <tr class="${rowClass}" data-upc="${upc}">
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
-                <td>${upc || "-"}</td>
+                <td>${upc ? `<a href="http://192.168.1.114?tracker=${upc}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
