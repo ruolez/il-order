@@ -1944,7 +1944,7 @@ async function loadNeedsReorder() {
                 <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${statusBadge}</td>
-                    <td>${product.ProductUPC || "-"}</td>
+                    <td>${product.ProductUPC ? `<a href="http://192.168.1.114?tracker=${product.ProductUPC}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
                     <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
@@ -2375,7 +2375,7 @@ async function viewOrder(orderId) {
                       .map(
                         (item) => `
                         <tr>
-                            <td>${item.product_upc}</td>
+                            <td>${item.product_upc ? `<a href="http://192.168.1.114?tracker=${item.product_upc}" target="_blank" rel="noopener">${item.product_upc}</a>` : "-"}</td>
                             <td>${item.product_description}</td>
                             <td>${item.final_qty}</td>
                         </tr>
