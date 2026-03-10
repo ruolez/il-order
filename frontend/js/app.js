@@ -35,6 +35,7 @@ const api = {
 
 // Pagination state
 let itemsPerPage = 100; // Default, will be loaded from settings
+let salesPeriodDays = 60;
 let currentPage = 1;
 let totalPages = 1;
 let totalProducts = 0;
@@ -81,6 +82,9 @@ async function loadAppSettings() {
     if (result.success && result.settings) {
       if (result.settings.items_per_page) {
         itemsPerPage = parseInt(result.settings.items_per_page, 10);
+      }
+      if (result.settings.sales_period_days) {
+        salesPeriodDays = parseInt(result.settings.sales_period_days, 10);
       }
     }
   } catch (error) {
@@ -602,7 +606,7 @@ function renderInventoryTable(products, skipFilter = false) {
       return `
             <tr class="${rowClass}" data-upc="${upc}">
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
-                <td>${upc ? `<a href="http://192.168.1.114?tracker=${upc}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
+                <td>${upc ? `<a href="http://192.168.1.114?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
@@ -1944,7 +1948,7 @@ async function loadNeedsReorder() {
                 <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${statusBadge}</td>
-                    <td>${product.ProductUPC ? `<a href="http://192.168.1.114?tracker=${product.ProductUPC}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
+                    <td>${product.ProductUPC ? `<a href="http://192.168.1.114?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
                     <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
@@ -2375,7 +2379,7 @@ async function viewOrder(orderId) {
                       .map(
                         (item) => `
                         <tr>
-                            <td>${item.product_upc ? `<a href="http://192.168.1.114?tracker=${item.product_upc}" target="_blank" rel="noopener">${item.product_upc}</a>` : "-"}</td>
+                            <td>${item.product_upc ? `<a href="http://192.168.1.114?tracker=${item.product_upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${item.product_upc}</a>` : "-"}</td>
                             <td>${item.product_description}</td>
                             <td>${item.final_qty}</td>
                         </tr>
