@@ -684,21 +684,19 @@ body {
 } /* Last Supplier */
 #inventory-table th:nth-child(8),
 #inventory-table td:nth-child(8) {
-  width: 85px;
-} /* Status */
-#inventory-table th:nth-child(9),
-#inventory-table td:nth-child(9) {
   width: 90px;
   text-overflow: clip;
   overflow: visible;
-} /* Order Qty */
-#inventory-table th:nth-child(10),
-#inventory-table td:nth-child(10) {
+} /* Order */
+#inventory-table th:nth-child(9),
+#inventory-table td:nth-child(9) {
   width: 60px;
 } /* Cases */
-#inventory-table th:nth-child(11),
-#inventory-table td:nth-child(11) {
-  width: 120px;
+#inventory-table th:nth-child(10),
+#inventory-table td:nth-child(10) {
+  width: 80px;
+  text-overflow: clip;
+  overflow: visible;
 } /* Actions */
 
 /* Order table - prevent ellipsis on Order Qty input column */
