@@ -592,6 +592,7 @@ body {
   position: sticky;
   top: var(--navbar-height);
   z-index: 20;
+  background: var(--color-canvas-subtle);
 }
 
 .table-page-scroll .data-table th {
@@ -666,7 +667,7 @@ body {
 } /* Description - flexible */
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
-  width: 80px;
+  width: 95px;
   text-overflow: clip;
   overflow: visible;
 } /* On Hand */
