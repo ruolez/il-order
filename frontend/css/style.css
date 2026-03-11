@@ -2188,23 +2188,50 @@ input[type="checkbox"] {
   padding: 8px 10px;
 }
 
-/* Compact action buttons - icon only with tooltips */
-.compact-view .action-btn {
-  padding: 4px 8px;
-  min-width: 32px;
+/* Actions cell - inline layout */
+.actions-cell {
+  white-space: nowrap;
 }
 
-.compact-view .action-btn-text {
-  display: none;
-}
-
-.compact-view .action-btn-icon {
-  display: inline;
-}
-
-/* Default state: show text, hide icon */
+/* Icon action buttons */
 .action-btn-icon {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.action-btn-icon.view {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent-fg);
+}
+
+.action-btn-icon.view:hover {
+  background-color: var(--color-accent-muted);
+}
+
+.action-btn-icon.exclude {
+  background-color: var(--color-attention-subtle);
+  color: var(--color-attention-fg);
+}
+
+.action-btn-icon.exclude:hover {
+  background-color: var(--color-attention-muted);
+}
+
+.action-btn-icon.include {
+  background-color: var(--color-success-subtle);
+  color: var(--color-success-fg);
+}
+
+.action-btn-icon.include:hover {
+  background-color: var(--color-success-muted);
 }
 
 /* Compact view toggle button active state */

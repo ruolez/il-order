@@ -570,18 +570,12 @@ function renderInventoryTable(products, skipFilter = false) {
 
       const rowClass = isExcluded ? "product-excluded" : "";
 
-      // Action buttons: show icons in compact mode, text in full mode
-      const viewBtnHtml = isCompactView
-        ? `<button class="action-btn view" onclick="viewProduct('${upc}')" title="View details">👁</button>`
-        : `<button class="action-btn view" onclick="viewProduct('${upc}')">View</button>`;
+      // Action buttons: icon-only for compact rows
+      const viewBtnHtml = `<button class="action-btn-icon view" onclick="viewProduct('${upc}')" title="View details"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2c-3.3 0-6.1 2-7.8 5 1.7 3 4.5 5 7.8 5s6.1-2 7.8-5c-1.7-3-4.5-5-7.8-5zm0 8.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7zm0-5.5a2 2 0 100 4 2 2 0 000-4z"/></svg></button>`;
 
       const excludeBtnHtml = isExcluded
-        ? isCompactView
-          ? `<button class="action-btn include" onclick="toggleExclude('${upc}')" title="Include product">✓</button>`
-          : `<button class="action-btn include" onclick="toggleExclude('${upc}')">Include</button>`
-        : isCompactView
-          ? `<button class="action-btn exclude" onclick="toggleExclude('${upc}')" title="Exclude product">⊘</button>`
-          : `<button class="action-btn exclude" onclick="toggleExclude('${upc}')">Exclude</button>`;
+        ? `<button class="action-btn-icon include" onclick="toggleExclude('${upc}')" title="Include product"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg></button>`
+        : `<button class="action-btn-icon exclude" onclick="toggleExclude('${upc}')" title="Exclude product"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 1.5a6.5 6.5 0 014.6 11.1L3.4 3.4A6.47 6.47 0 018 1.5zM3.4 12.6a6.5 6.5 0 019.2-9.2L3.4 12.6z"/></svg></button>`;
 
       // Build effective qty tooltip showing breakdown
       const qipQty = product.qip_qty || 0;
@@ -625,7 +619,7 @@ function renderInventoryTable(products, skipFilter = false) {
                            onchange="updateInventoryCases(this)" />
                 </td>
                 <td class="inventory-cases-cell hide-in-compact">${cases}</td>
-                <td>
+                <td class="actions-cell">
                     ${viewBtnHtml}
                     ${excludeBtnHtml}
                 </td>
