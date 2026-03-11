@@ -609,7 +609,6 @@ function renderInventoryTable(products, skipFilter = false) {
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
                 </td>
                 <td class="supplier-cell hide-in-compact" title="${product.last_supplier || ""}">${product.last_supplier || "-"}</td>
-                <td>${statusBadgeHtml}</td>
                 <td>
                     <input type="number" class="inventory-order-qty-input"
                            value="${orderQty}"
