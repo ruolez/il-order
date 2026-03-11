@@ -666,14 +666,14 @@ body {
 } /* Description - flexible */
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
-  width: 120px;
+  width: 80px;
   text-overflow: clip;
   overflow: visible;
 } /* On Hand */
 #inventory-table th:nth-child(5),
 #inventory-table td:nth-child(5) {
-  width: 80px;
-} /* Case Qty */
+  width: 50px;
+} /* Case */
 #inventory-table th:nth-child(6),
 #inventory-table td:nth-child(6) {
   width: 120px;
