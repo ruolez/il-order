@@ -36,6 +36,7 @@ const api = {
 // Pagination state
 let itemsPerPage = 100; // Default, will be loaded from settings
 let salesPeriodDays = 60;
+let trackerUrl = "http://192.168.1.114";
 let currentPage = 1;
 let totalPages = 1;
 let totalProducts = 0;
@@ -85,6 +86,9 @@ async function loadAppSettings() {
       }
       if (result.settings.sales_period_days) {
         salesPeriodDays = parseInt(result.settings.sales_period_days, 10);
+      }
+      if (result.settings.tracker_url) {
+        trackerUrl = result.settings.tracker_url;
       }
     }
   } catch (error) {
@@ -392,23 +396,30 @@ function refreshDashboard() {
 }
 
 // History month columns
-function getHistoryMonthLabels() {
-  const labels = [];
+function getHistoryMonths() {
+  const months = [];
   const now = new Date();
   for (let i = 1; i <= 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    labels.push(
-      d.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-    );
+    const first = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const last = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    months.push({
+      label: first.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+      from: first.toISOString().slice(0, 10),
+      to: last.toISOString().slice(0, 10),
+    });
   }
-  return labels;
+  return months;
 }
 
+const historyMonths = getHistoryMonths();
+
 function initHistoryMonthHeaders() {
-  const labels = getHistoryMonthLabels();
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`history-month-${i + 1}`);
-    if (el) el.textContent = labels[i];
+    if (el) el.textContent = historyMonths[i].label;
   }
 }
 
@@ -624,11 +635,9 @@ function renderInventoryTable(products, skipFilter = false) {
       return `
             <tr class="${rowClass}" data-upc="${upc}">
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
-                <td>${upc ? `<a href="http://192.168.1.114?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
+                <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
-                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
-                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
+                ${historyMonths.map((m) => `<td class="history-cell hide-in-compact"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></a></td>`).join("")}
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
@@ -1968,7 +1977,7 @@ async function loadNeedsReorder() {
                 <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${statusBadge}</td>
-                    <td>${product.ProductUPC ? `<a href="http://192.168.1.114?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
+                    <td>${product.ProductUPC ? `<a href="${trackerUrl}?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
                     <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
@@ -2399,7 +2408,7 @@ async function viewOrder(orderId) {
                       .map(
                         (item) => `
                         <tr>
-                            <td>${item.product_upc ? `<a href="http://192.168.1.114?tracker=${item.product_upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${item.product_upc}</a>` : "-"}</td>
+                            <td>${item.product_upc ? `<a href="${trackerUrl}?tracker=${item.product_upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${item.product_upc}</a>` : "-"}</td>
                             <td>${item.product_description}</td>
                             <td>${item.final_qty}</td>
                         </tr>

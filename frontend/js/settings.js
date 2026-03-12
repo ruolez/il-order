@@ -146,6 +146,9 @@ async function loadAnalysisSettings() {
         document.getElementById("items-per-page").value =
           settings.items_per_page;
       }
+      if (settings.tracker_url) {
+        document.getElementById("tracker-url").value = settings.tracker_url;
+      }
     }
   } catch (error) {
     console.error("Error loading settings:", error);
@@ -160,6 +163,7 @@ async function saveAnalysisSettings(e) {
     order_period_days: document.getElementById("order-period").value,
     threshold_multiplier: document.getElementById("threshold-multiplier").value,
     items_per_page: document.getElementById("items-per-page").value,
+    tracker_url: document.getElementById("tracker-url").value,
   };
 
   try {

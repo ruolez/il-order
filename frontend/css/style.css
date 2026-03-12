@@ -728,6 +728,15 @@ body {
   color: var(--color-fg-muted);
 }
 
+.history-cell a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.history-cell a:hover {
+  text-decoration: underline;
+}
+
 /* Order table - prevent ellipsis on Order Qty input column */
 #order-table td:nth-child(8) {
   text-overflow: clip;
