@@ -648,7 +648,7 @@ function renderInventoryTable(products, skipFilter = false) {
                   const iv = cached ? Math.round(cached.beginning_inventory).toLocaleString() : "";
                   return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv}</span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv}</span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv}</span></span></a></td>`;
                 }).join("")}
-                <td>${qtyDisplayHtml}</td>
+                <td class="on-hand-qty">${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
                     ${threshold.toLocaleString()}
@@ -2029,7 +2029,7 @@ async function loadNeedsReorder() {
                     <td>${statusBadge}</td>
                     <td>${product.ProductUPC ? `<a href="${trackerUrl}?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
-                    <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
+                    <td class="on-hand-qty">${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
                     <td class="${product.suggested_qty > 0 ? "order-qty-highlight" : ""}">

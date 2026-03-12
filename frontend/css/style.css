@@ -753,6 +753,7 @@ body {
 
 .history-inv .history-i {
   color: #1a73e8;
+  font-weight: 600;
 }
 
 .history-cell a {
@@ -762,6 +763,12 @@ body {
 
 .history-cell a:hover {
   text-decoration: underline;
+}
+
+/* On Hand quantity - bold blue */
+td.on-hand-qty {
+  color: #1a73e8;
+  font-weight: 600;
 }
 
 /* Highlight order qty input when value > 0 */
