@@ -434,8 +434,6 @@ async function loadInventory(page = 1, search = "") {
   tbody.innerHTML =
     '<tr><td colspan="13" class="loading">Loading products...</td></tr>';
 
-  trackerHistoryCache = {};
-
   // Apply pending filter if exists
   if (pendingFilter) {
     document.getElementById("inventory-filter").value = pendingFilter;
