@@ -259,6 +259,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize compact view state
   initCompactView();
 
+  // Initialize history month column headers
+  initHistoryMonthHeaders();
+
   // Load cart from localStorage
   loadCartFromStorage();
 
@@ -388,13 +391,34 @@ function refreshDashboard() {
   });
 }
 
+// History month columns
+function getHistoryMonthLabels() {
+  const labels = [];
+  const now = new Date();
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(
+      d.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+    );
+  }
+  return labels;
+}
+
+function initHistoryMonthHeaders() {
+  const labels = getHistoryMonthLabels();
+  for (let i = 0; i < 3; i++) {
+    const el = document.getElementById(`history-month-${i + 1}`);
+    if (el) el.textContent = labels[i];
+  }
+}
+
 // Inventory
 let allProducts = [];
 
 async function loadInventory(page = 1, search = "") {
   const tbody = document.getElementById("inventory-tbody");
   tbody.innerHTML =
-    '<tr><td colspan="7" class="loading">Loading products...</td></tr>';
+    '<tr><td colspan="13" class="loading">Loading products...</td></tr>';
 
   // Apply pending filter if exists
   if (pendingFilter) {
@@ -482,7 +506,7 @@ async function loadInventory(page = 1, search = "") {
       document.getElementById("supplier-cards-grid").innerHTML =
         `<div class="info-card"><p>Error: ${error.message}</p></div>`;
     } else {
-      tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="13" class="loading">Error: ${error.message}</td></tr>`;
     }
   }
 }
@@ -526,7 +550,7 @@ function renderInventoryTable(products, skipFilter = false) {
 
   if (filtered.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="12" class="loading">No products found</td></tr>';
+      '<tr><td colspan="13" class="loading">No products found</td></tr>';
     return;
   }
 
@@ -602,6 +626,9 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc ? `<a href="http://192.168.1.114?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
+                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
+                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
+                <td class="history-cell hide-in-compact"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></td>
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
