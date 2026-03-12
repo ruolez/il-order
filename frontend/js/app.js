@@ -645,7 +645,6 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td>${product.ProductDescription || "-"}</td>
                 ${historyMonths.map((m, mi) => {
                   const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
-                  const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
                   const sv = cached ? Math.round(cached.sale).toLocaleString() : "";
                   const pv = cached ? Math.round(cached.purchase).toLocaleString() : "";
                   const iv = cached ? Math.round(cached.beginning_inventory).toLocaleString() : "";
