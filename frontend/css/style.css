@@ -764,6 +764,11 @@ body {
   text-decoration: underline;
 }
 
+/* Highlight order qty cell when value > 0 */
+td.order-qty-highlight {
+  background-color: rgba(217, 48, 37, 0.08);
+}
+
 /* Order table - prevent ellipsis on Order Qty input column */
 #order-table td:nth-child(8) {
   text-overflow: clip;

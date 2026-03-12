@@ -655,7 +655,7 @@ function renderInventoryTable(products, skipFilter = false) {
                     <small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
                 </td>
                 <td class="supplier-cell hide-in-compact" title="${product.last_supplier || ""}">${product.last_supplier || "-"}</td>
-                <td>
+                <td class="${orderQty > 0 ? "order-qty-highlight" : ""}">
                     <input type="number" class="inventory-order-qty-input"
                            value="${orderQty}"
                            min="0"
@@ -761,6 +761,7 @@ function updateInventoryCases(input) {
   if (casesCell) {
     casesCell.textContent = cases;
   }
+  input.closest("td").classList.toggle("order-qty-highlight", qty > 0);
 
   // Update stored data if item is checked
   const checkbox = row.querySelector(".inventory-checkbox");
@@ -2031,7 +2032,7 @@ async function loadNeedsReorder() {
                     <td>${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
                     <td>${(product.unit_qty2 || 0).toLocaleString()}</td>
                     <td>${product.threshold.toLocaleString()}</td>
-                    <td>
+                    <td class="${product.suggested_qty > 0 ? "order-qty-highlight" : ""}">
                         <input type="number" class="qty-input order-qty"
                                value="${product.suggested_qty}"
                                min="0"
@@ -2071,6 +2072,7 @@ function updateCases(input) {
   const cases = Math.ceil(qty / unitQty);
   const row = input.closest("tr");
   row.querySelector(".cases-cell").textContent = cases;
+  input.closest("td").classList.toggle("order-qty-highlight", qty > 0);
 
   // Auto-uncheck if Order Qty is 0
   const checkbox = row.querySelector(".order-checkbox");
