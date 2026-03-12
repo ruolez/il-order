@@ -645,10 +645,11 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td>${product.ProductDescription || "-"}</td>
                 ${historyMonths.map((m, mi) => {
                   const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
+                  const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
                   const sv = cached ? Math.round(cached.sale).toLocaleString() : "";
                   const pv = cached ? Math.round(cached.purchase).toLocaleString() : "";
                   const iv = cached ? Math.round(cached.beginning_inventory).toLocaleString() : "";
-                  return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">S:</span><span class="history-s">${sv}</span></span><span class="history-line history-purchase"><span class="history-label">P:</span><span class="history-p">${pv}</span></span><span class="history-line history-inv"><span class="history-label">I:</span><span class="history-i">${iv}</span></span></a></td>`;
+                  return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv}</span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv}</span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv}</span></span></a></td>`;
                 }).join("")}
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
@@ -690,6 +691,7 @@ function applyTrackerHistoryToDOM() {
       cell.querySelector(".history-s").textContent = Math.round(vals.sale).toLocaleString();
       cell.querySelector(".history-p").textContent = Math.round(vals.purchase).toLocaleString();
       cell.querySelector(".history-i").textContent = Math.round(vals.beginning_inventory).toLocaleString();
+
     }
   });
 }
