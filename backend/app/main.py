@@ -7,8 +7,10 @@ from .database import (
 from .config import Config
 from datetime import datetime
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
 import os
 import math
+import requests
 
 app = Flask(__name__)
 
@@ -1709,6 +1711,65 @@ def export_inventory_pdf():
         )
     except ImportError:
         return jsonify({'success': False, 'error': 'reportlab not installed'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============== Tracker History Endpoint ==============
+
+@app.route('/api/tracker/history', methods=['POST'])
+def tracker_history():
+    try:
+        data = request.get_json()
+        upcs = data.get('upcs', [])
+        months = data.get('months', [])
+
+        if not upcs or not months:
+            return jsonify({'success': True, 'data': {}})
+
+        tracker_url = pg.get_setting('tracker_url')
+        if not tracker_url:
+            return jsonify({'success': False, 'error': 'Tracker URL not configured'}), 400
+
+        tracker_url = tracker_url.rstrip('/')
+        result_data = {}
+
+        def fetch_one(upc, month_index, month):
+            try:
+                url = f"{tracker_url}/api/item-tracker/summary"
+                resp = requests.get(url, params={
+                    'upc': upc,
+                    'from': month['from'],
+                    'to': month['to']
+                }, timeout=5)
+                if resp.status_code == 200:
+                    body = resp.json()
+                    qty = body.get('quantity_totals', {})
+                    return (upc, month_index, {
+                        'sale': qty.get('sale', 0) or 0,
+                        'purchase': qty.get('purchase', 0) or 0,
+                        'beginning_inventory': body.get('beginning_inventory', 0) or 0
+                    })
+            except Exception:
+                pass
+            return None
+
+        tasks = []
+        for upc in upcs:
+            for i, month in enumerate(months):
+                tasks.append((upc, i, month))
+
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(fetch_one, upc, i, m) for upc, i, m in tasks]
+            for future in futures:
+                res = future.result()
+                if res:
+                    upc, month_index, values = res
+                    if upc not in result_data:
+                        result_data[upc] = {}
+                    result_data[upc][str(month_index)] = values
+
+        return jsonify({'success': True, 'data': result_data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

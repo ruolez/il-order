@@ -507,6 +507,7 @@ async function loadInventory(page = 1, search = "") {
       renderInventoryTable(allProducts, true);
       syncCheckboxesWithCart();
       updatePagination();
+      loadTrackerHistory(allProducts);
     }
 
     updateSortIndicators("inventory");
@@ -637,7 +638,7 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                ${historyMonths.map((m) => `<td class="history-cell hide-in-compact"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line"><span class="history-label">S:</span> 0</span><span class="history-line"><span class="history-label">P:</span> 0</span><span class="history-line"><span class="history-label">I:</span> 0</span></a></td>`).join("")}
+                ${historyMonths.map((m, mi) => `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line"><span class="history-label">S:</span><span class="history-s">...</span></span><span class="history-line"><span class="history-label">P:</span><span class="history-p">...</span></span><span class="history-line"><span class="history-label">I:</span><span class="history-i">...</span></span></a></td>`).join("")}
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
@@ -665,6 +666,40 @@ function renderInventoryTable(products, skipFilter = false) {
 
   // Update select all checkbox state
   updateInventorySelectAllState();
+}
+
+// ============== Tracker History ==============
+
+async function loadTrackerHistory(products) {
+  const upcs = products.map((p) => p.ProductUPC).filter(Boolean);
+  if (upcs.length === 0) return;
+
+  const months = historyMonths.map((m) => ({ from: m.from, to: m.to }));
+
+  try {
+    const result = await api.post("/tracker/history", { upcs, months });
+    if (!result.success) throw new Error(result.error);
+
+    const data = result.data;
+    document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
+      const upc = cell.dataset.upc;
+      const mi = cell.dataset.month;
+      const vals = data[upc] && data[upc][mi];
+      const s = vals ? Math.round(vals.sale) : 0;
+      const p = vals ? Math.round(vals.purchase) : 0;
+      const inv = vals ? Math.round(vals.beginning_inventory) : 0;
+      cell.querySelector(".history-s").textContent = ` ${s.toLocaleString()}`;
+      cell.querySelector(".history-p").textContent = ` ${p.toLocaleString()}`;
+      cell.querySelector(".history-i").textContent = ` ${inv.toLocaleString()}`;
+    });
+  } catch (error) {
+    console.error("Error loading tracker history:", error);
+    document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
+      cell.querySelector(".history-s").textContent = " 0";
+      cell.querySelector(".history-p").textContent = " 0";
+      cell.querySelector(".history-i").textContent = " 0";
+    });
+  }
 }
 
 // ============== Inventory Selection Functions ==============
