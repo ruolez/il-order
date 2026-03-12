@@ -724,8 +724,29 @@ body {
 }
 
 .history-cell .history-label {
+  font-weight: 400;
+  margin-right: 1px;
+}
+
+.history-cell .history-s,
+.history-cell .history-p,
+.history-cell .history-i {
   font-weight: 600;
-  color: var(--color-fg-muted);
+}
+
+.history-sale .history-label,
+.history-sale .history-s {
+  color: #1a73e8;
+}
+
+.history-purchase .history-label,
+.history-purchase .history-p {
+  color: #1e8e3e;
+}
+
+.history-inv .history-label,
+.history-inv .history-i {
+  color: #e67700;
 }
 
 .history-cell a {

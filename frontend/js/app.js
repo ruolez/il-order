@@ -63,6 +63,9 @@ let pendingNoSupplierProducts = null; // Products with no supplier (passed from 
 // Supplier groups cache (populated by renderGroupedView)
 let cachedSupplierGroups = {};
 
+// Tracker history cache (persists across re-renders)
+let trackerHistoryCache = {};
+
 // Excluded suppliers cache (for grouped view)
 let excludedSuppliers = new Set();
 
@@ -431,6 +434,8 @@ async function loadInventory(page = 1, search = "") {
   tbody.innerHTML =
     '<tr><td colspan="13" class="loading">Loading products...</td></tr>';
 
+  trackerHistoryCache = {};
+
   // Apply pending filter if exists
   if (pendingFilter) {
     document.getElementById("inventory-filter").value = pendingFilter;
@@ -638,7 +643,13 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                ${historyMonths.map((m, mi) => `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line"><span class="history-label">S:</span><span class="history-s">...</span></span><span class="history-line"><span class="history-label">P:</span><span class="history-p">...</span></span><span class="history-line"><span class="history-label">I:</span><span class="history-i">...</span></span></a></td>`).join("")}
+                ${historyMonths.map((m, mi) => {
+                  const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
+                  const sv = cached ? Math.round(cached.sale).toLocaleString() : "";
+                  const pv = cached ? Math.round(cached.purchase).toLocaleString() : "";
+                  const iv = cached ? Math.round(cached.beginning_inventory).toLocaleString() : "";
+                  return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">S:</span><span class="history-s">${sv}</span></span><span class="history-line history-purchase"><span class="history-label">P:</span><span class="history-p">${pv}</span></span><span class="history-line history-inv"><span class="history-label">I:</span><span class="history-i">${iv}</span></span></a></td>`;
+                }).join("")}
                 <td>${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
@@ -670,6 +681,19 @@ function renderInventoryTable(products, skipFilter = false) {
 
 // ============== Tracker History ==============
 
+function applyTrackerHistoryToDOM() {
+  document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
+    const upc = cell.dataset.upc;
+    const mi = cell.dataset.month;
+    const vals = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
+    if (vals) {
+      cell.querySelector(".history-s").textContent = Math.round(vals.sale).toLocaleString();
+      cell.querySelector(".history-p").textContent = Math.round(vals.purchase).toLocaleString();
+      cell.querySelector(".history-i").textContent = Math.round(vals.beginning_inventory).toLocaleString();
+    }
+  });
+}
+
 async function loadTrackerHistory(products) {
   const upcs = products.map((p) => p.ProductUPC).filter(Boolean);
   if (upcs.length === 0) return;
@@ -680,25 +704,15 @@ async function loadTrackerHistory(products) {
     const result = await api.post("/tracker/history", { upcs, months });
     if (!result.success) throw new Error(result.error);
 
-    const data = result.data;
-    document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
-      const upc = cell.dataset.upc;
-      const mi = cell.dataset.month;
-      const vals = data[upc] && data[upc][mi];
-      const s = vals ? Math.round(vals.sale) : 0;
-      const p = vals ? Math.round(vals.purchase) : 0;
-      const inv = vals ? Math.round(vals.beginning_inventory) : 0;
-      cell.querySelector(".history-s").textContent = ` ${s.toLocaleString()}`;
-      cell.querySelector(".history-p").textContent = ` ${p.toLocaleString()}`;
-      cell.querySelector(".history-i").textContent = ` ${inv.toLocaleString()}`;
-    });
+    for (const [upc, monthData] of Object.entries(result.data)) {
+      trackerHistoryCache[upc] = {};
+      for (const [mi, vals] of Object.entries(monthData)) {
+        trackerHistoryCache[upc][mi] = vals;
+      }
+    }
+    applyTrackerHistoryToDOM();
   } catch (error) {
     console.error("Error loading tracker history:", error);
-    document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
-      cell.querySelector(".history-s").textContent = " 0";
-      cell.querySelector(".history-p").textContent = " 0";
-      cell.querySelector(".history-i").textContent = " 0";
-    });
   }
 }
 
@@ -1310,6 +1324,7 @@ function toggleCompactView() {
   // Re-render the table to update badge format and action buttons
   if (inventoryViewMode === "table" && allProducts.length > 0) {
     renderInventoryTable(allProducts, true);
+    applyTrackerHistoryToDOM();
   }
 }
 
