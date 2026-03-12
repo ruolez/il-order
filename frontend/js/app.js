@@ -2010,9 +2010,6 @@ async function loadNeedsReorder() {
           selectedSupplierName &&
           product.last_supplier &&
           product.last_supplier !== selectedSupplierName;
-        const statusBadge = needsReorder
-          ? '<span class="badge badge-error">Reorder</span>'
-          : '<span class="badge badge-success">OK</span>';
         // Only auto-check if needs_reorder AND has suggested qty AND is NOT historical supplier
         const shouldCheck =
           needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
@@ -2026,7 +2023,6 @@ async function loadNeedsReorder() {
         return `
                 <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
-                    <td>${statusBadge}</td>
                     <td>${product.ProductUPC ? `<a href="${trackerUrl}?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
                     <td>${product.ProductDescription || "-"}</td>
                     <td class="on-hand-qty">${(product.effective_qty || product.QuantOnHand || 0).toLocaleString()}${product.pending_po_qty > 0 ? `<sup style="color: var(--color-success-fg); font-size: 10px;">+${product.pending_po_qty}</sup>` : ""}${product.qip_qty > 0 ? `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${product.qip_qty}</sup>` : ""}</td>
@@ -2396,6 +2392,9 @@ async function loadOrderHistory() {
         const createdDate = order.created_at
           ? new Date(order.created_at).toLocaleString()
           : "-";
+        let statusClass = "badge-info";
+        if (order.status === "exported") statusClass = "badge-success";
+        if (order.status === "archived") statusClass = "badge-secondary";
         const totalCost = parseFloat(order.total_cost || 0);
         const formattedCost = `$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -2407,6 +2406,7 @@ async function loadOrderHistory() {
                     <td>${order.item_count || 0}</td>
                     <td>${(order.total_qty || 0).toLocaleString()}</td>
                     <td>${formattedCost}</td>
+                    <td><span class="badge ${statusClass}">${order.status}</span></td>
                     <td class="action-cell">
                         <button class="action-btn view" onclick="viewOrder(${order.id})">View</button>
                         <button class="action-btn export" onclick="exportOrderExcelWithPo(${order.id})">Excel</button>
@@ -2419,7 +2419,7 @@ async function loadOrderHistory() {
       .join("");
   } catch (error) {
     console.error("Error loading order history:", error);
-    tbody.innerHTML = `<tr><td colspan="7" class="loading">Error: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading">Error: ${error.message}</td></tr>`;
   }
 }
 

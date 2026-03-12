@@ -537,13 +537,6 @@
                     <th><input type="checkbox" id="select-all-orders" /></th>
                     <th
                       class="sortable"
-                      data-sort="status"
-                      onclick="sortOrders('status')"
-                    >
-                      Status<span class="sort-indicator"></span>
-                    </th>
-                    <th
-                      class="sortable"
                       data-sort="upc"
                       onclick="sortOrders('upc')"
                     >
@@ -687,12 +680,13 @@
                 <th>Items</th>
                 <th>Total Qty</th>
                 <th>Total $</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="history-tbody">
               <tr>
-                <td colspan="7" class="loading">Loading orders...</td>
+                <td colspan="8" class="loading">Loading orders...</td>
               </tr>
             </tbody>
           </table>
