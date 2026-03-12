@@ -402,7 +402,7 @@ function refreshDashboard() {
 function getHistoryMonths() {
   const months = [];
   const now = new Date();
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 3; i >= 1; i--) {
     const first = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const last = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
     months.push({
