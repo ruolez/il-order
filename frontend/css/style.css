@@ -689,11 +689,11 @@ body {
 } /* On Hand */
 #inventory-table th:nth-child(9),
 #inventory-table td:nth-child(9) {
-  width: 35px;
+  width: 45px;
 } /* Case */
 #inventory-table th:nth-child(10),
 #inventory-table td:nth-child(10) {
-  width: 120px;
+  width: 95px;
 } /* Threshold */
 #inventory-table th:nth-child(11),
 #inventory-table td:nth-child(11) {
