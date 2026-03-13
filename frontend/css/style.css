@@ -715,8 +715,8 @@ body {
 } /* Cases */
 #inventory-table th:nth-child(14),
 #inventory-table td:nth-child(14) {
-  width: 70px;
-  max-width: 70px;
+  width: 85px;
+  max-width: 85px;
 } /* Actions */
 
 /* History cell styling (S/P/I stacked layout) */
