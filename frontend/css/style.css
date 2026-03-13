@@ -716,7 +716,7 @@ body {
 #inventory-table th:nth-child(14),
 #inventory-table td:nth-child(14) {
   width: 85px;
-  max-width: 85px;
+  overflow: visible;
 } /* Actions */
 
 /* History cell styling (S/P/I stacked layout) */
