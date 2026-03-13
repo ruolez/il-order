@@ -667,49 +667,56 @@ body {
 } /* Description - flexible */
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
-  width: 80px;
+  width: 110px;
 } /* Month 1 (newest) */
 #inventory-table th:nth-child(5),
 #inventory-table td:nth-child(5) {
-  width: 80px;
+  width: 110px;
 } /* Month 2 */
 #inventory-table th:nth-child(6),
 #inventory-table td:nth-child(6) {
-  width: 80px;
+  width: 110px;
 } /* Month 3 (oldest) */
 #inventory-table th:nth-child(7),
 #inventory-table td:nth-child(7) {
+  width: 110px;
+} /* Month 4 (Current) */
+#inventory-table th:nth-child(8),
+#inventory-table td:nth-child(8) {
   width: 95px;
   text-overflow: clip;
   overflow: visible;
 } /* On Hand */
-#inventory-table th:nth-child(8),
-#inventory-table td:nth-child(8) {
-  width: 50px;
-} /* Case */
 #inventory-table th:nth-child(9),
 #inventory-table td:nth-child(9) {
-  width: 120px;
-} /* Threshold */
+  width: 35px;
+} /* Case */
 #inventory-table th:nth-child(10),
 #inventory-table td:nth-child(10) {
-  width: 140px;
-} /* Last Supplier */
+  width: 120px;
+} /* Threshold */
 #inventory-table th:nth-child(11),
 #inventory-table td:nth-child(11) {
+  width: 140px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+} /* Last Supplier */
+#inventory-table th:nth-child(12),
+#inventory-table td:nth-child(12) {
   width: 90px;
   text-overflow: clip;
   overflow: visible;
 } /* Order */
-#inventory-table th:nth-child(12),
-#inventory-table td:nth-child(12) {
-  width: 60px;
-} /* Cases */
 #inventory-table th:nth-child(13),
 #inventory-table td:nth-child(13) {
-  width: 80px;
-  text-overflow: clip;
-  overflow: visible;
+  width: 60px;
+} /* Cases */
+#inventory-table th:nth-child(14),
+#inventory-table td:nth-child(14) {
+  width: 70px;
+  max-width: 70px;
 } /* Actions */
 
 /* History cell styling (S/P/I stacked layout) */
