@@ -2,9 +2,16 @@
 
 // API helper functions
 const api = {
+  async _parse(response) {
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+    return response.json();
+  },
+
   async get(endpoint) {
     const response = await fetch(`/api${endpoint}`);
-    return response.json();
+    return this._parse(response);
   },
 
   async post(endpoint, data) {
@@ -13,14 +20,14 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return response.json();
+    return this._parse(response);
   },
 
   async delete(endpoint) {
     const response = await fetch(`/api${endpoint}`, {
       method: "DELETE",
     });
-    return response.json();
+    return this._parse(response);
   },
 
   async put(endpoint, data) {
@@ -29,7 +36,7 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return response.json();
+    return this._parse(response);
   },
 };
 
@@ -875,7 +882,7 @@ function updateInventorySelectAllState() {
 // Load cart from localStorage on page load
 function loadCartFromStorage() {
   try {
-    const saved = localStorage.getItem(CART_STORAGE_KEY);
+    const saved = sessionStorage.getItem(CART_STORAGE_KEY);
     if (saved) {
       const items = JSON.parse(saved);
       inventorySelectedItems.clear();
@@ -892,7 +899,7 @@ function loadCartFromStorage() {
 function saveCartToStorage() {
   try {
     const items = Array.from(inventorySelectedItems.values());
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   } catch (e) {
     console.error("Failed to save cart to storage:", e);
   }
