@@ -1758,6 +1758,146 @@ async function clearOverride() {
   }
 }
 
+// ============== Bulk Override Functions ==============
+
+function openBulkOverrideModal() {
+  if (inventorySelectedItems.size === 0) {
+    showToast("No products selected", "error");
+    return;
+  }
+
+  const modal = document.getElementById("bulk-override-modal");
+  document.getElementById("bulk-override-title").textContent =
+    `Bulk Override — ${inventorySelectedItems.size} product${inventorySelectedItems.size > 1 ? "s" : ""} selected`;
+
+  // Reset all apply checkboxes and fields
+  modal.querySelectorAll(".bulk-apply-toggle input[type='checkbox']").forEach((cb) => {
+    cb.checked = false;
+  });
+  document.getElementById("bulk-exclude-dynamic").checked = false;
+  document.getElementById("bulk-exclude-dynamic").disabled = true;
+  document.getElementById("bulk-manual-threshold").value = "";
+  document.getElementById("bulk-manual-threshold").disabled = true;
+  document.getElementById("bulk-manual-order-qty").value = "";
+  document.getElementById("bulk-manual-order-qty").disabled = true;
+  document.getElementById("bulk-order-period").value = "";
+  document.getElementById("bulk-order-period").disabled = true;
+  document.getElementById("bulk-unit-cost").value = "";
+  document.getElementById("bulk-unit-cost").disabled = true;
+  document.getElementById("bulk-notes").value = "";
+  document.getElementById("bulk-notes").disabled = true;
+
+  // Reset active highlights
+  modal.querySelectorAll(".bulk-override-field").forEach((row) => {
+    row.classList.remove("active");
+  });
+
+  modal.classList.add("active");
+}
+
+function closeBulkOverrideModal() {
+  document.getElementById("bulk-override-modal").classList.remove("active");
+}
+
+function toggleBulkField(checkbox, fieldId) {
+  const field = document.getElementById(fieldId);
+  const row = checkbox.closest(".bulk-override-field");
+  field.disabled = !checkbox.checked;
+  row.classList.toggle("active", checkbox.checked);
+  if (checkbox.checked) {
+    field.focus();
+  }
+}
+
+async function applyBulkOverride() {
+  const upcs = Array.from(inventorySelectedItems.keys());
+  const fields = {};
+
+  const modal = document.getElementById("bulk-override-modal");
+  const applyChecks = modal.querySelectorAll(".bulk-apply-toggle input[type='checkbox']");
+  let anyChecked = false;
+
+  applyChecks.forEach((cb) => {
+    if (!cb.checked) return;
+    anyChecked = true;
+  });
+
+  if (!anyChecked) {
+    showToast("Check at least one 'Apply' toggle", "error");
+    return;
+  }
+
+  // Collect checked fields
+  if (modal.querySelector("#bulk-field-exclude-dynamic .bulk-apply-toggle input").checked) {
+    fields.exclude_from_dynamic = document.getElementById("bulk-exclude-dynamic").checked;
+  }
+  if (modal.querySelector("#bulk-field-manual-threshold .bulk-apply-toggle input").checked) {
+    const val = document.getElementById("bulk-manual-threshold").value;
+    fields.manual_threshold = val ? parseInt(val) : null;
+  }
+  if (modal.querySelector("#bulk-field-manual-order-qty .bulk-apply-toggle input").checked) {
+    const val = document.getElementById("bulk-manual-order-qty").value;
+    fields.manual_order_qty = val ? parseInt(val) : null;
+  }
+  if (modal.querySelector("#bulk-field-order-period .bulk-apply-toggle input").checked) {
+    const val = document.getElementById("bulk-order-period").value;
+    fields.manual_order_period_days = val ? parseInt(val) : null;
+  }
+  if (modal.querySelector("#bulk-field-unit-cost .bulk-apply-toggle input").checked) {
+    const val = document.getElementById("bulk-unit-cost").value;
+    fields.manual_unit_cost = val ? parseFloat(val) : null;
+  }
+  if (modal.querySelector("#bulk-field-notes .bulk-apply-toggle input").checked) {
+    const val = document.getElementById("bulk-notes").value;
+    fields.notes = val || null;
+  }
+
+  if (!confirm(`Apply overrides to ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`)) return;
+
+  try {
+    const result = await api.post("/products/bulk-override", {
+      upcs,
+      fields,
+      mode: "merge",
+    });
+
+    if (result.success) {
+      showToast(`Override applied to ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
+      closeBulkOverrideModal();
+      loadInventory();
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error applying bulk override:", error);
+    showToast(`Error: ${error.message}`, "error");
+  }
+}
+
+async function bulkClearOverrides() {
+  const upcs = Array.from(inventorySelectedItems.keys());
+
+  if (!confirm(`Clear ALL overrides for ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`)) return;
+
+  try {
+    const result = await api.post("/products/bulk-override", {
+      upcs,
+      mode: "clear",
+    });
+
+    if (result.success) {
+      showToast(`Overrides cleared for ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
+      closeBulkOverrideModal();
+      loadInventory();
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error("Error clearing bulk overrides:", error);
+    showToast(`Error: ${error.message}`, "error");
+  }
+}
+
 // Initialize modal event listeners
 document.addEventListener("DOMContentLoaded", () => {
   const overrideForm = document.getElementById("override-form");
@@ -1775,10 +1915,27 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Close bulk override modal when clicking outside
+  const bulkModal = document.getElementById("bulk-override-modal");
+  if (bulkModal) {
+    bulkModal.addEventListener("click", (e) => {
+      if (e.target === bulkModal) {
+        closeBulkOverrideModal();
+      }
+    });
+  }
+
   // Global ESC key handler for all modals
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      // First check for product modal
+      // First check for bulk override modal
+      const bulkModal = document.getElementById("bulk-override-modal");
+      if (bulkModal && bulkModal.classList.contains("active")) {
+        closeBulkOverrideModal();
+        return;
+      }
+
+      // Then check for product modal
       const productModal = document.getElementById("product-modal");
       if (productModal && productModal.classList.contains("active")) {
         closeProductModal();

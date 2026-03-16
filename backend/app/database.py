@@ -273,6 +273,46 @@ class PostgresManager:
             cursor.execute("DELETE FROM product_overrides WHERE product_upc = %s", (product_upc,))
             return cursor.rowcount > 0
 
+    def bulk_save_product_overrides(self, upcs: List[str], fields: Dict[str, Any]) -> int:
+        """Apply override fields to multiple products. Only updates specified fields."""
+        allowed = {'exclude_from_dynamic', 'exclude_from_orders', 'manual_threshold',
+                    'manual_order_qty', 'manual_order_period_days', 'manual_unit_cost', 'notes'}
+        filtered = {k: v for k, v in fields.items() if k in allowed}
+        if not filtered or not upcs:
+            return 0
+
+        count = 0
+        with self.get_cursor() as cursor:
+            for upc in upcs:
+                cursor.execute("SELECT id FROM product_overrides WHERE product_upc = %s", (upc,))
+                existing = cursor.fetchone()
+                if existing:
+                    set_clauses = ', '.join(f"{k} = %s" for k in filtered)
+                    values = list(filtered.values()) + [upc]
+                    cursor.execute(
+                        f"UPDATE product_overrides SET {set_clauses}, updated_at = CURRENT_TIMESTAMP WHERE product_upc = %s",
+                        values
+                    )
+                else:
+                    cols = ['product_upc'] + list(filtered.keys())
+                    placeholders = ', '.join(['%s'] * len(cols))
+                    values = [upc] + list(filtered.values())
+                    cursor.execute(
+                        f"INSERT INTO product_overrides ({', '.join(cols)}) VALUES ({placeholders})",
+                        values
+                    )
+                count += 1
+        return count
+
+    def bulk_delete_product_overrides(self, upcs: List[str]) -> int:
+        """Delete overrides for multiple products."""
+        if not upcs:
+            return 0
+        with self.get_cursor() as cursor:
+            placeholders = ', '.join(['%s'] * len(upcs))
+            cursor.execute(f"DELETE FROM product_overrides WHERE product_upc IN ({placeholders})", upcs)
+            return cursor.rowcount
+
     def get_excluded_upcs(self) -> set:
         """Get set of UPCs excluded from orders."""
         with self.get_cursor() as cursor:

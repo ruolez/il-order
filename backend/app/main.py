@@ -531,6 +531,32 @@ def delete_product_override(upc):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/products/bulk-override', methods=['POST'])
+def bulk_override_products():
+    """Apply or clear overrides for multiple products."""
+    try:
+        data = request.get_json()
+        upcs = data.get('upcs', [])
+        mode = data.get('mode', 'merge')
+
+        if not upcs:
+            return jsonify({'success': False, 'error': 'No products specified'}), 400
+
+        if mode == 'clear':
+            count = pg.bulk_delete_product_overrides(upcs)
+            return jsonify({'success': True, 'affected': count, 'mode': 'clear'})
+        elif mode == 'merge':
+            fields = data.get('fields', {})
+            if not fields:
+                return jsonify({'success': False, 'error': 'No fields specified'}), 400
+            count = pg.bulk_save_product_overrides(upcs, fields)
+            return jsonify({'success': True, 'affected': count, 'mode': 'merge'})
+        else:
+            return jsonify({'success': False, 'error': f'Invalid mode: {mode}'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/products/<upc>/unit-qty2', methods=['PUT'])
 def update_unit_qty2(upc):
     """Update UnitQty2 for a product."""

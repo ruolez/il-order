@@ -402,6 +402,9 @@
           >
             Clear
           </button>
+          <button onclick="openBulkOverrideModal()" class="btn-bulk-override">
+            Override
+          </button>
           <div class="column-selector-wrapper">
             <button
               type="button"
@@ -1026,6 +1029,157 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Override Modal -->
+    <div id="bulk-override-modal" class="modal">
+      <div class="modal-content" style="max-width: 520px">
+        <div class="modal-header">
+          <h2 id="bulk-override-title">Bulk Override</h2>
+          <button class="modal-close" onclick="closeBulkOverrideModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="bulk-override-field" id="bulk-field-exclude-dynamic">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-exclude-dynamic')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label>
+                <input
+                  type="checkbox"
+                  id="bulk-exclude-dynamic"
+                  disabled
+                />
+                Exclude from dynamic threshold
+              </label>
+            </div>
+          </div>
+
+          <div class="bulk-override-field" id="bulk-field-manual-threshold">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-manual-threshold')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label for="bulk-manual-threshold">Manual Threshold</label>
+              <input
+                type="number"
+                id="bulk-manual-threshold"
+                placeholder="Leave blank to clear"
+                min="0"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div class="bulk-override-field" id="bulk-field-manual-order-qty">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-manual-order-qty')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label for="bulk-manual-order-qty">Manual Order Qty</label>
+              <input
+                type="number"
+                id="bulk-manual-order-qty"
+                placeholder="Leave blank to clear"
+                min="0"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div class="bulk-override-field" id="bulk-field-order-period">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-order-period')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label for="bulk-order-period">Order Period (Days)</label>
+              <input
+                type="number"
+                id="bulk-order-period"
+                placeholder="Leave blank to clear"
+                min="1"
+                max="365"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div class="bulk-override-field" id="bulk-field-unit-cost">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-unit-cost')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label for="bulk-unit-cost">Cost Override</label>
+              <input
+                type="number"
+                id="bulk-unit-cost"
+                placeholder="Leave blank to clear"
+                min="0"
+                step="0.01"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div class="bulk-override-field" id="bulk-field-notes">
+            <label class="bulk-apply-toggle">
+              <input
+                type="checkbox"
+                onchange="toggleBulkField(this, 'bulk-notes')"
+              />
+              Apply
+            </label>
+            <div class="bulk-field-input">
+              <label for="bulk-notes">Notes</label>
+              <textarea
+                id="bulk-notes"
+                rows="2"
+                placeholder="Leave blank to clear"
+                disabled
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions" style="margin-top: 16px">
+            <button
+              type="button"
+              class="btn btn-outline btn-danger-outline"
+              onclick="bulkClearOverrides()"
+            >
+              Clear All Overrides
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="applyBulkOverride()"
+            >
+              Apply to Selected
+            </button>
           </div>
         </div>
       </div>

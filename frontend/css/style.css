@@ -2202,6 +2202,94 @@ input[type="checkbox"] {
   color: var(--color-fg-default);
 }
 
+/* Bulk Override button in floating bar */
+.btn-bulk-override {
+  background: var(--color-accent-emphasis);
+  color: var(--color-fg-on-emphasis);
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-bulk-override:hover {
+  background: #0757b5;
+}
+
+/* Bulk Override Modal */
+.bulk-override-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.bulk-override-field.active {
+  border-color: var(--color-accent-emphasis);
+  background-color: var(--color-accent-subtle);
+}
+
+.bulk-apply-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  padding-top: 2px;
+}
+
+.bulk-apply-toggle input[type="checkbox"] {
+  accent-color: var(--color-accent-emphasis);
+}
+
+.bulk-field-input {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bulk-field-input label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-fg-default);
+}
+
+.bulk-field-input input,
+.bulk-field-input textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background-color: var(--color-canvas-default);
+  color: var(--color-fg-default);
+}
+
+.bulk-field-input input:disabled,
+.bulk-field-input textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger-outline {
+  color: var(--color-danger-fg);
+  border-color: var(--color-danger-fg);
+}
+
+.btn-danger-outline:hover {
+  background-color: var(--color-danger-subtle);
+}
+
 /* Checkbox column fix - prevent ellipsis in checkbox cells */
 .data-table td:first-child {
   text-overflow: clip;
