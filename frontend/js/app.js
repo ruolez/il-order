@@ -711,20 +711,24 @@ async function loadTrackerHistory(products) {
   if (upcs.length === 0) return;
 
   const months = historyMonths.map((m) => ({ from: m.from, to: m.to }));
+  const chunkSize = 25;
 
-  try {
-    const result = await api.post("/tracker/history", { upcs, months });
-    if (!result.success) throw new Error(result.error);
+  for (let i = 0; i < upcs.length; i += chunkSize) {
+    const chunk = upcs.slice(i, i + chunkSize);
+    try {
+      const result = await api.post("/tracker/history", { upcs: chunk, months });
+      if (!result.success) throw new Error(result.error);
 
-    for (const [upc, monthData] of Object.entries(result.data)) {
-      trackerHistoryCache[upc] = {};
-      for (const [mi, vals] of Object.entries(monthData)) {
-        trackerHistoryCache[upc][mi] = vals;
+      for (const [upc, monthData] of Object.entries(result.data)) {
+        trackerHistoryCache[upc] = {};
+        for (const [mi, vals] of Object.entries(monthData)) {
+          trackerHistoryCache[upc][mi] = vals;
+        }
       }
+      applyTrackerHistoryToDOM();
+    } catch (error) {
+      console.error("Error loading tracker history chunk:", error);
     }
-    applyTrackerHistoryToDOM();
-  } catch (error) {
-    console.error("Error loading tracker history:", error);
   }
 }
 
