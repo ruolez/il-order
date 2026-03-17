@@ -665,6 +665,7 @@ body {
   width: auto;
   white-space: normal;
   word-wrap: break-word;
+  border-left: 1px solid var(--color-border-muted);
 } /* Description - flexible */
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
@@ -696,10 +697,12 @@ body {
 #inventory-table th:nth-child(9),
 #inventory-table td:nth-child(9) {
   width: 55px;
+  border-left: 1px solid var(--color-border-muted);
 } /* Case */
 #inventory-table th:nth-child(10),
 #inventory-table td:nth-child(10) {
   width: 85px;
+  border-left: 1px solid var(--color-border-muted);
 } /* Threshold */
 #inventory-table th:nth-child(11),
 #inventory-table td:nth-child(11) {
@@ -708,6 +711,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-left: 1px solid var(--color-border-muted);
 } /* Last Supplier */
 #inventory-table th:nth-child(12),
 #inventory-table td:nth-child(12) {
@@ -723,6 +727,7 @@ body {
 #inventory-table td:nth-child(14) {
   width: 85px;
   overflow: visible;
+  border-left: 1px solid var(--color-border-muted);
 } /* Actions */
 
 /* Right-align numeric columns: History (4-7), On Hand, Case, Threshold, Order, Cases */
