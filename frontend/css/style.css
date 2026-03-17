@@ -669,7 +669,7 @@ body {
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
   width: 110px;
-  border-left: 2px solid var(--color-border-muted);
+  border-left: 1px solid var(--color-border-muted);
 } /* Month 1 (newest) */
 #inventory-table th:nth-child(5),
 #inventory-table td:nth-child(5) {
@@ -682,7 +682,7 @@ body {
 #inventory-table th:nth-child(7),
 #inventory-table td:nth-child(7) {
   width: 110px;
-  border-right: 2px solid var(--color-border-muted);
+  border-right: 1px solid var(--color-border-muted);
 } /* Month 4 (Current) */
 #inventory-table th:nth-child(8),
 #inventory-table td:nth-child(8) {
@@ -722,7 +722,15 @@ body {
   overflow: visible;
 } /* Actions */
 
-/* Right-align numeric columns: On Hand, Case, Threshold, Order, Cases */
+/* Right-align numeric columns: History (4-7), On Hand, Case, Threshold, Order, Cases */
+#inventory-table th:nth-child(4),
+#inventory-table td:nth-child(4),
+#inventory-table th:nth-child(5),
+#inventory-table td:nth-child(5),
+#inventory-table th:nth-child(6),
+#inventory-table td:nth-child(6),
+#inventory-table th:nth-child(7),
+#inventory-table td:nth-child(7),
 #inventory-table th:nth-child(8),
 #inventory-table td:nth-child(8),
 #inventory-table th:nth-child(9),
@@ -767,16 +775,16 @@ body {
 
 .history-sale .history-label,
 .history-sale .history-s {
-  color: #c5221f99;
+  color: #c5221fcc;
 }
 
 .history-purchase .history-label,
 .history-purchase .history-p {
-  color: #18803899;
+  color: #188038cc;
 }
 
 .history-inv .history-i {
-  color: #1a73e899;
+  color: #1a73e8cc;
   font-weight: 600;
 }
 
@@ -830,7 +838,7 @@ td.order-qty-highlight input {
 }
 
 .data-table tbody tr:nth-child(even) {
-  background-color: #f8f9fa;
+  background-color: #f0f2f5;
 }
 
 .data-table tbody tr:hover {
