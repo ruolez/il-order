@@ -664,6 +664,7 @@ body {
 #inventory-table td:nth-child(2) a {
   font-weight: 600;
   color: #1557b0;
+  text-decoration: none;
 } /* UPC */
 #inventory-table th:nth-child(3),
 #inventory-table td:nth-child(3) {
