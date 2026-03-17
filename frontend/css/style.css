@@ -727,7 +727,6 @@ body {
 #inventory-table td:nth-child(14) {
   width: 85px;
   overflow: visible;
-  border-left: 1px solid var(--color-border-muted);
 } /* Actions */
 
 /* Right-align numeric columns: History (4-7), On Hand, Case, Threshold, Order, Cases */
