@@ -523,7 +523,9 @@ async function loadInventory(page = 1, search = "") {
       renderInventoryTable(allProducts, true);
       syncCheckboxesWithCart();
       updatePagination();
-      loadTrackerHistory(allProducts);
+      if (currentSearch) {
+        loadTrackerHistory(allProducts);
+      }
     }
 
     updateSortIndicators("inventory");
