@@ -660,6 +660,10 @@ body {
 #inventory-table td:nth-child(2) {
   width: 130px;
   font-size: 12px;
+}
+#inventory-table td:nth-child(2) a {
+  font-weight: 600;
+  color: #1557b0;
 } /* UPC */
 #inventory-table th:nth-child(3),
 #inventory-table td:nth-child(3) {
