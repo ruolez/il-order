@@ -647,9 +647,10 @@ function renderInventoryTable(products, skipFilter = false) {
         superscripts += `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${qipQty}</sup>`;
 
       const needsTooltip = pendingPoQty > 0 || qipQty > 0;
+      const onHandCases = Math.floor(effectiveQty / unitQty2);
       const qtyDisplayHtml = needsTooltip
-        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()}${superscripts}</span>`
-        : `${effectiveQty.toLocaleString()}`;
+        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()} (${onHandCases.toLocaleString()})${superscripts}</span>`
+        : `${effectiveQty.toLocaleString()} (${onHandCases.toLocaleString()})`;
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
