@@ -788,6 +788,13 @@ body {
   }
 }
 
+/* Case count - secondary metadata */
+.case-count {
+  color: #80868b;
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
 /* On Hand quantity - bold blue */
 td.on-hand-qty {
   color: #1a73e8;

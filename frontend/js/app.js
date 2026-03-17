@@ -649,8 +649,8 @@ function renderInventoryTable(products, skipFilter = false) {
       const needsTooltip = pendingPoQty > 0 || qipQty > 0;
       const onHandCases = Math.floor(effectiveQty / unitQty2);
       const qtyDisplayHtml = needsTooltip
-        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()} (${onHandCases.toLocaleString()})${superscripts}</span>`
-        : `${effectiveQty.toLocaleString()} (${onHandCases.toLocaleString()})`;
+        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()} <span class="case-count">(${onHandCases.toLocaleString()})</span>${superscripts}</span>`
+        : `${effectiveQty.toLocaleString()} <span class="case-count">(${onHandCases.toLocaleString()})</span>`;
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
@@ -667,7 +667,7 @@ function renderInventoryTable(products, skipFilter = false) {
                     const pc = Math.round(Math.round(cached.purchase) / cq).toLocaleString();
                     const iv = Math.round(cached.beginning_inventory).toLocaleString();
                     const ic = Math.round(Math.round(cached.beginning_inventory) / cq).toLocaleString();
-                    return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} (${sc})</span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} (${pc})</span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} (${ic})</span></span></a></td>`;
+                    return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
                   }
                   if (currentSearch) {
                     return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
@@ -715,9 +715,9 @@ function applyTrackerHistoryToDOM() {
       const saleRounded = Math.round(vals.sale);
       const purchaseRounded = Math.round(vals.purchase);
       const invRounded = Math.round(vals.beginning_inventory);
-      cell.querySelector(".history-s").textContent = `${saleRounded.toLocaleString()} (${Math.round(saleRounded / cq).toLocaleString()})`;
-      cell.querySelector(".history-p").textContent = `${purchaseRounded.toLocaleString()} (${Math.round(purchaseRounded / cq).toLocaleString()})`;
-      cell.querySelector(".history-i").textContent = `${invRounded.toLocaleString()} (${Math.round(invRounded / cq).toLocaleString()})`;
+      cell.querySelector(".history-s").innerHTML = `${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span>`;
+      cell.querySelector(".history-p").innerHTML = `${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span>`;
+      cell.querySelector(".history-i").innerHTML = `${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span>`;
     }
   });
 }
@@ -738,7 +738,7 @@ function applyTrackerHistoryToRow(upc) {
 
     const m = historyMonths[mi];
     const href = `${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}`;
-    cell.innerHTML = `<a href="${href}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${saleRounded.toLocaleString()} (${Math.round(saleRounded / cq).toLocaleString()})</span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${purchaseRounded.toLocaleString()} (${Math.round(purchaseRounded / cq).toLocaleString()})</span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${invRounded.toLocaleString()} (${Math.round(invRounded / cq).toLocaleString()})</span></span></a>`;
+    cell.innerHTML = `<a href="${href}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span></span></span></a>`;
   });
 }
 
