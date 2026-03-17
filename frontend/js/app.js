@@ -678,7 +678,7 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
                 <td class="hide-in-compact">
                     ${threshold.toLocaleString()}
-                    <br><small style="color: var(--on-surface-secondary);">(${product.threshold_type})</small>
+                    <br><small class="threshold-type" title="${product.threshold_type}">${product.threshold_type === "dynamic" ? "⚡" : product.threshold_type === "manual" ? "✏️" : "⚙️"}</small>
                 </td>
                 <td class="supplier-cell hide-in-compact" title="${product.last_supplier || ""}">${product.last_supplier || "-"}</td>
                 <td class="${orderQty > 0 ? "order-qty-highlight" : ""}">

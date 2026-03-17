@@ -805,6 +805,11 @@ body {
   text-decoration: underline;
 }
 
+.threshold-type {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .history-spinner {
   width: 14px;
   height: 14px;
