@@ -958,10 +958,10 @@ function addCheckedToCart() {
 
 // ============== Cart Sidebar Functions ==============
 
-// Load cart from sessionStorage on page load
+// Load cart from localStorage on page load
 function loadCartFromStorage() {
   try {
-    const saved = sessionStorage.getItem(CART_STORAGE_KEY);
+    const saved = localStorage.getItem(CART_STORAGE_KEY);
     if (saved) {
       const items = JSON.parse(saved);
       inventorySelectedItems.clear();
@@ -977,7 +977,7 @@ function loadCartFromStorage() {
 function saveCartToStorage() {
   try {
     const items = Array.from(inventorySelectedItems.values());
-    sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   } catch (e) {
     console.error("Failed to save cart to storage:", e);
   }
