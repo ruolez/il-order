@@ -646,6 +646,7 @@ body {
   color: var(--color-fg-default);
   overflow: hidden;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Inventory table column widths */
@@ -668,6 +669,7 @@ body {
 #inventory-table th:nth-child(4),
 #inventory-table td:nth-child(4) {
   width: 110px;
+  border-left: 2px solid var(--color-border-muted);
 } /* Month 1 (newest) */
 #inventory-table th:nth-child(5),
 #inventory-table td:nth-child(5) {
@@ -680,6 +682,7 @@ body {
 #inventory-table th:nth-child(7),
 #inventory-table td:nth-child(7) {
   width: 110px;
+  border-right: 2px solid var(--color-border-muted);
 } /* Month 4 (Current) */
 #inventory-table th:nth-child(8),
 #inventory-table td:nth-child(8) {
@@ -719,6 +722,20 @@ body {
   overflow: visible;
 } /* Actions */
 
+/* Right-align numeric columns: On Hand, Case, Threshold, Order, Cases */
+#inventory-table th:nth-child(8),
+#inventory-table td:nth-child(8),
+#inventory-table th:nth-child(9),
+#inventory-table td:nth-child(9),
+#inventory-table th:nth-child(10),
+#inventory-table td:nth-child(10),
+#inventory-table th:nth-child(12),
+#inventory-table td:nth-child(12),
+#inventory-table th:nth-child(13),
+#inventory-table td:nth-child(13) {
+  text-align: right;
+}
+
 /* History cell styling (S/P/I stacked layout) */
 .history-cell {
   white-space: nowrap;
@@ -750,16 +767,16 @@ body {
 
 .history-sale .history-label,
 .history-sale .history-s {
-  color: #d93025;
+  color: #c5221f99;
 }
 
 .history-purchase .history-label,
 .history-purchase .history-p {
-  color: #1e8e3e;
+  color: #18803899;
 }
 
 .history-inv .history-i {
-  color: #1a73e8;
+  color: #1a73e899;
   font-weight: 600;
 }
 
@@ -810,6 +827,10 @@ td.order-qty-highlight input {
 #order-table td:nth-child(8) {
   text-overflow: clip;
   overflow: visible;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
 }
 
 .data-table tbody tr:hover {
