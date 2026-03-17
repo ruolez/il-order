@@ -2300,6 +2300,26 @@ input[type="checkbox"] {
   background: #0757b5;
 }
 
+/* Add to Cart button in floating bar */
+.btn-add-to-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-success-emphasis);
+  color: var(--color-fg-on-emphasis);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-add-to-cart:hover {
+  background: #16753a;
+}
+
 /* Bulk Override Modal */
 .bulk-override-field {
   display: flex;

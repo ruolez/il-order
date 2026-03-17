@@ -405,48 +405,8 @@
           <button onclick="openBulkOverrideModal()" class="btn-bulk-override">
             Override
           </button>
-          <div class="column-selector-wrapper">
-            <button
-              type="button"
-              class="btn btn-outline btn-columns"
-              onclick="toggleInventoryColumnSelector()"
-            >
-              Columns <span class="chevron">▼</span>
-            </button>
-            <div
-              id="inventory-column-selector-panel"
-              class="column-selector-panel"
-            >
-              <div class="column-selector-header">
-                <span>Export Columns</span>
-                <button
-                  type="button"
-                  class="btn-text"
-                  onclick="selectAllInventoryColumns(true)"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  class="btn-text"
-                  onclick="selectAllInventoryColumns(false)"
-                >
-                  None
-                </button>
-              </div>
-              <div
-                class="column-selector-options"
-                id="inventory-column-selector-options"
-              >
-                <!-- Populated by JavaScript -->
-              </div>
-            </div>
-          </div>
-          <button onclick="exportInventoryToExcel()" class="btn-export-excel">
-            Export Excel
-          </button>
-          <button onclick="exportInventoryToPDF()" class="btn-export-pdf">
-            Export PDF
+          <button onclick="addCheckedToCart()" class="btn-add-to-cart">
+            Add to Cart
           </button>
         </div>
       </div>

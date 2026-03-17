@@ -81,7 +81,8 @@ let inventoryLoaded = false;
 let ordersLoaded = false;
 
 // Inventory selection state (for export from inventory)
-let inventorySelectedItems = new Map(); // UPC -> product data
+let inventorySelectedItems = new Map(); // UPC -> product data (cart, persisted in sessionStorage)
+let inventoryCheckedItems = new Map(); // UPC -> product data (ephemeral checkbox selection)
 
 // Cart localStorage key
 const CART_STORAGE_KEY = "inventoryCartItems";
@@ -215,6 +216,13 @@ function showExcludedSuppliersModal() {
 
 // Navigation
 function navigateTo(pageName) {
+  // Hide floating bar and clear checked items when leaving inventory
+  if (pageName !== "inventory") {
+    inventoryCheckedItems.clear();
+    const bar = document.getElementById("inventory-export-bar");
+    if (bar) bar.classList.add("hidden");
+  }
+
   // Update active nav link
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.classList.toggle("active", link.dataset.page === pageName);
@@ -595,10 +603,9 @@ function renderInventoryTable(products, skipFilter = false) {
       const unitQty2 = product.UnitQty2 || 1;
       const upc = product.ProductUPC || "";
 
-      // Check if this product is already selected
-      const isSelected = inventorySelectedItems.has(upc);
-      // Use stored order_qty if selected, otherwise use suggested_qty
-      const orderQty = isSelected
+      // Use stored cart order_qty if in cart, otherwise use suggested_qty
+      const isInCart = inventorySelectedItems.has(upc);
+      const orderQty = isInCart
         ? inventorySelectedItems.get(upc).order_qty || suggestedQty
         : suggestedQty;
       const cases = Math.ceil(orderQty / unitQty2);
@@ -654,7 +661,7 @@ function renderInventoryTable(products, skipFilter = false) {
 
       return `
             <tr class="${rowClass}" data-upc="${upc}">
-                <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" ${isSelected ? "checked" : ""} onchange="handleInventoryCheckboxChange(this)" /></td>
+                <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
                 ${historyMonths.map((m, mi) => {
@@ -793,7 +800,7 @@ function handleInventoryCheckboxChange(checkbox) {
     const orderQty = parseInt(orderQtyInput?.value) || 0;
     const unitQty2 = product.UnitQty2 || 1;
 
-    inventorySelectedItems.set(upc, {
+    inventoryCheckedItems.set(upc, {
       upc: upc,
       description:
         product.ProductDescription || row.cells[2]?.textContent || "-",
@@ -806,11 +813,9 @@ function handleInventoryCheckboxChange(checkbox) {
       unit_cost: parseFloat(product.UnitCost) || 0,
     });
   } else {
-    inventorySelectedItems.delete(upc);
+    inventoryCheckedItems.delete(upc);
   }
 
-  saveCartToStorage();
-  renderCartSidebar();
   updateInventoryExportBar();
   updateInventorySelectAllState();
 }
@@ -827,10 +832,17 @@ function updateInventoryCases(input) {
   }
   input.closest("td").classList.toggle("order-qty-highlight", qty > 0);
 
-  // Update stored data if item is checked
-  const checkbox = row.querySelector(".inventory-checkbox");
   const upc = input.dataset.upc;
-  if (checkbox && checkbox.checked && upc && inventorySelectedItems.has(upc)) {
+
+  // Update checked items if item is checked
+  if (upc && inventoryCheckedItems.has(upc)) {
+    const data = inventoryCheckedItems.get(upc);
+    data.order_qty = qty;
+    data.cases = cases;
+  }
+
+  // Also update cart if item is in cart
+  if (upc && inventorySelectedItems.has(upc)) {
     const data = inventorySelectedItems.get(upc);
     data.order_qty = qty;
     data.cases = cases;
@@ -839,12 +851,12 @@ function updateInventoryCases(input) {
   }
 }
 
-// Show/hide floating export bar based on selection count
+// Show/hide floating export bar based on checked (not cart) count
 function updateInventoryExportBar() {
   const bar = document.getElementById("inventory-export-bar");
   if (!bar) return;
 
-  const count = inventorySelectedItems.size;
+  const count = inventoryCheckedItems.size;
   if (count > 0) {
     bar.classList.remove("hidden");
     document.getElementById("inventory-selected-count").textContent =
@@ -857,13 +869,11 @@ function updateInventoryExportBar() {
 // Toggle select all checkbox in inventory table header
 function toggleInventorySelectAll(checkbox) {
   const checkboxes = document.querySelectorAll(".inventory-checkbox");
-  const shouldCheck = checkbox.checked; // Capture the intended state
+  const shouldCheck = checkbox.checked;
 
   checkboxes.forEach((cb) => {
     if (cb.checked !== shouldCheck) {
       cb.checked = shouldCheck;
-      // Manually handle the selection instead of calling handleInventoryCheckboxChange
-      // to avoid updateInventorySelectAllState() changing the header checkbox mid-loop
       const upc = cb.dataset.upc;
       const row = cb.closest("tr");
 
@@ -873,7 +883,7 @@ function toggleInventorySelectAll(checkbox) {
         const orderQty = parseInt(orderQtyInput?.value) || 0;
         const unitQty2 = product.UnitQty2 || 1;
 
-        inventorySelectedItems.set(upc, {
+        inventoryCheckedItems.set(upc, {
           upc: upc,
           description:
             product.ProductDescription || row.cells[2]?.textContent || "-",
@@ -886,14 +896,11 @@ function toggleInventorySelectAll(checkbox) {
           unit_cost: parseFloat(product.UnitCost) || 0,
         });
       } else {
-        inventorySelectedItems.delete(upc);
+        inventoryCheckedItems.delete(upc);
       }
     }
   });
 
-  // Save and update UI after all checkboxes are processed
-  saveCartToStorage();
-  renderCartSidebar();
   updateInventoryExportBar();
 }
 
@@ -917,9 +924,41 @@ function updateInventorySelectAllState() {
     checkedCount > 0 && checkedCount < checkboxes.length;
 }
 
+// Add checked items to cart
+function addCheckedToCart() {
+  if (inventoryCheckedItems.size === 0) {
+    showToast("No items selected", "error");
+    return;
+  }
+
+  const count = inventoryCheckedItems.size;
+
+  // Merge checked items into cart
+  inventoryCheckedItems.forEach((item, upc) => {
+    inventorySelectedItems.set(upc, { ...item });
+  });
+
+  saveCartToStorage();
+  renderCartSidebar();
+
+  // Clear checkboxes and checked state
+  inventoryCheckedItems.clear();
+  document
+    .querySelectorAll(".inventory-checkbox")
+    .forEach((cb) => (cb.checked = false));
+  const selectAll = document.getElementById("inventory-select-all");
+  if (selectAll) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+  }
+  updateInventoryExportBar();
+
+  showToast(`${count} item${count !== 1 ? "s" : ""} added to cart`, "success");
+}
+
 // ============== Cart Sidebar Functions ==============
 
-// Load cart from localStorage on page load
+// Load cart from sessionStorage on page load
 function loadCartFromStorage() {
   try {
     const saved = sessionStorage.getItem(CART_STORAGE_KEY);
@@ -928,7 +967,6 @@ function loadCartFromStorage() {
       inventorySelectedItems.clear();
       items.forEach((item) => inventorySelectedItems.set(item.upc, item));
       renderCartSidebar();
-      updateInventoryExportBar();
     }
   } catch (e) {
     console.error("Failed to load cart from storage:", e);
@@ -1021,8 +1059,6 @@ function removeFromCart(upc) {
   inventorySelectedItems.delete(upc);
   saveCartToStorage();
   renderCartSidebar();
-  syncCheckboxesWithCart();
-  updateInventoryExportBar();
 }
 
 // Update cart item quantity from cart input
@@ -1045,19 +1081,17 @@ function clearCart() {
   inventorySelectedItems.clear();
   saveCartToStorage();
   renderCartSidebar();
-  syncCheckboxesWithCart();
-  updateInventoryExportBar();
 }
 
-// Sync checkboxes with cart state (after search/filter/pagination)
+// Sync order qty values from cart (after search/filter/pagination)
 function syncCheckboxesWithCart() {
+  inventoryCheckedItems.clear();
   document.querySelectorAll(".inventory-checkbox").forEach((cb) => {
     const upc = cb.dataset.upc;
-    const isInCart = inventorySelectedItems.has(upc);
-    cb.checked = isInCart;
+    cb.checked = false;
 
-    // Also sync order qty input if item is in cart
-    if (isInCart) {
+    // Sync order qty input if item is in cart
+    if (inventorySelectedItems.has(upc)) {
       const row = cb.closest("tr");
       const input = row?.querySelector(".inventory-order-qty-input");
       if (input) {
@@ -1069,6 +1103,7 @@ function syncCheckboxesWithCart() {
     }
   });
   updateInventorySelectAllState();
+  updateInventoryExportBar();
 }
 
 // Sync single inventory row with cart (when qty changes in cart)
@@ -1097,11 +1132,9 @@ function exportCartToExcel() {
   exportInventoryToExcel();
 }
 
-// Clear all inventory selections
+// Clear all checked selections (not cart)
 function clearInventorySelection() {
-  inventorySelectedItems.clear();
-  saveCartToStorage();
-  renderCartSidebar();
+  inventoryCheckedItems.clear();
   document
     .querySelectorAll(".inventory-checkbox")
     .forEach((cb) => (cb.checked = false));
@@ -1812,14 +1845,14 @@ async function clearOverride() {
 // ============== Bulk Override Functions ==============
 
 function openBulkOverrideModal() {
-  if (inventorySelectedItems.size === 0) {
+  if (inventoryCheckedItems.size === 0) {
     showToast("No products selected", "error");
     return;
   }
 
   const modal = document.getElementById("bulk-override-modal");
   document.getElementById("bulk-override-title").textContent =
-    `Bulk Override — ${inventorySelectedItems.size} product${inventorySelectedItems.size > 1 ? "s" : ""} selected`;
+    `Bulk Override — ${inventoryCheckedItems.size} product${inventoryCheckedItems.size > 1 ? "s" : ""} selected`;
 
   // Reset all apply checkboxes and fields
   modal.querySelectorAll(".bulk-apply-toggle input[type='checkbox']").forEach((cb) => {
@@ -1861,7 +1894,7 @@ function toggleBulkField(checkbox, fieldId) {
 }
 
 async function applyBulkOverride() {
-  const upcs = Array.from(inventorySelectedItems.keys());
+  const upcs = Array.from(inventoryCheckedItems.keys());
   const fields = {};
 
   const modal = document.getElementById("bulk-override-modal");
@@ -1926,7 +1959,7 @@ async function applyBulkOverride() {
 }
 
 async function bulkClearOverrides() {
-  const upcs = Array.from(inventorySelectedItems.keys());
+  const upcs = Array.from(inventoryCheckedItems.keys());
 
   if (!confirm(`Clear ALL overrides for ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`)) return;
 
