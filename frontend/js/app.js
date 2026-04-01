@@ -2188,7 +2188,7 @@ function renderTrackingTable(products) {
       const effectiveQty = product.effective_qty || qtyOnHand;
       const unitQty2 = product.UnitQty2 || 1;
       const upc = product.ProductUPC || "";
-      const unitCost = product.UnitCost || 0;
+      const unitCost = parseFloat(product.UnitCost) || 0;
       const totalCost = effectiveQty * unitCost;
 
       // Build effective qty tooltip
