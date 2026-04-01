@@ -896,7 +896,7 @@ td.on-hand-qty {
 }
 #tracking-table th:nth-child(10),
 #tracking-table td:nth-child(10) {
-  width: 139px;
+  width: 124px;
   text-overflow: clip;
   overflow: visible;
 }
@@ -906,7 +906,7 @@ td.on-hand-qty {
 }
 #tracking-table th:nth-child(12),
 #tracking-table td:nth-child(12) {
-  width: 115px;
+  width: 130px;
 }
 
 /* Right-align numeric columns in tracking table */
