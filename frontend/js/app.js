@@ -2134,9 +2134,26 @@ let trackingAllProducts = [];
 
 async function loadTracking(page = 1, search = "") {
   const tbody = document.getElementById("tracking-tbody");
+  const tfoot = document.getElementById("tracking-tfoot");
+
+  // Show empty state when no search term
+  if (!search) {
+    tbody.innerHTML =
+      '<tr><td colspan="12" class="loading">Enter a search term to load products</td></tr>';
+    tfoot.innerHTML = "";
+    trackingCurrentPage = 1;
+    trackingTotalPages = 1;
+    trackingTotalProducts = 0;
+    trackingCurrentSearch = "";
+    trackingAllProducts = [];
+    updateTrackingPagination();
+    trackingLoaded = true;
+    return;
+  }
+
   tbody.innerHTML =
     '<tr><td colspan="12" class="loading">Loading products...</td></tr>';
-  document.getElementById("tracking-tfoot").innerHTML = "";
+  tfoot.innerHTML = "";
 
   trackingCurrentPage = page;
   trackingCurrentSearch = search;
@@ -2302,23 +2319,36 @@ function applyTrackingHistoryToRow(upc) {
 }
 
 async function loadTrackingHistory(products) {
-  const upcs = products.map((p) => p.ProductUPC).filter(Boolean);
-  if (upcs.length === 0) return;
+  const allUpcs = products.map((p) => p.ProductUPC).filter(Boolean);
+  if (allUpcs.length === 0) return;
+
+  // Filter out already-cached UPCs and apply cached ones immediately
+  const uncachedUpcs = [];
+  for (const upc of allUpcs) {
+    if (trackingHistoryCache[upc]) {
+      applyTrackingHistoryToRow(upc);
+    } else {
+      uncachedUpcs.push(upc);
+    }
+  }
+  if (uncachedUpcs.length === 0) return;
 
   const months = trackingMonths.map((m) => ({ from: m.from, to: m.to }));
-  const concurrency = 10;
-  let index = 0;
+  const chunkSize = 5;
+  const chunks = [];
+  for (let i = 0; i < uncachedUpcs.length; i += chunkSize) {
+    chunks.push(uncachedUpcs.slice(i, i + chunkSize));
+  }
+
+  const concurrency = 3;
+  let chunkIndex = 0;
 
   async function next() {
-    while (index < upcs.length) {
-      const upc = upcs[index++];
-      if (trackingHistoryCache[upc]) {
-        applyTrackingHistoryToRow(upc);
-        continue;
-      }
+    while (chunkIndex < chunks.length) {
+      const chunk = chunks[chunkIndex++];
       try {
         const result = await api.post("/tracker/history", {
-          upcs: [upc],
+          upcs: chunk,
           months,
         });
         if (!result.success) throw new Error(result.error);
@@ -2329,16 +2359,20 @@ async function loadTrackingHistory(products) {
             trackingHistoryCache[returnedUpc][mi] = vals;
           }
         }
-        applyTrackingHistoryToRow(upc);
+        for (const upc of chunk) {
+          applyTrackingHistoryToRow(upc);
+        }
       } catch (error) {
-        console.error(`Error loading tracking history for ${upc}:`, error);
-        applyTrackingHistoryToRow(upc);
+        console.error("Error loading tracking history chunk:", error);
+        for (const upc of chunk) {
+          applyTrackingHistoryToRow(upc);
+        }
       }
     }
   }
 
   const workers = Array.from(
-    { length: Math.min(concurrency, upcs.length) },
+    { length: Math.min(concurrency, chunks.length) },
     () => next(),
   );
   await Promise.all(workers);
