@@ -2259,12 +2259,14 @@ function renderTrackingTable(products) {
 function renderTrackingTotals(totalEffectiveQty, totalCost) {
   const tfoot = document.getElementById("tracking-tfoot");
   const emptyCols = '<td></td>'.repeat(7);
+  const qty = parseInt(totalEffectiveQty) || 0;
+  const cost = parseFloat(totalCost) || 0;
   tfoot.innerHTML = `
     <tr>
       <td colspan="2"><strong>TOTALS</strong></td>
       ${emptyCols}
-      <td class="on-hand-qty"><strong>${(totalEffectiveQty || 0).toLocaleString()}</strong></td>
-      <td colspan="2" class="tracking-total-cost" style="text-align: right;"><strong>$${(totalCost || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+      <td class="on-hand-qty"><strong>${qty.toLocaleString("en-US")}</strong></td>
+      <td colspan="2" class="tracking-total-cost" style="text-align: right;"><strong>$${cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
     </tr>
   `;
 }
