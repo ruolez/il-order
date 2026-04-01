@@ -896,13 +896,13 @@ td.on-hand-qty {
 }
 #tracking-table th:nth-child(10),
 #tracking-table td:nth-child(10) {
-  width: 159px;
+  width: 139px;
   text-overflow: clip;
   overflow: visible;
 }
 #tracking-table th:nth-child(11),
 #tracking-table td:nth-child(11) {
-  width: 65px;
+  width: 85px;
 }
 #tracking-table th:nth-child(12),
 #tracking-table td:nth-child(12) {
