@@ -2249,7 +2249,7 @@ function renderTrackingTable(products) {
                 }).join("")}
                 <td class="on-hand-qty">${qtyDisplayHtml}</td>
                 <td class="tracking-cost">$${unitCost.toFixed(2)}</td>
-                <td class="tracking-total-cost">$${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="tracking-total-cost">$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
         `;
     })
@@ -2264,7 +2264,7 @@ function renderTrackingTotals(totalEffectiveQty, totalCost) {
       <td colspan="2"><strong>TOTALS</strong></td>
       ${emptyCols}
       <td class="on-hand-qty"><strong>${(totalEffectiveQty || 0).toLocaleString()}</strong></td>
-      <td colspan="2" class="tracking-total-cost" style="text-align: right;"><strong>$${(totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+      <td colspan="2" class="tracking-total-cost" style="text-align: right;"><strong>$${(totalCost || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
     </tr>
   `;
 }
