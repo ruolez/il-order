@@ -2296,8 +2296,9 @@ function loadTrackingNextPage() {
 // ============== Tracking History ==============
 
 function applyTrackingHistoryToRow(upc) {
+  const escapedUpc = CSS.escape(upc);
   document
-    .querySelectorAll(`#tracking-table td.tracking-history-cell[data-upc="${upc}"]`)
+    .querySelectorAll(`#tracking-table td.tracking-history-cell[data-upc="${escapedUpc}"]`)
     .forEach((cell) => {
       const mi = cell.dataset.month;
       const vals =
