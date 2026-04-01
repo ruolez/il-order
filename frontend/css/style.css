@@ -902,11 +902,11 @@ td.on-hand-qty {
 }
 #tracking-table th:nth-child(11),
 #tracking-table td:nth-child(11) {
-  width: 80px;
+  width: 65px;
 }
 #tracking-table th:nth-child(12),
 #tracking-table td:nth-child(12) {
-  width: 100px;
+  width: 115px;
 }
 
 /* Right-align numeric columns in tracking table */
