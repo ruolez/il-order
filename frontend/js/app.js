@@ -2264,8 +2264,7 @@ function renderTrackingTotals(totalEffectiveQty, totalCost) {
       <td colspan="2"><strong>TOTALS</strong></td>
       ${emptyCols}
       <td class="on-hand-qty"><strong>${(totalEffectiveQty || 0).toLocaleString()}</strong></td>
-      <td></td>
-      <td class="tracking-total-cost"><strong>$${(totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+      <td colspan="2" class="tracking-total-cost" style="text-align: right;"><strong>$${(totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
     </tr>
   `;
 }
