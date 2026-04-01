@@ -2322,60 +2322,33 @@ async function loadTrackingHistory(products) {
   const allUpcs = products.map((p) => p.ProductUPC).filter(Boolean);
   if (allUpcs.length === 0) return;
 
-  // Filter out already-cached UPCs and apply cached ones immediately
-  const uncachedUpcs = [];
+  const months = trackingMonths.map((m) => ({ from: m.from, to: m.to }));
+
+  // Process one product at a time, sequentially
   for (const upc of allUpcs) {
     if (trackingHistoryCache[upc]) {
       applyTrackingHistoryToRow(upc);
-    } else {
-      uncachedUpcs.push(upc);
+      continue;
     }
-  }
-  if (uncachedUpcs.length === 0) return;
+    try {
+      const result = await api.post("/tracker/history", {
+        upcs: [upc],
+        months,
+      });
+      if (!result.success) throw new Error(result.error);
 
-  const months = trackingMonths.map((m) => ({ from: m.from, to: m.to }));
-  const chunkSize = 5;
-  const chunks = [];
-  for (let i = 0; i < uncachedUpcs.length; i += chunkSize) {
-    chunks.push(uncachedUpcs.slice(i, i + chunkSize));
-  }
-
-  const concurrency = 3;
-  let chunkIndex = 0;
-
-  async function next() {
-    while (chunkIndex < chunks.length) {
-      const chunk = chunks[chunkIndex++];
-      try {
-        const result = await api.post("/tracker/history", {
-          upcs: chunk,
-          months,
-        });
-        if (!result.success) throw new Error(result.error);
-
-        for (const [returnedUpc, monthData] of Object.entries(result.data)) {
-          trackingHistoryCache[returnedUpc] = {};
-          for (const [mi, vals] of Object.entries(monthData)) {
-            trackingHistoryCache[returnedUpc][mi] = vals;
-          }
-        }
-        for (const upc of chunk) {
-          applyTrackingHistoryToRow(upc);
-        }
-      } catch (error) {
-        console.error("Error loading tracking history chunk:", error);
-        for (const upc of chunk) {
-          applyTrackingHistoryToRow(upc);
+      for (const [returnedUpc, monthData] of Object.entries(result.data)) {
+        trackingHistoryCache[returnedUpc] = {};
+        for (const [mi, vals] of Object.entries(monthData)) {
+          trackingHistoryCache[returnedUpc][mi] = vals;
         }
       }
+      applyTrackingHistoryToRow(upc);
+    } catch (error) {
+      console.error(`Error loading tracking history for ${upc}:`, error);
+      applyTrackingHistoryToRow(upc);
     }
   }
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, chunks.length) },
-    () => next(),
-  );
-  await Promise.all(workers);
 }
 
 // ============== Tracking Sort / Search / Refresh ==============
