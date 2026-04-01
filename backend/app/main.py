@@ -188,8 +188,9 @@ def get_products():
         # Handle limit=0 as "no limit" for grouped view
         no_pagination = (limit == 0)
         show_excluded = request.args.get('show_excluded', 'false').lower() == 'true'
-        sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status
+        sort_by = request.args.get('sort_by', 'description')  # upc, description, on_hand, threshold, monthly_avg, status, total_cost
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
+        include_totals = request.args.get('include_totals', 'false').lower() == 'true'
 
         # Get settings for threshold and order calculation
         settings = pg.get_settings()
@@ -316,6 +317,9 @@ def get_products():
                 # Sort by the calculated threshold value (not SQL ReorderLevel)
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: x.get('threshold', 0), reverse=reverse_sort)
+            elif sort_by == 'total_cost':
+                reverse_sort = sort_order == 'desc'
+                filtered.sort(key=lambda x: (x.get('effective_qty') or 0) * (x.get('UnitCost') or 0), reverse=reverse_sort)
 
             # Apply pagination to filtered results (unless no_pagination)
             total_count = len(filtered)
@@ -327,7 +331,7 @@ def get_products():
             # "all" filter - use SQL-level pagination for maximum speed
             # Exception: when sorting by last_supplier, status, threshold, or no_pagination, we need to fetch all and sort in Python
             # (threshold requires Python sorting because actual threshold is calculated from overrides + dynamic values)
-            use_python_pagination = sort_by in ('last_supplier', 'status', 'threshold') or no_pagination
+            use_python_pagination = sort_by in ('last_supplier', 'status', 'threshold', 'total_cost') or no_pagination or include_totals
 
             result = mssql.get_products_with_sales(
                 days=sales_period,
@@ -431,6 +435,8 @@ def get_products():
                 elif sort_by == 'threshold':
                     # Sort by the calculated threshold value (not SQL ReorderLevel)
                     all_enriched.sort(key=lambda x: x.get('threshold', 0), reverse=reverse_sort)
+                elif sort_by == 'total_cost':
+                    all_enriched.sort(key=lambda x: (x.get('effective_qty') or 0) * (x.get('UnitCost') or 0), reverse=reverse_sort)
                 total_count = len(all_enriched)
                 if no_pagination:
                     enriched = all_enriched
@@ -439,7 +445,7 @@ def get_products():
             else:
                 enriched = all_enriched
 
-        return jsonify({
+        response_data = {
             'success': True,
             'products': enriched,
             'count': len(enriched),
@@ -447,7 +453,26 @@ def get_products():
             'limit': limit,
             'offset': offset,
             'filter': status_filter
-        })
+        }
+
+        if include_totals:
+            # Compute totals across ALL matching products (before pagination)
+            if status_filter != 'all':
+                all_for_totals = filtered
+            elif use_python_pagination:
+                all_for_totals = all_enriched
+            else:
+                all_for_totals = enriched  # fallback: only page data when SQL paginated
+
+            response_data['total_effective_qty'] = sum(
+                p.get('effective_qty') or 0 for p in all_for_totals
+            )
+            response_data['total_cost'] = round(sum(
+                (p.get('effective_qty') or 0) * (p.get('UnitCost') or 0)
+                for p in all_for_totals
+            ), 2)
+
+        return jsonify(response_data)
     except DBTimeoutError as e:
         return jsonify({'success': False, 'error': f'Database timeout: {e}'}), 504
     except DBConnectionError as e:
@@ -1737,6 +1762,392 @@ def export_inventory_pdf():
         )
     except ImportError:
         return jsonify({'success': False, 'error': 'reportlab not installed'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============== Tracking Export Endpoints ==============
+
+def _get_tracking_products(data):
+    """Shared helper to fetch all products for tracking exports."""
+    mssql = get_mssql_manager()
+    if not mssql:
+        return None, 'SQL Server not configured'
+
+    status_filter = data.get('filter', 'all')
+    search = data.get('search', '')
+    sort_by = data.get('sort_by', 'description')
+    sort_order = data.get('sort_order', 'asc')
+
+    settings = pg.get_settings()
+    sales_period = int(settings.get('sales_period_days', 60))
+    order_period_days = int(settings.get('order_period_days', 28))
+    overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
+    excluded_upcs = pg.get_excluded_upcs()
+    last_suppliers = mssql.get_last_suppliers_for_products()
+    admin_db_name = get_admin_db_name()
+    qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
+
+    result = mssql.get_products_with_sales(
+        days=sales_period,
+        search=search if search else None,
+        sort_by='description',
+        sort_order='asc'
+    )
+
+    products = []
+    for product in result['products']:
+        upc = product['ProductUPC']
+        is_excluded = upc in excluded_upcs
+        if is_excluded:
+            continue
+
+        override = overrides.get(upc)
+        monthly_avg = float(product.get('monthly_average') or 0)
+        daily_avg = float(product.get('daily_average') or 0)
+        dynamic_threshold = math.ceil(monthly_avg)
+
+        if override and override.get('manual_threshold') is not None:
+            threshold = override['manual_threshold']
+        elif override and override.get('exclude_from_dynamic'):
+            threshold = product.get('ReorderLevel') or 0
+        else:
+            threshold = dynamic_threshold
+
+        qty_on_hand = product.get('QuantOnHand') or 0
+        pending_po_qty = product.get('pending_po_qty') or 0
+        qip_qty = qip_data.get(upc, 0)
+        effective_qty = qty_on_hand + pending_po_qty - qip_qty
+        needs_reorder = effective_qty < threshold
+
+        if status_filter == 'reorder' and not needs_reorder:
+            continue
+        elif status_filter in ('stocked', 'healthy') and needs_reorder:
+            continue
+
+        unit_cost = product.get('UnitCost') or 0
+
+        products.append({
+            'upc': upc,
+            'description': product.get('ProductDescription') or '',
+            'effective_qty': int(effective_qty),
+            'unit_cost': float(unit_cost),
+            'total_cost': round(effective_qty * unit_cost, 2),
+            'UnitQty2': product.get('UnitQty2') or 1,
+        })
+
+    # Sort
+    reverse_sort = sort_order == 'desc'
+    if sort_by == 'upc':
+        products.sort(key=lambda x: x['upc'], reverse=reverse_sort)
+    elif sort_by == 'on_hand':
+        products.sort(key=lambda x: x['effective_qty'], reverse=reverse_sort)
+    elif sort_by == 'unit_cost':
+        products.sort(key=lambda x: x['unit_cost'], reverse=reverse_sort)
+    elif sort_by == 'total_cost':
+        products.sort(key=lambda x: x['total_cost'], reverse=reverse_sort)
+    else:
+        products.sort(key=lambda x: x['description'].lower(), reverse=reverse_sort)
+
+    return products, None
+
+
+def _fetch_tracking_history(products):
+    """Fetch 7 months of tracker history for all products."""
+    from datetime import date
+    tracker_url = pg.get_setting('tracker_url')
+    if not tracker_url:
+        return {}
+
+    tracker_url = tracker_url.rstrip('/')
+
+    # Build 7 month ranges (6 past + current)
+    today = date.today()
+    months = []
+    for i in range(6, 0, -1):
+        y = today.year
+        m = today.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        first = date(y, m, 1)
+        # Last day of month
+        nm = m + 1
+        ny = y
+        if nm > 12:
+            nm = 1
+            ny += 1
+        last = date(ny, nm, 1).replace(day=1)
+        from datetime import timedelta
+        last = last - timedelta(days=1)
+        months.append({'from': first.isoformat(), 'to': last.isoformat()})
+
+    # Current month
+    first_current = date(today.year, today.month, 1)
+    months.append({'from': first_current.isoformat(), 'to': today.isoformat()})
+
+    history = {}
+
+    def fetch_one(upc, month_index, month):
+        try:
+            url = f"{tracker_url}/api/item-tracker/summary"
+            resp = requests.get(url, params={
+                'upc': upc,
+                'from': month['from'],
+                'to': month['to']
+            }, timeout=5)
+            if resp.status_code == 200:
+                body = resp.json()
+                qty = body.get('quantity_totals', {})
+                return (upc, month_index, {
+                    'sale': qty.get('sale', 0) or 0,
+                    'purchase': qty.get('purchase', 0) or 0,
+                    'beginning_inventory': body.get('beginning_inventory', 0) or 0
+                })
+        except Exception:
+            pass
+        return None
+
+    tasks = []
+    for product in products:
+        upc = product['upc']
+        for i, month in enumerate(months):
+            tasks.append((upc, i, month))
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = [executor.submit(fetch_one, upc, i, m) for upc, i, m in tasks]
+        for future in futures:
+            res = future.result()
+            if res:
+                upc, month_index, values = res
+                if upc not in history:
+                    history[upc] = {}
+                history[upc][month_index] = values
+
+    return history, months
+
+
+@app.route('/api/tracking/export/excel', methods=['POST'])
+def export_tracking_excel():
+    """Export tracking data to Excel with 7-month history."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        data = request.get_json() or {}
+        products, error = _get_tracking_products(data)
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+
+        if not products:
+            return jsonify({'success': False, 'error': 'No products found'}), 400
+
+        # Fetch tracker history
+        history, months = _fetch_tracking_history(products)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Tracking Export"
+
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1a73e8", end_color="1a73e8", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Month labels
+        from datetime import date
+        today = date.today()
+        month_labels = []
+        for i in range(6, 0, -1):
+            y = today.year
+            m = today.month - i
+            while m <= 0:
+                m += 12
+                y -= 1
+            d = date(y, m, 1)
+            month_labels.append(d.strftime('%b %Y'))
+        month_labels.append('Current')
+
+        # Headers
+        headers = ['UPC', 'Description'] + month_labels + ['Available Qty', 'Cost', 'Total Cost']
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+            cell.border = thin_border
+
+        # Data rows
+        for row_idx, product in enumerate(products, 2):
+            upc = product['upc']
+            ws.cell(row=row_idx, column=1, value=upc).border = thin_border
+            ws.cell(row=row_idx, column=2, value=product['description']).border = thin_border
+
+            # Month columns (3-9)
+            for mi in range(7):
+                h = history.get(upc, {}).get(mi)
+                if h:
+                    cell_text = f"S:{int(h['sale'])}  P:{int(h['purchase'])}  I:{int(h['beginning_inventory'])}"
+                else:
+                    cell_text = ""
+                cell = ws.cell(row=row_idx, column=3 + mi, value=cell_text)
+                cell.border = thin_border
+                cell.alignment = Alignment(horizontal='center')
+                cell.font = Font(size=9)
+
+            # Available Qty (col 10)
+            ws.cell(row=row_idx, column=10, value=product['effective_qty']).border = thin_border
+            # Cost (col 11)
+            cost_cell = ws.cell(row=row_idx, column=11, value=product['unit_cost'])
+            cost_cell.border = thin_border
+            cost_cell.number_format = '$#,##0.00'
+            # Total Cost (col 12)
+            total_cell = ws.cell(row=row_idx, column=12, value=product['total_cost'])
+            total_cell.border = thin_border
+            total_cell.number_format = '$#,##0.00'
+
+        # Totals row
+        totals_row = len(products) + 2
+        ws.cell(row=totals_row, column=1, value="TOTALS").font = Font(bold=True)
+        total_qty = sum(p['effective_qty'] for p in products)
+        total_cost = sum(p['total_cost'] for p in products)
+        qty_cell = ws.cell(row=totals_row, column=10, value=total_qty)
+        qty_cell.font = Font(bold=True)
+        qty_cell.border = thin_border
+        cost_total_cell = ws.cell(row=totals_row, column=12, value=round(total_cost, 2))
+        cost_total_cell.font = Font(bold=True)
+        cost_total_cell.number_format = '$#,##0.00'
+        cost_total_cell.border = thin_border
+
+        # Column widths
+        widths = [15, 40, 22, 22, 22, 22, 22, 22, 22, 14, 12, 14]
+        col_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for i, w in enumerate(widths):
+            ws.column_dimensions[col_letters[i]].width = w
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"tracking-export-{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/tracking/export/pdf', methods=['POST'])
+def export_tracking_pdf():
+    """Export tracking data to PDF with 7-month history."""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+
+        data = request.get_json() or {}
+        products, error = _get_tracking_products(data)
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+
+        if not products:
+            return jsonify({'success': False, 'error': 'No products found'}), 400
+
+        # Fetch tracker history
+        history, months = _fetch_tracking_history(products)
+
+        # Month labels
+        from datetime import date
+        today = date.today()
+        month_labels = []
+        for i in range(6, 0, -1):
+            y = today.year
+            m = today.month - i
+            while m <= 0:
+                m += 12
+                y -= 1
+            d = date(y, m, 1)
+            month_labels.append(d.strftime('%b %Y'))
+        month_labels.append('Current')
+
+        output = BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=landscape(letter), topMargin=0.3*inch, bottomMargin=0.3*inch,
+                                leftMargin=0.3*inch, rightMargin=0.3*inch)
+        elements = []
+
+        styles = getSampleStyleSheet()
+        title = Paragraph("Tracking Report", styles['Title'])
+        elements.append(title)
+        elements.append(Spacer(1, 12))
+
+        headers = ['UPC', 'Description'] + month_labels + ['Avail Qty', 'Cost', 'Total Cost']
+        table_data = [headers]
+
+        for product in products:
+            upc = product['upc']
+            row = [
+                upc,
+                (product['description'] or '')[:30],
+            ]
+            for mi in range(7):
+                h = history.get(upc, {}).get(mi)
+                if h:
+                    row.append(f"S:{int(h['sale'])}\nP:{int(h['purchase'])}\nI:{int(h['beginning_inventory'])}")
+                else:
+                    row.append("")
+            row.append(str(int(product['effective_qty'])))
+            row.append(f"${product['unit_cost']:.2f}")
+            row.append(f"${product['total_cost']:.2f}")
+            table_data.append(row)
+
+        # Totals row
+        total_qty = sum(p['effective_qty'] for p in products)
+        total_cost = sum(p['total_cost'] for p in products)
+        totals_row = ['TOTALS', ''] + [''] * 7 + [str(int(total_qty)), '', f"${total_cost:.2f}"]
+        table_data.append(totals_row)
+
+        col_widths = [0.9*inch, 1.6*inch] + [0.85*inch]*7 + [0.7*inch, 0.65*inch, 0.8*inch]
+
+        table = Table(table_data, colWidths=col_widths)
+
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('FONTSIZE', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0f0f0')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+        ]
+
+        table.setStyle(TableStyle(table_style))
+        elements.append(table)
+        doc.build(elements)
+        output.seek(0)
+
+        filename = f"tracking-export-{datetime.now().strftime('%Y%m%d')}.pdf"
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

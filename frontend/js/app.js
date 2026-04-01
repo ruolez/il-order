@@ -79,6 +79,16 @@ let excludedSuppliers = new Set();
 // Section load state (skip re-fetch when navigating back)
 let inventoryLoaded = false;
 let ordersLoaded = false;
+let trackingLoaded = false;
+
+// Tracking page state
+let trackingCurrentPage = 1;
+let trackingTotalPages = 1;
+let trackingTotalProducts = 0;
+let trackingCurrentSearch = "";
+let trackingSortBy = "description";
+let trackingSortOrder = "asc";
+let trackingHistoryCache = {};
 
 // Inventory selection state (for export from inventory)
 let inventorySelectedItems = new Map(); // UPC -> product data (cart, persisted in sessionStorage)
@@ -251,6 +261,11 @@ function navigateTo(pageName) {
     case "history":
       loadOrderHistory();
       break;
+    case "tracking":
+      if (!trackingLoaded) {
+        loadAppSettings().then(() => loadTracking());
+      }
+      break;
     case "settings":
       loadSettings();
       break;
@@ -283,6 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize history month column headers
   initHistoryMonthHeaders();
+  initTrackingMonthHeaders();
 
   // Load cart from localStorage
   loadCartFromStorage();
@@ -444,6 +460,40 @@ function initHistoryMonthHeaders() {
   for (let i = 0; i < 4; i++) {
     const el = document.getElementById(`history-month-${i + 1}`);
     if (el) el.textContent = historyMonths[i].label;
+  }
+}
+
+// Tracking page: 6 past months + current
+function getTrackingHistoryMonths() {
+  const months = [];
+  const now = new Date();
+  for (let i = 6; i >= 1; i--) {
+    const first = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const last = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    months.push({
+      label: first.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+      from: first.toISOString().slice(0, 10),
+      to: last.toISOString().slice(0, 10),
+    });
+  }
+  const currentFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+  months.push({
+    label: "Current",
+    from: currentFirst.toISOString().slice(0, 10),
+    to: now.toISOString().slice(0, 10),
+  });
+  return months;
+}
+
+const trackingMonths = getTrackingHistoryMonths();
+
+function initTrackingMonthHeaders() {
+  for (let i = 0; i < 7; i++) {
+    const el = document.getElementById(`tracking-month-${i + 1}`);
+    if (el) el.textContent = trackingMonths[i].label;
   }
 }
 
@@ -1619,10 +1669,24 @@ function sortOrders(column) {
 
 // Update sort indicators on table headers
 function updateSortIndicators(table) {
-  const tableId = table === "inventory" ? "inventory-table" : "order-table";
-  const sortBy = table === "inventory" ? inventorySortBy : ordersSortBy;
+  const tableId =
+    table === "inventory"
+      ? "inventory-table"
+      : table === "tracking"
+        ? "tracking-table"
+        : "order-table";
+  const sortBy =
+    table === "inventory"
+      ? inventorySortBy
+      : table === "tracking"
+        ? trackingSortBy
+        : ordersSortBy;
   const sortOrder =
-    table === "inventory" ? inventorySortOrder : ordersSortOrder;
+    table === "inventory"
+      ? inventorySortOrder
+      : table === "tracking"
+        ? trackingSortOrder
+        : ordersSortOrder;
 
   // Remove all indicators
   document.querySelectorAll(`#${tableId} th .sort-indicator`).forEach((el) => {
@@ -2059,6 +2123,346 @@ document.addEventListener("DOMContentLoaded", () => {
     searchInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") {
         searchProducts();
+      }
+    });
+  }
+});
+
+// ============== Tracking Page ==============
+
+let trackingAllProducts = [];
+
+async function loadTracking(page = 1, search = "") {
+  const tbody = document.getElementById("tracking-tbody");
+  tbody.innerHTML =
+    '<tr><td colspan="12" class="loading">Loading products...</td></tr>';
+  document.getElementById("tracking-tfoot").innerHTML = "";
+
+  trackingCurrentPage = page;
+  trackingCurrentSearch = search;
+  const currentFilter = document.getElementById("tracking-filter").value;
+
+  try {
+    const offset = (page - 1) * itemsPerPage;
+    let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}&include_totals=true`;
+    if (search) {
+      endpoint += `&search=${encodeURIComponent(search)}`;
+    }
+    endpoint += `&sort_by=${trackingSortBy}&sort_order=${trackingSortOrder}`;
+
+    const result = await api.get(endpoint);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    trackingAllProducts = result.products;
+    trackingTotalProducts = result.total_count;
+    trackingTotalPages = Math.ceil(trackingTotalProducts / itemsPerPage);
+
+    renderTrackingTable(trackingAllProducts);
+    updateTrackingPagination();
+    renderTrackingTotals(result.total_effective_qty, result.total_cost);
+    loadTrackingHistory(trackingAllProducts);
+    updateSortIndicators("tracking");
+    trackingLoaded = true;
+  } catch (error) {
+    console.error("Error loading tracking:", error);
+    tbody.innerHTML = `<tr><td colspan="12" class="loading">Error: ${error.message}</td></tr>`;
+  }
+}
+
+function renderTrackingTable(products) {
+  const tbody = document.getElementById("tracking-tbody");
+
+  if (products.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="12" class="loading">No products found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = products
+    .map((product) => {
+      const qtyOnHand = product.QuantOnHand || 0;
+      const pendingPoQty = product.pending_po_qty || 0;
+      const effectiveQty = product.effective_qty || qtyOnHand;
+      const unitQty2 = product.UnitQty2 || 1;
+      const upc = product.ProductUPC || "";
+      const unitCost = product.UnitCost || 0;
+      const totalCost = effectiveQty * unitCost;
+
+      // Build effective qty tooltip
+      const qipQty = product.qip_qty || 0;
+      const tooltipParts = [`On Hand: ${qtyOnHand.toLocaleString()}`];
+      if (pendingPoQty > 0)
+        tooltipParts.push(`On Order: +${pendingPoQty.toLocaleString()}`);
+      if (qipQty > 0)
+        tooltipParts.push(`In Progress: -${qipQty.toLocaleString()}`);
+      const qtyTooltip = tooltipParts.join(", ");
+
+      let superscripts = "";
+      if (pendingPoQty > 0)
+        superscripts += `<sup style="color: var(--color-success-fg); font-size: 10px;">+${pendingPoQty}</sup>`;
+      if (qipQty > 0)
+        superscripts += `<sup style="color: var(--color-danger-fg); font-size: 10px;">-${qipQty}</sup>`;
+
+      const needsTooltip = pendingPoQty > 0 || qipQty > 0;
+      const onHandCases = Math.floor(effectiveQty / unitQty2);
+      const qtyDisplayHtml = needsTooltip
+        ? `<span title="${qtyTooltip}" style="cursor: help;">${effectiveQty.toLocaleString()} <span class="case-count">(${onHandCases.toLocaleString()})</span>${superscripts}</span>`
+        : `${effectiveQty.toLocaleString()} <span class="case-count">(${onHandCases.toLocaleString()})</span>`;
+
+      return `
+            <tr data-upc="${upc}">
+                <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
+                <td>${product.ProductDescription || "-"}</td>
+                ${trackingMonths.map((m, mi) => {
+                  const cached = trackingHistoryCache[upc] && trackingHistoryCache[upc][mi];
+                  const cq = unitQty2 || 1;
+                  if (cached) {
+                    const sv = Math.round(cached.sale).toLocaleString();
+                    const sc = Math.round(Math.round(cached.sale) / cq).toLocaleString();
+                    const pv = Math.round(cached.purchase).toLocaleString();
+                    const pc = Math.round(Math.round(cached.purchase) / cq).toLocaleString();
+                    const iv = Math.round(cached.beginning_inventory).toLocaleString();
+                    const ic = Math.round(Math.round(cached.beginning_inventory) / cq).toLocaleString();
+                    return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
+                  }
+                  return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
+                }).join("")}
+                <td class="on-hand-qty">${qtyDisplayHtml}</td>
+                <td class="tracking-cost">$${unitCost.toFixed(2)}</td>
+                <td class="tracking-total-cost">$${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    })
+    .join("");
+}
+
+function renderTrackingTotals(totalEffectiveQty, totalCost) {
+  const tfoot = document.getElementById("tracking-tfoot");
+  const emptyCols = '<td></td>'.repeat(7);
+  tfoot.innerHTML = `
+    <tr>
+      <td colspan="2"><strong>TOTALS</strong></td>
+      ${emptyCols}
+      <td class="on-hand-qty"><strong>${(totalEffectiveQty || 0).toLocaleString()}</strong></td>
+      <td></td>
+      <td class="tracking-total-cost"><strong>$${(totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+    </tr>
+  `;
+}
+
+function updateTrackingPagination() {
+  const prevBtn = document.getElementById("tracking-prev-page");
+  const nextBtn = document.getElementById("tracking-next-page");
+  const pageInfo = document.getElementById("tracking-pagination-info");
+
+  prevBtn.disabled = trackingCurrentPage <= 1;
+  nextBtn.disabled = trackingCurrentPage >= trackingTotalPages;
+
+  pageInfo.textContent = `Page ${trackingCurrentPage} of ${trackingTotalPages} (${trackingTotalProducts.toLocaleString()} products)`;
+}
+
+function loadTrackingPrevPage() {
+  if (trackingCurrentPage > 1) {
+    loadTracking(trackingCurrentPage - 1, trackingCurrentSearch);
+  }
+}
+
+function loadTrackingNextPage() {
+  if (trackingCurrentPage < trackingTotalPages) {
+    loadTracking(trackingCurrentPage + 1, trackingCurrentSearch);
+  }
+}
+
+// ============== Tracking History ==============
+
+function applyTrackingHistoryToRow(upc) {
+  document
+    .querySelectorAll(`#tracking-table td.tracking-history-cell[data-upc="${upc}"]`)
+    .forEach((cell) => {
+      const mi = cell.dataset.month;
+      const vals =
+        trackingHistoryCache[upc] && trackingHistoryCache[upc][mi];
+      if (!vals) {
+        const spinner = cell.querySelector(".history-spinner");
+        if (spinner) spinner.remove();
+        return;
+      }
+      const cq = parseInt(cell.dataset.caseQty) || 1;
+      const saleRounded = Math.round(vals.sale);
+      const purchaseRounded = Math.round(vals.purchase);
+      const invRounded = Math.round(vals.beginning_inventory);
+
+      const m = trackingMonths[mi];
+      const href = `${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}`;
+      cell.innerHTML = `<a href="${href}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span></span></span></a>`;
+    });
+}
+
+async function loadTrackingHistory(products) {
+  const upcs = products.map((p) => p.ProductUPC).filter(Boolean);
+  if (upcs.length === 0) return;
+
+  const months = trackingMonths.map((m) => ({ from: m.from, to: m.to }));
+  const concurrency = 10;
+  let index = 0;
+
+  async function next() {
+    while (index < upcs.length) {
+      const upc = upcs[index++];
+      if (trackingHistoryCache[upc]) {
+        applyTrackingHistoryToRow(upc);
+        continue;
+      }
+      try {
+        const result = await api.post("/tracker/history", {
+          upcs: [upc],
+          months,
+        });
+        if (!result.success) throw new Error(result.error);
+
+        for (const [returnedUpc, monthData] of Object.entries(result.data)) {
+          trackingHistoryCache[returnedUpc] = {};
+          for (const [mi, vals] of Object.entries(monthData)) {
+            trackingHistoryCache[returnedUpc][mi] = vals;
+          }
+        }
+        applyTrackingHistoryToRow(upc);
+      } catch (error) {
+        console.error(`Error loading tracking history for ${upc}:`, error);
+        applyTrackingHistoryToRow(upc);
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, upcs.length) },
+    () => next(),
+  );
+  await Promise.all(workers);
+}
+
+// ============== Tracking Sort / Search / Refresh ==============
+
+function sortTracking(column) {
+  if (trackingSortBy === column) {
+    trackingSortOrder = trackingSortOrder === "asc" ? "desc" : "asc";
+  } else {
+    trackingSortBy = column;
+    trackingSortOrder = "asc";
+  }
+  trackingCurrentPage = 1;
+  loadTracking(1, trackingCurrentSearch);
+  updateSortIndicators("tracking");
+}
+
+function searchTracking() {
+  const searchTerm = document.getElementById("tracking-search").value.trim();
+  loadTracking(1, searchTerm);
+}
+
+function refreshTracking() {
+  trackingLoaded = false;
+  trackingHistoryCache = {};
+  loadTracking(trackingCurrentPage, trackingCurrentSearch);
+}
+
+// ============== Tracking Export ==============
+
+async function exportTrackingExcel() {
+  const currentFilter = document.getElementById("tracking-filter").value;
+  const search = trackingCurrentSearch;
+
+  try {
+    showToast("Generating Excel export...", "info");
+    const response = await fetch("/api/tracking/export/excel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: currentFilter,
+        search: search,
+        sort_by: trackingSortBy,
+        sort_order: trackingSortOrder,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Export failed");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      response.headers
+        .get("Content-Disposition")
+        ?.match(/filename="?(.+?)"?$/)?.[1] || "tracking-export.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Excel export downloaded", "success");
+  } catch (error) {
+    console.error("Error exporting Excel:", error);
+    showToast(`Export error: ${error.message}`, "error");
+  }
+}
+
+async function exportTrackingPDF() {
+  const currentFilter = document.getElementById("tracking-filter").value;
+  const search = trackingCurrentSearch;
+
+  try {
+    showToast("Generating PDF export...", "info");
+    const response = await fetch("/api/tracking/export/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: currentFilter,
+        search: search,
+        sort_by: trackingSortBy,
+        sort_order: trackingSortOrder,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Export failed");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      response.headers
+        .get("Content-Disposition")
+        ?.match(/filename="?(.+?)"?$/)?.[1] || "tracking-export.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("PDF export downloaded", "success");
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    showToast(`Export error: ${error.message}`, "error");
+  }
+}
+
+// Tracking event listeners
+document.addEventListener("DOMContentLoaded", () => {
+  const trackingFilterSelect = document.getElementById("tracking-filter");
+  if (trackingFilterSelect) {
+    trackingFilterSelect.addEventListener("change", () => {
+      loadTracking(1, trackingCurrentSearch);
+    });
+  }
+
+  const trackingSearchInput = document.getElementById("tracking-search");
+  if (trackingSearchInput) {
+    trackingSearchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        searchTracking();
       }
     });
   }

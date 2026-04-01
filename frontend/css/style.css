@@ -855,6 +855,86 @@ td.on-hand-qty {
   font-weight: 600;
 }
 
+/* Tracking table column widths */
+/* Col 1: UPC, Col 2: Description, Col 3-9: Months (7), Col 10: Available Qty, Col 11: Cost, Col 12: Total Cost */
+#tracking-table th:nth-child(1),
+#tracking-table td:nth-child(1) {
+  width: 130px;
+  font-size: 12px;
+}
+#tracking-table td:nth-child(1) a {
+  font-weight: 600;
+  color: #1557b0;
+  text-decoration: none;
+}
+#tracking-table th:nth-child(2),
+#tracking-table td:nth-child(2) {
+  width: auto;
+  white-space: normal;
+  word-wrap: break-word;
+}
+#tracking-table th:nth-child(3),
+#tracking-table td:nth-child(3),
+#tracking-table th:nth-child(4),
+#tracking-table td:nth-child(4),
+#tracking-table th:nth-child(5),
+#tracking-table td:nth-child(5),
+#tracking-table th:nth-child(6),
+#tracking-table td:nth-child(6),
+#tracking-table th:nth-child(7),
+#tracking-table td:nth-child(7),
+#tracking-table th:nth-child(8),
+#tracking-table td:nth-child(8) {
+  width: 100px;
+  border-left: 1px solid var(--color-border-muted);
+}
+#tracking-table th:nth-child(9),
+#tracking-table td:nth-child(9) {
+  width: 100px;
+  border-left: 1px solid var(--color-border-muted);
+  border-right: 1px solid var(--color-border-muted);
+}
+#tracking-table th:nth-child(10),
+#tracking-table td:nth-child(10) {
+  width: 95px;
+  text-overflow: clip;
+  overflow: visible;
+}
+#tracking-table th:nth-child(11),
+#tracking-table td:nth-child(11) {
+  width: 80px;
+}
+#tracking-table th:nth-child(12),
+#tracking-table td:nth-child(12) {
+  width: 100px;
+}
+
+/* Right-align numeric columns in tracking table */
+#tracking-table th:nth-child(n+3),
+#tracking-table td:nth-child(n+3) {
+  text-align: right;
+}
+
+/* Tracking cost columns */
+.tracking-cost {
+  font-variant-numeric: tabular-nums;
+}
+
+.tracking-total-cost {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tracking tfoot totals row */
+#tracking-table tfoot td {
+  font-weight: 600;
+  background: var(--color-canvas-subtle);
+  border-top: 2px solid var(--color-border-default);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
 /* Highlight order qty input when value > 0 */
 td.order-qty-highlight input {
   background-color: rgba(217, 48, 37, 0.08);

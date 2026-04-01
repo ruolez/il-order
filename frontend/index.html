@@ -17,6 +17,7 @@
         <a href="#" class="nav-link" data-page="inventory">Inventory</a>
         <a href="#" class="nav-link" data-page="orders">Orders</a>
         <a href="#" class="nav-link" data-page="history">History</a>
+        <a href="#" class="nav-link" data-page="tracking">Tracking</a>
         <a
           href="#"
           class="nav-link nav-icon"
@@ -654,6 +655,135 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Tracking Page -->
+      <div id="page-tracking" class="page">
+        <div class="page-header">
+          <h1>Tracking</h1>
+          <p class="subtitle">Product tracking and cost analysis</p>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <input
+              type="text"
+              id="tracking-search"
+              placeholder="Search by UPC or description..."
+            />
+            <button class="btn btn-primary" onclick="searchTracking()">
+              Search
+            </button>
+          </div>
+          <div class="filter-options">
+            <select id="tracking-filter">
+              <option value="all">All Products</option>
+              <option value="reorder">Needs Reorder</option>
+              <option value="stocked">Stocked</option>
+            </select>
+            <button
+              class="btn btn-outline"
+              onclick="refreshTracking()"
+              title="Refresh data"
+            >
+              ↻ Refresh
+            </button>
+            <button
+              class="btn btn-outline"
+              onclick="exportTrackingExcel()"
+              title="Export to Excel"
+            >
+              Excel
+            </button>
+            <button
+              class="btn btn-outline"
+              onclick="exportTrackingPDF()"
+              title="Export to PDF"
+            >
+              PDF
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="table-container scrollable-table"
+          id="tracking-table-container"
+        >
+          <table class="data-table" id="tracking-table">
+            <thead>
+              <tr>
+                <th
+                  class="sortable"
+                  data-sort="upc"
+                  onclick="sortTracking('upc')"
+                >
+                  UPC<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="description"
+                  onclick="sortTracking('description')"
+                >
+                  Description<span class="sort-indicator"></span>
+                </th>
+                <th id="tracking-month-1">Month 1</th>
+                <th id="tracking-month-2">Month 2</th>
+                <th id="tracking-month-3">Month 3</th>
+                <th id="tracking-month-4">Month 4</th>
+                <th id="tracking-month-5">Month 5</th>
+                <th id="tracking-month-6">Month 6</th>
+                <th id="tracking-month-7">Current</th>
+                <th
+                  class="sortable"
+                  data-sort="on_hand"
+                  onclick="sortTracking('on_hand')"
+                >
+                  Available Qty<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="unit_cost"
+                  onclick="sortTracking('unit_cost')"
+                >
+                  Cost<span class="sort-indicator"></span>
+                </th>
+                <th
+                  class="sortable"
+                  data-sort="total_cost"
+                  onclick="sortTracking('total_cost')"
+                >
+                  Total Cost<span class="sort-indicator"></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="tracking-tbody">
+              <tr>
+                <td colspan="12" class="loading">Loading products...</td>
+              </tr>
+            </tbody>
+            <tfoot id="tracking-tfoot"></tfoot>
+          </table>
+        </div>
+
+        <div class="pagination" id="tracking-pagination">
+          <button
+            class="pagination-btn"
+            id="tracking-prev-page"
+            onclick="loadTrackingPrevPage()"
+          >
+            ← Previous
+          </button>
+          <span class="pagination-info" id="tracking-pagination-info"
+            >Page 1 of 1</span
+          >
+          <button
+            class="pagination-btn"
+            id="tracking-next-page"
+            onclick="loadTrackingNextPage()"
+          >
+            Next →
+          </button>
         </div>
       </div>
 
