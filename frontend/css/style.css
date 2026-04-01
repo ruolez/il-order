@@ -885,18 +885,18 @@ td.on-hand-qty {
 #tracking-table td:nth-child(7),
 #tracking-table th:nth-child(8),
 #tracking-table td:nth-child(8) {
-  width: 100px;
+  width: 120px;
   border-left: 1px solid var(--color-border-muted);
 }
 #tracking-table th:nth-child(9),
 #tracking-table td:nth-child(9) {
-  width: 100px;
+  width: 120px;
   border-left: 1px solid var(--color-border-muted);
   border-right: 1px solid var(--color-border-muted);
 }
 #tracking-table th:nth-child(10),
 #tracking-table td:nth-child(10) {
-  width: 95px;
+  width: 110px;
   text-overflow: clip;
   overflow: visible;
 }
