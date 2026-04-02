@@ -493,7 +493,11 @@ const trackingMonths = getTrackingHistoryMonths();
 function initTrackingMonthHeaders() {
   for (let i = 0; i < 7; i++) {
     const el = document.getElementById(`tracking-month-${i + 1}`);
-    if (el) el.textContent = trackingMonths[i].label;
+    if (el) {
+      const indicator = el.querySelector('.sort-indicator');
+      el.textContent = trackingMonths[i].label;
+      if (indicator) el.appendChild(indicator);
+    }
   }
 }
 
@@ -2369,9 +2373,23 @@ function sortTracking(column) {
     trackingSortBy = column;
     trackingSortOrder = "asc";
   }
-  trackingCurrentPage = 1;
-  loadTracking(1, trackingCurrentSearch);
-  updateSortIndicators("tracking");
+
+  if (column.startsWith("month_")) {
+    const mi = parseInt(column.split("_")[1]);
+    trackingAllProducts.sort((a, b) => {
+      const aCache = trackingHistoryCache[a.ProductUPC];
+      const bCache = trackingHistoryCache[b.ProductUPC];
+      const aSale = aCache && aCache[mi] ? aCache[mi].sale : 0;
+      const bSale = bCache && bCache[mi] ? bCache[mi].sale : 0;
+      return trackingSortOrder === "asc" ? aSale - bSale : bSale - aSale;
+    });
+    renderTrackingTable(trackingAllProducts);
+    updateSortIndicators("tracking");
+  } else {
+    trackingCurrentPage = 1;
+    loadTracking(1, trackingCurrentSearch);
+    updateSortIndicators("tracking");
+  }
 }
 
 function searchTracking() {
