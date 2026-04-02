@@ -1825,13 +1825,13 @@ def _get_tracking_products(data):
         elif status_filter in ('stocked', 'healthy') and needs_reorder:
             continue
 
-        unit_cost = product.get('UnitCost') or 0
+        unit_cost = float(product.get('UnitCost') or 0)
 
         products.append({
             'upc': upc,
             'description': product.get('ProductDescription') or '',
             'effective_qty': int(effective_qty),
-            'unit_cost': float(unit_cost),
+            'unit_cost': unit_cost,
             'total_cost': round(effective_qty * unit_cost, 2),
             'UnitQty2': product.get('UnitQty2') or 1,
         })
