@@ -299,6 +299,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize history month column headers
   initHistoryMonthHeaders();
   initTrackingMonthHeaders();
+  initTrackingVisibility();
 
   // Load cart from localStorage
   loadCartFromStorage();
@@ -2325,10 +2326,25 @@ function applyTrackingHistoryToRow(upc) {
 }
 
 function toggleTrackingVisibility() {
+  const sales = document.getElementById('tracking-show-sales').checked;
+  const purchases = document.getElementById('tracking-show-purchases').checked;
+  const inventory = document.getElementById('tracking-show-inventory').checked;
   const table = document.getElementById('tracking-table');
-  table.classList.toggle('hide-sales', !document.getElementById('tracking-show-sales').checked);
-  table.classList.toggle('hide-purchases', !document.getElementById('tracking-show-purchases').checked);
-  table.classList.toggle('hide-inventory', !document.getElementById('tracking-show-inventory').checked);
+  table.classList.toggle('hide-sales', !sales);
+  table.classList.toggle('hide-purchases', !purchases);
+  table.classList.toggle('hide-inventory', !inventory);
+  localStorage.setItem('trackingVisibility', JSON.stringify({ sales, purchases, inventory }));
+}
+
+function initTrackingVisibility() {
+  const saved = localStorage.getItem('trackingVisibility');
+  if (saved) {
+    const { sales, purchases, inventory } = JSON.parse(saved);
+    document.getElementById('tracking-show-sales').checked = sales;
+    document.getElementById('tracking-show-purchases').checked = purchases;
+    document.getElementById('tracking-show-inventory').checked = inventory;
+  }
+  toggleTrackingVisibility();
 }
 
 async function loadTrackingHistory(products) {
