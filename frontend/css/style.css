@@ -800,6 +800,11 @@ body {
   font-weight: 600;
 }
 
+/* Tracking visibility toggles */
+#tracking-table.hide-sales .history-sale { display: none; }
+#tracking-table.hide-purchases .history-purchase { display: none; }
+#tracking-table.hide-inventory .history-inv { display: none; }
+
 .history-cell a {
   color: inherit;
   text-decoration: none;

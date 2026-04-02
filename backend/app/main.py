@@ -1991,7 +1991,7 @@ def export_tracking_excel():
             for mi in range(7):
                 h = history.get(upc, {}).get(mi)
                 if h:
-                    cell_text = f"S:{int(h['sale'])}  P:{int(h['purchase'])}  I:{int(h['beginning_inventory'])}"
+                    cell_text = str(int(h['sale']))
                 else:
                     cell_text = ""
                 cell = ws.cell(row=row_idx, column=3 + mi, value=cell_text)
@@ -2024,7 +2024,7 @@ def export_tracking_excel():
         cost_total_cell.border = thin_border
 
         # Column widths
-        widths = [15, 40, 22, 22, 22, 22, 22, 22, 22, 14, 12, 14]
+        widths = [15, 40, 12, 12, 12, 12, 12, 12, 12, 14, 12, 14]
         col_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         for i, w in enumerate(widths):
             ws.column_dimensions[col_letters[i]].width = w
@@ -2101,7 +2101,7 @@ def export_tracking_pdf():
             for mi in range(7):
                 h = history.get(upc, {}).get(mi)
                 if h:
-                    row.append(f"S:{int(h['sale'])}\nP:{int(h['purchase'])}\nI:{int(h['beginning_inventory'])}")
+                    row.append(str(int(h['sale'])))
                 else:
                     row.append("")
             row.append(str(int(product['effective_qty'])))
@@ -2115,7 +2115,7 @@ def export_tracking_pdf():
         totals_row = ['TOTALS', ''] + [''] * 7 + [str(int(total_qty)), '', f"${total_cost:.2f}"]
         table_data.append(totals_row)
 
-        col_widths = [0.9*inch, 1.6*inch] + [0.85*inch]*7 + [0.7*inch, 0.65*inch, 0.8*inch]
+        col_widths = [0.9*inch, 1.6*inch] + [0.6*inch]*7 + [0.7*inch, 0.65*inch, 0.8*inch]
 
         table = Table(table_data, colWidths=col_widths)
 

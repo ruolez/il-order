@@ -706,6 +706,21 @@
           </div>
         </div>
 
+        <div class="tracking-visibility-options" style="display: flex; gap: 4px; margin-bottom: 8px; align-items: center;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="tracking-show-sales" checked onchange="toggleTrackingVisibility()" />
+            Sales
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="tracking-show-purchases" checked onchange="toggleTrackingVisibility()" />
+            Purchases
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="tracking-show-inventory" checked onchange="toggleTrackingVisibility()" />
+            Inventory
+          </label>
+        </div>
+
         <div
           class="table-container scrollable-table"
           id="tracking-table-container"

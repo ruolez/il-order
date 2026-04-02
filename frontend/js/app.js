@@ -2320,6 +2320,13 @@ function applyTrackingHistoryToRow(upc) {
     });
 }
 
+function toggleTrackingVisibility() {
+  const table = document.getElementById('tracking-table');
+  table.classList.toggle('hide-sales', !document.getElementById('tracking-show-sales').checked);
+  table.classList.toggle('hide-purchases', !document.getElementById('tracking-show-purchases').checked);
+  table.classList.toggle('hide-inventory', !document.getElementById('tracking-show-inventory').checked);
+}
+
 async function loadTrackingHistory(products) {
   const allUpcs = products.map((p) => p.ProductUPC).filter(Boolean);
   if (allUpcs.length === 0) return;
