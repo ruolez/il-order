@@ -2570,6 +2570,12 @@ async function loadOrderPage() {
         pendingOrderFilter = null;
       }
 
+      // Restore last ordered filter from localStorage
+      const savedLastOrdered = localStorage.getItem("orderLastOrderedMonths");
+      if (savedLastOrdered) {
+        document.getElementById("last-ordered-filter").value = savedLastOrdered;
+      }
+
       // Auto-load products if requested
       if (pendingOrderAutoLoad) {
         pendingOrderAutoLoad = false;
@@ -2651,6 +2657,9 @@ async function loadNeedsReorder() {
       let endpoint = "/analysis/needs-reorder";
       const params = [];
       if (supplierId) params.push(`supplier_id=${supplierId}`);
+      const lastOrderedMonths = document.getElementById("last-ordered-filter").value;
+      localStorage.setItem("orderLastOrderedMonths", lastOrderedMonths);
+      if (lastOrderedMonths) params.push(`months=${lastOrderedMonths}`);
       params.push(`filter=${filterMode}`);
       if (ordersSortBy) {
         params.push(`sort_by=${ordersSortBy}`);

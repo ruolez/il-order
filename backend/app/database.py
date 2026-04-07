@@ -761,13 +761,20 @@ class MSSQLManager:
             return cursor.fetchall()
 
     @handle_db_errors(max_retries=3, base_delay=1.0)
-    def get_products_by_supplier(self, supplier_id: int) -> List[Dict[str, Any]]:
+    def get_products_by_supplier(self, supplier_id: int, months: int = None) -> List[Dict[str, Any]]:
         """Get products that have been ordered from a specific supplier with pending PO quantities.
 
         Uses optimized UNION query instead of OR JOIN for better index usage.
+        When months is provided (1-6), only includes products ordered within that many months.
         """
+        date_filter = ""
+        date_params = ()
+        if months is not None and 1 <= months <= 6:
+            date_filter = " AND po.PoDate >= DATEADD(MONTH, -%s, GETDATE())"
+            date_params = (months,)
+
         with self.get_cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(f"""
                 WITH PendingPOs AS (
                     SELECT
                         pod.ProductUPC,
@@ -785,7 +792,7 @@ class MSSQLManager:
                         FROM PurchaseOrdersDetails_tbl pod
                         JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
                         WHERE po.SupplierID = %s
-                          AND pod.ProductID IS NOT NULL
+                          AND pod.ProductID IS NOT NULL{date_filter}
                     )
                     AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
 
@@ -798,7 +805,7 @@ class MSSQLManager:
                         FROM PurchaseOrdersDetails_tbl pod
                         JOIN PurchaseOrders_tbl po ON pod.PoID = po.PoID
                         WHERE po.SupplierID = %s
-                          AND pod.ProductUPC IS NOT NULL
+                          AND pod.ProductUPC IS NOT NULL{date_filter}
                     )
                     AND (i.Discontinued = 0 OR i.Discontinued IS NULL)
                 )
@@ -813,7 +820,7 @@ class MSSQLManager:
                 INNER JOIN SupplierProducts sp ON i.ProductID = sp.ProductID
                 LEFT JOIN PendingPOs pp ON i.ProductUPC = pp.ProductUPC
                 ORDER BY i.ProductDescription
-            """, (supplier_id, supplier_id))
+            """, (supplier_id, *date_params, supplier_id, *date_params))
             return cursor.fetchall()
 
     @handle_db_errors(max_retries=3, base_delay=1.0)

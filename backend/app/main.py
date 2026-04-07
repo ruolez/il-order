@@ -932,12 +932,13 @@ def get_needs_reorder():
             return jsonify({'success': False, 'error': 'SQL Server not configured'}), 400
 
         supplier_id = request.args.get('supplier_id', type=int)
+        months = request.args.get('months', type=int)
         filter_mode = request.args.get('filter', 'all')
         sort_by = request.args.get('sort_by')  # None = use default sort; options: status, upc, description, on_hand, threshold, suggested_qty, cases
         sort_order = request.args.get('sort_order', 'asc')  # asc, desc
 
         if supplier_id:
-            products = mssql.get_products_by_supplier(supplier_id)
+            products = mssql.get_products_by_supplier(supplier_id, months=months)
         else:
             products = mssql.get_all_products()
 
