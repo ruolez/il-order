@@ -1282,6 +1282,10 @@ def export_order_excel(order_id):
 
         items = pg.get_order_draft_items(order_id)
 
+        # Fetch fresh product descriptions from MSSQL
+        upcs = [item['product_upc'] for item in items if item.get('product_upc')]
+        fresh_products = mssql.get_products_for_po(upcs) if upcs else {}
+
         # Parse columns parameter
         columns_param = request.args.get('columns', '')
         all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
@@ -1335,9 +1339,13 @@ def export_order_excel(order_id):
             total = (item['final_qty'] or 0) * float(item['unit_cost'] or 0)
 
             # Build row data based on selected columns
+            upc = item['product_upc']
+            fresh = fresh_products.get(upc, {})
+            description = fresh.get('ProductDescription') or item['product_description']
+
             row_data = {
-                'upc': item['product_upc'],
-                'description': item['product_description'],
+                'upc': upc,
+                'description': description,
                 'on_hand': item['current_qty'],
                 'threshold': item['threshold'],
                 'suggested_qty': item['suggested_qty'],
@@ -1408,6 +1416,10 @@ def export_order_pdf(order_id):
 
         items = pg.get_order_draft_items(order_id)
 
+        # Fetch fresh product descriptions from MSSQL
+        upcs = [item['product_upc'] for item in items if item.get('product_upc')]
+        fresh_products = mssql.get_products_for_po(upcs) if upcs else {}
+
         # Parse columns parameter
         columns_param = request.args.get('columns', '')
         all_columns = ['upc', 'description', 'on_hand', 'threshold', 'suggested_qty', 'order_qty', 'cases', 'unit_cost', 'total']
@@ -1448,9 +1460,13 @@ def export_order_pdf(order_id):
             total = (item['final_qty'] or 0) * float(item['unit_cost'] or 0)
 
             # Build row data based on selected columns
+            upc = item['product_upc']
+            fresh = fresh_products.get(upc, {})
+            description = fresh.get('ProductDescription') or item['product_description'] or ''
+
             row_data = {
-                'upc': item['product_upc'] or '',
-                'description': (item['product_description'] or '')[:35],
+                'upc': upc or '',
+                'description': description[:35],
                 'on_hand': str(int(item['current_qty'] or 0)),
                 'threshold': str(int(item['threshold'] or 0)),
                 'suggested_qty': str(int(item['suggested_qty'] or 0)),
