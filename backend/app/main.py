@@ -320,6 +320,9 @@ def get_products():
             elif sort_by == 'total_cost':
                 reverse_sort = sort_order == 'desc'
                 filtered.sort(key=lambda x: (x.get('effective_qty') or 0) * (x.get('UnitCost') or 0), reverse=reverse_sort)
+            elif sort_by == 'on_hand':
+                reverse_sort = sort_order == 'desc'
+                filtered.sort(key=lambda x: x.get('effective_qty', 0), reverse=reverse_sort)
 
             # Apply pagination to filtered results (unless no_pagination)
             total_count = len(filtered)
@@ -331,7 +334,7 @@ def get_products():
             # "all" filter - use SQL-level pagination for maximum speed
             # Exception: when sorting by last_supplier, status, threshold, or no_pagination, we need to fetch all and sort in Python
             # (threshold requires Python sorting because actual threshold is calculated from overrides + dynamic values)
-            use_python_pagination = sort_by in ('last_supplier', 'status', 'threshold', 'total_cost') or no_pagination or include_totals
+            use_python_pagination = sort_by in ('last_supplier', 'status', 'threshold', 'total_cost', 'on_hand') or no_pagination or include_totals
 
             result = mssql.get_products_with_sales(
                 days=sales_period,
@@ -437,6 +440,8 @@ def get_products():
                     all_enriched.sort(key=lambda x: x.get('threshold', 0), reverse=reverse_sort)
                 elif sort_by == 'total_cost':
                     all_enriched.sort(key=lambda x: (x.get('effective_qty') or 0) * (x.get('UnitCost') or 0), reverse=reverse_sort)
+                elif sort_by == 'on_hand':
+                    all_enriched.sort(key=lambda x: x.get('effective_qty', 0), reverse=reverse_sort)
                 total_count = len(all_enriched)
                 if no_pagination:
                     enriched = all_enriched
