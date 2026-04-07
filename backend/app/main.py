@@ -1276,6 +1276,7 @@ def export_order_excel(order_id):
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
+        mssql = get_mssql_manager()
         order = pg.get_order_draft(order_id)
         if not order:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
@@ -1410,6 +1411,7 @@ def export_order_pdf(order_id):
         from reportlab.lib.units import inch
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
+        mssql = get_mssql_manager()
         order = pg.get_order_draft(order_id)
         if not order:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
