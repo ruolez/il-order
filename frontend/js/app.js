@@ -2960,9 +2960,9 @@ function getOrderData() {
 
       items.push({
         upc: upc,
-        description: row.cells[3].textContent,
-        on_hand: parseFloat(row.cells[4].textContent.replace(/,/g, "")) || 0,
-        threshold: parseFloat(row.cells[6].textContent.replace(/,/g, "")) || 0,
+        description: row.cells[2].textContent,
+        on_hand: parseFloat(row.cells[3].textContent.replace(/,/g, "")) || 0,
+        threshold: parseFloat(row.cells[5].textContent.replace(/,/g, "")) || 0,
         suggested_qty: product.suggested_qty || 0,
         order_qty: parseInt(qtyInput ? qtyInput.value : 0) || 0,
         unit_qty2: product.unit_qty2 || 1,
