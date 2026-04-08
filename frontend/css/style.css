@@ -1791,48 +1791,69 @@ input[type="checkbox"] {
   color: var(--color-fg-muted);
 }
 
-/* Group separator row in Orders table */
-.row-group-first {
-  border-top: 2px solid var(--color-border-default, #d0d7de);
+/* ── Order table group styling ── */
+
+/* Group header divider row */
+.group-header {
+  background-color: transparent !important;
+  border-bottom: none;
 }
 
-/* Sufficient stock row styling in Orders table */
+.group-header td {
+  padding: 10px 12px 4px !important;
+  border-bottom: none !important;
+}
+
+.group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.group-label::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.group-header-historical .group-label::before {
+  background-color: #bf8700;
+}
+
+.group-header-sufficient .group-label::before {
+  background-color: #1a7f37;
+}
+
+.group-label .group-count {
+  font-weight: 400;
+  color: var(--color-fg-muted);
+  opacity: 0.7;
+}
+
+/* Sufficient stock rows — clean with left accent */
 .row-sufficient {
-  background-color: #dafbe1;
-  opacity: 0.85;
-}
-
-.row-sufficient:nth-child(even) {
-  background-color: #c7f5d0;
+  opacity: 0.6;
+  border-left: 3px solid #1a7f37;
 }
 
 .row-sufficient:hover {
-  background-color: #b4efc0;
-  opacity: 1;
+  opacity: 0.85;
 }
 
-/* Historical supplier row styling (product was ordered from this supplier but they're not the most recent) */
+/* Historical supplier rows — clean with left accent */
 .row-historical-supplier {
-  background-color: #fff8c5;
-  border-left: 3px solid var(--color-attention-emphasis);
-}
-
-.row-historical-supplier:nth-child(even) {
-  background-color: #fff0a0;
+  border-left: 3px solid #bf8700;
 }
 
 .row-historical-supplier:hover {
-  background-color: #ffe97a;
-}
-
-/* When combined with row-sufficient (historical + sufficient stock) */
-.row-historical-supplier.row-sufficient {
-  background-color: #fff8c5;
-  opacity: 0.9;
-}
-
-.row-historical-supplier.row-sufficient:nth-child(even) {
-  background-color: #fff0a0;
+  background-color: var(--color-canvas-subtle);
 }
 
 /* Exclude/Include action buttons */

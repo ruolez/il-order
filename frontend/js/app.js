@@ -2731,6 +2731,14 @@ async function loadNeedsReorder() {
       });
     }
 
+    // Count products per group for header labels
+    const groupCounts = { historical: 0, sufficient: 0 };
+    products.forEach((p) => {
+      const isHist = selectedSupplierName && p.last_supplier && p.last_supplier !== selectedSupplierName;
+      if (p.status !== "needs_reorder") groupCounts.sufficient++;
+      else if (isHist) groupCounts.historical++;
+    });
+
     let prevGroup = null;
     tbody.innerHTML = products
       .map((product) => {
@@ -2745,17 +2753,21 @@ async function loadNeedsReorder() {
 
         // Determine group for visual separation
         const group = !needsReorder ? "sufficient" : isHistoricalSupplier ? "historical" : "current";
-        const isGroupFirst = prevGroup !== null && group !== prevGroup;
+        let headerHtml = "";
+        if (prevGroup !== null && group !== prevGroup) {
+          const label = group === "historical" ? "Historical Supplier" : "Sufficient Stock";
+          const count = group === "historical" ? groupCounts.historical : groupCounts.sufficient;
+          headerHtml = `<tr class="group-header group-header-${group}"><td colspan="9"><span class="group-label">${label} <span class="group-count">(${count})</span></span></td></tr>`;
+        }
         prevGroup = group;
 
         // Build row classes
         const rowClasses = [];
         if (!needsReorder) rowClasses.push("row-sufficient");
         if (isHistoricalSupplier) rowClasses.push("row-historical-supplier");
-        if (isGroupFirst) rowClasses.push("row-group-first");
         const rowClass = rowClasses.join(" ");
 
-        return `
+        return `${headerHtml}
                 <tr data-upc="${product.ProductUPC}" class="${rowClass}">
                     <td><input type="checkbox" class="order-checkbox" ${shouldCheck ? "checked" : ""} onchange="handleOrderCheckbox(this)" /></td>
                     <td>${product.ProductUPC ? `<a href="${trackerUrl}?tracker=${product.ProductUPC}&days=${salesPeriodDays}" target="_blank" rel="noopener">${product.ProductUPC}</a>` : "-"}</td>
