@@ -458,11 +458,14 @@
               <select id="supplier-select">
                 <option value="">All Suppliers</option>
               </select>
-              <select id="order-filter">
-                <option value="all" selected>All Products</option>
-                <option value="needs_reorder">Needs Reorder Only</option>
-                <option value="sufficient">Sufficient Stock Only</option>
-              </select>
+              <label class="checkbox-label">
+                <input type="checkbox" id="order-reorder-only" checked />
+                Reorder Only
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="order-show-historical" />
+                Show Historical
+              </label>
               <select id="last-ordered-filter">
                 <option value="">Last Ordered: All</option>
                 <option value="1">Last Ordered: 1 Month</option>

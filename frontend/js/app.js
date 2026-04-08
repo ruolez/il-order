@@ -1623,7 +1623,7 @@ function navigateToOrdersWithSupplier(supplierName, inventoryFilter) {
   const filterMap = {
     all: "all",
     reorder: "needs_reorder",
-    stocked: "sufficient",
+    stocked: "all",
   };
 
   pendingOrderSupplier = supplierName;
@@ -2566,7 +2566,8 @@ async function loadOrderPage() {
 
       // Handle pending filter
       if (pendingOrderFilter) {
-        document.getElementById("order-filter").value = pendingOrderFilter;
+        document.getElementById("order-reorder-only").checked =
+          pendingOrderFilter === "needs_reorder";
         pendingOrderFilter = null;
       }
 
@@ -2574,6 +2575,16 @@ async function loadOrderPage() {
       const savedLastOrdered = localStorage.getItem("orderLastOrderedMonths");
       if (savedLastOrdered) {
         document.getElementById("last-ordered-filter").value = savedLastOrdered;
+      }
+
+      // Restore checkbox states from localStorage
+      const savedReorderOnly = localStorage.getItem("orderReorderOnly");
+      if (savedReorderOnly !== null) {
+        document.getElementById("order-reorder-only").checked = savedReorderOnly === "true";
+      }
+      const savedShowHistorical = localStorage.getItem("orderShowHistorical");
+      if (savedShowHistorical !== null) {
+        document.getElementById("order-show-historical").checked = savedShowHistorical === "true";
       }
 
       // Auto-load products if requested
@@ -2594,7 +2605,11 @@ async function loadNeedsReorder() {
   const supplierSelect = document.getElementById("supplier-select");
   const selectedSupplierName =
     supplierSelect.selectedOptions[0]?.dataset.name || null;
-  const filterMode = document.getElementById("order-filter").value;
+  const reorderOnly = document.getElementById("order-reorder-only").checked;
+  const showHistorical = document.getElementById("order-show-historical").checked;
+  const filterMode = reorderOnly ? "needs_reorder" : "all";
+  localStorage.setItem("orderReorderOnly", reorderOnly);
+  localStorage.setItem("orderShowHistorical", showHistorical);
   const container = document.getElementById("order-items-container");
   const tbody = document.getElementById("order-tbody");
 
@@ -2631,8 +2646,6 @@ async function loadNeedsReorder() {
       // Apply filter
       if (filterMode === "needs_reorder") {
         products = products.filter((p) => p.status === "needs_reorder");
-      } else if (filterMode === "sufficient") {
-        products = products.filter((p) => p.status === "sufficient");
       }
 
       // Apply sorting
@@ -2680,9 +2693,7 @@ async function loadNeedsReorder() {
       const emptyMessage =
         filterMode === "needs_reorder"
           ? "No products need reordering"
-          : filterMode === "sufficient"
-            ? "No products with sufficient stock"
-            : "No products found";
+          : "No products found";
       tbody.innerHTML = `<tr><td colspan="11" class="loading">${emptyMessage}</td></tr>`;
       loadedOrderProducts = [];
       updateOrderSummary();
@@ -2759,11 +2770,19 @@ async function loadNeedsReorder() {
       })
       .join("");
 
+    // Hide historical supplier rows when checkbox is unchecked
+    if (!showHistorical) {
+      document.querySelectorAll("#order-tbody .row-historical-supplier").forEach(row => {
+        row.style.display = "none";
+      });
+    }
+
     const hasSelectableItems = products.some((p) => {
       const isHistorical =
         selectedSupplierName &&
         p.last_supplier &&
         p.last_supplier !== selectedSupplierName;
+      if (isHistorical && !showHistorical) return false;
       return (
         p.status === "needs_reorder" && p.suggested_qty > 0 && !isHistorical
       );
@@ -2814,9 +2833,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if (selectAll) {
     selectAll.addEventListener("change", (e) => {
       document.querySelectorAll(".order-checkbox").forEach((cb) => {
+        const row = cb.closest("tr");
+        if (row.style.display === "none") return;
         if (e.target.checked) {
           // Only check items with Order Qty > 0
-          const row = cb.closest("tr");
           const qtyInput = row.querySelector(".order-qty");
           const qty = parseInt(qtyInput?.value) || 0;
           cb.checked = qty > 0;
@@ -2957,6 +2977,7 @@ function getOrderData() {
   const items = [];
 
   rows.forEach((row) => {
+    if (row.style.display === "none") return;
     const checkbox = row.querySelector(".order-checkbox");
     if (checkbox && checkbox.checked) {
       const qtyInput = row.querySelector(".order-qty");
@@ -3055,6 +3076,7 @@ function updateOrderSummary() {
   let totalCost = 0;
 
   rows.forEach((row) => {
+    if (row.style.display === "none") return;
     const checkbox = row.querySelector(".order-checkbox");
     if (checkbox && checkbox.checked) {
       itemCount++;
