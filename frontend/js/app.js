@@ -2731,6 +2731,7 @@ async function loadNeedsReorder() {
       });
     }
 
+    let prevGroup = null;
     tbody.innerHTML = products
       .map((product) => {
         const needsReorder = product.status === "needs_reorder";
@@ -2742,10 +2743,16 @@ async function loadNeedsReorder() {
         const shouldCheck =
           needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
 
+        // Determine group for visual separation
+        const group = !needsReorder ? "sufficient" : isHistoricalSupplier ? "historical" : "current";
+        const isGroupFirst = prevGroup !== null && group !== prevGroup;
+        prevGroup = group;
+
         // Build row classes
         const rowClasses = [];
         if (!needsReorder) rowClasses.push("row-sufficient");
         if (isHistoricalSupplier) rowClasses.push("row-historical-supplier");
+        if (isGroupFirst) rowClasses.push("row-group-first");
         const rowClass = rowClasses.join(" ");
 
         return `

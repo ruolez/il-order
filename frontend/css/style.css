@@ -1791,13 +1791,23 @@ input[type="checkbox"] {
   color: var(--color-fg-muted);
 }
 
+/* Group separator row in Orders table */
+.row-group-first {
+  border-top: 2px solid var(--color-border-default, #d0d7de);
+}
+
 /* Sufficient stock row styling in Orders table */
 .row-sufficient {
-  background-color: var(--color-success-subtle);
+  background-color: #dafbe1;
   opacity: 0.85;
 }
 
+.row-sufficient:nth-child(even) {
+  background-color: #c7f5d0;
+}
+
 .row-sufficient:hover {
+  background-color: #b4efc0;
   opacity: 1;
 }
 
@@ -1807,14 +1817,22 @@ input[type="checkbox"] {
   border-left: 3px solid var(--color-attention-emphasis);
 }
 
+.row-historical-supplier:nth-child(even) {
+  background-color: #fff0a0;
+}
+
 .row-historical-supplier:hover {
-  background-color: #fff3cd;
+  background-color: #ffe97a;
 }
 
 /* When combined with row-sufficient (historical + sufficient stock) */
 .row-historical-supplier.row-sufficient {
   background-color: #fff8c5;
   opacity: 0.9;
+}
+
+.row-historical-supplier.row-sufficient:nth-child(even) {
+  background-color: #fff0a0;
 }
 
 /* Exclude/Include action buttons */
