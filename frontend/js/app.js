@@ -43,6 +43,8 @@ const api = {
 // Pagination state
 let itemsPerPage = 100; // Default, will be loaded from settings
 let salesPeriodDays = 60;
+let orderPeriodDays = 28;
+let dynamicThresholdSource = "invoices"; // "invoices" | "tracker"
 let trackerUrl = "http://192.168.1.114";
 let currentPage = 1;
 let totalPages = 1;
@@ -107,6 +109,12 @@ async function loadAppSettings() {
       }
       if (result.settings.sales_period_days) {
         salesPeriodDays = parseInt(result.settings.sales_period_days, 10);
+      }
+      if (result.settings.order_period_days) {
+        orderPeriodDays = parseInt(result.settings.order_period_days, 10);
+      }
+      if (result.settings.dynamic_threshold_source) {
+        dynamicThresholdSource = result.settings.dynamic_threshold_source;
       }
       if (result.settings.tracker_url) {
         trackerUrl = result.settings.tracker_url;
@@ -495,7 +503,7 @@ function initTrackingMonthHeaders() {
   for (let i = 0; i < 7; i++) {
     const el = document.getElementById(`tracking-month-${i + 1}`);
     if (el) {
-      const indicator = el.querySelector('.sort-indicator');
+      const indicator = el.querySelector(".sort-indicator");
       el.textContent = trackingMonths[i].label;
       if (indicator) el.appendChild(indicator);
     }
@@ -586,7 +594,9 @@ async function loadInventory(page = 1, search = "") {
       renderInventoryTable(allProducts, true);
       syncCheckboxesWithCart();
       updatePagination();
-      if (currentSearch) {
+      // Tracker mode needs the per-row history to recompute thresholds, so load
+      // it for the displayed page even without a search term.
+      if (currentSearch || dynamicThresholdSource === "tracker") {
         loadTrackerHistory(allProducts);
       }
     }
@@ -719,26 +729,37 @@ function renderInventoryTable(products, skipFilter = false) {
                 <td><input type="checkbox" class="inventory-checkbox" data-upc="${upc}" onchange="handleInventoryCheckboxChange(this)" /></td>
                 <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                ${historyMonths.map((m, mi) => {
-                  const cached = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
-                  const cq = unitQty2 || 1;
-                  if (cached) {
-                    const sv = Math.round(cached.sale).toLocaleString();
-                    const sc = Math.round(Math.round(cached.sale) / cq).toLocaleString();
-                    const pv = Math.round(cached.purchase).toLocaleString();
-                    const pc = Math.round(Math.round(cached.purchase) / cq).toLocaleString();
-                    const iv = Math.round(cached.beginning_inventory).toLocaleString();
-                    const ic = Math.round(Math.round(cached.beginning_inventory) / cq).toLocaleString();
-                    return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
-                  }
-                  if (currentSearch) {
-                    return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
-                  }
-                  return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"></td>`;
-                }).join("")}
+                ${historyMonths
+                  .map((m, mi) => {
+                    const cached =
+                      trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
+                    const cq = unitQty2 || 1;
+                    if (cached) {
+                      const sv = Math.round(cached.sale).toLocaleString();
+                      const sc = Math.round(
+                        Math.round(cached.sale) / cq,
+                      ).toLocaleString();
+                      const pv = Math.round(cached.purchase).toLocaleString();
+                      const pc = Math.round(
+                        Math.round(cached.purchase) / cq,
+                      ).toLocaleString();
+                      const iv = Math.round(
+                        cached.beginning_inventory,
+                      ).toLocaleString();
+                      const ic = Math.round(
+                        Math.round(cached.beginning_inventory) / cq,
+                      ).toLocaleString();
+                      return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
+                    }
+                    if (currentSearch) {
+                      return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
+                    }
+                    return `<td class="history-cell hide-in-compact" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"></td>`;
+                  })
+                  .join("")}
                 <td class="on-hand-qty">${qtyDisplayHtml}</td>
                 <td class="hide-in-compact">${unitQty2.toLocaleString()}</td>
-                <td class="hide-in-compact">
+                <td class="hide-in-compact inv-threshold-cell">
                     ${threshold.toLocaleString()}
                     <br><small class="threshold-type threshold-${product.threshold_type}" title="${product.threshold_type}">${product.threshold_type === "dynamic" ? "auto" : product.threshold_type === "manual" ? "manual" : "system"}</small>
                 </td>
@@ -767,6 +788,82 @@ function renderInventoryTable(products, skipFilter = false) {
 
 // ============== Tracker History ==============
 
+// Recompute a single inventory row's dynamic threshold from the tracker history
+// already in cache (3 full past months, indices 0-2). Only rows whose threshold
+// is "dynamic" are affected; manual/system thresholds keep their backend values.
+// Falls back silently (keeps the invoices value) when tracker data is missing.
+function recomputeRowFromTracker(upc) {
+  if (dynamicThresholdSource !== "tracker") return;
+  const product = allProducts.find((p) => p.ProductUPC === upc);
+  if (!product || product.threshold_type !== "dynamic") return;
+
+  const cache = trackerHistoryCache[upc];
+  if (!cache) return;
+
+  const monthSales = [];
+  const monthDays = [];
+  for (let i = 0; i < 3; i++) {
+    const vals = cache[i];
+    if (!vals) return; // incomplete history -> keep the invoices value
+    monthSales.push(vals.sale || 0);
+    const m = historyMonths[i];
+    monthDays.push(trackerMonthDays(m.from, m.to));
+  }
+
+  const unitQty2 = product.UnitQty2 || 1;
+  const effectiveQty =
+    product.effective_qty != null
+      ? product.effective_qty
+      : product.QuantOnHand || 0;
+
+  const res = calcTrackerThreshold({
+    monthSales,
+    monthDays,
+    orderPeriodDays,
+    unitQty2,
+    effectiveQty,
+  });
+
+  product.threshold = res.threshold;
+  product.dynamic_threshold = res.threshold;
+  product.monthly_average = Math.ceil(res.monthlyAverage);
+  product.daily_average = Math.round(res.dailyAverage * 100) / 100;
+  product.needs_reorder = res.needsReorder;
+  product.suggested_qty = res.suggestedQty;
+
+  updateInventoryRowThresholdDOM(upc, product);
+}
+
+// Update the threshold/order-qty/cases cells of one already-rendered inventory
+// row to match a recomputed product object.
+function updateInventoryRowThresholdDOM(upc, product) {
+  const rows = document.querySelectorAll(
+    `#inventory-tbody tr[data-upc="${upc}"]`,
+  );
+  rows.forEach((row) => {
+    const tcell = row.querySelector(".inv-threshold-cell");
+    if (tcell) {
+      const tt = product.threshold_type;
+      const label =
+        tt === "dynamic" ? "auto" : tt === "manual" ? "manual" : "system";
+      tcell.innerHTML = `${(product.threshold || 0).toLocaleString()}<br><small class="threshold-type threshold-${tt}" title="${tt}">${label}</small>`;
+    }
+
+    // Only refresh the order qty when the user hasn't already put it in the cart.
+    if (!inventorySelectedItems.has(upc)) {
+      const input = row.querySelector(".inventory-order-qty-input");
+      if (input) {
+        const sq = product.suggested_qty || 0;
+        const unitQty2 = parseInt(input.dataset.unitQty) || 1;
+        input.value = sq;
+        input.closest("td").classList.toggle("order-qty-highlight", sq > 0);
+        const casesCell = row.querySelector(".inventory-cases-cell");
+        if (casesCell) casesCell.textContent = Math.ceil(sq / unitQty2);
+      }
+    }
+  });
+}
+
 function applyTrackerHistoryToDOM() {
   document.querySelectorAll("td.history-cell[data-upc]").forEach((cell) => {
     const upc = cell.dataset.upc;
@@ -777,31 +874,42 @@ function applyTrackerHistoryToDOM() {
       const saleRounded = Math.round(vals.sale);
       const purchaseRounded = Math.round(vals.purchase);
       const invRounded = Math.round(vals.beginning_inventory);
-      cell.querySelector(".history-s").innerHTML = `${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span>`;
-      cell.querySelector(".history-p").innerHTML = `${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span>`;
-      cell.querySelector(".history-i").innerHTML = `${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span>`;
+      cell.querySelector(".history-s").innerHTML =
+        `${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span>`;
+      cell.querySelector(".history-p").innerHTML =
+        `${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span>`;
+      cell.querySelector(".history-i").innerHTML =
+        `${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span>`;
     }
   });
+
+  if (dynamicThresholdSource === "tracker") {
+    allProducts.forEach((p) => recomputeRowFromTracker(p.ProductUPC));
+  }
 }
 
 function applyTrackerHistoryToRow(upc) {
-  document.querySelectorAll(`td.history-cell[data-upc="${upc}"]`).forEach((cell) => {
-    const mi = cell.dataset.month;
-    const vals = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
-    if (!vals) {
-      const spinner = cell.querySelector(".history-spinner");
-      if (spinner) spinner.remove();
-      return;
-    }
-    const cq = parseInt(cell.dataset.caseQty) || 1;
-    const saleRounded = Math.round(vals.sale);
-    const purchaseRounded = Math.round(vals.purchase);
-    const invRounded = Math.round(vals.beginning_inventory);
+  document
+    .querySelectorAll(`td.history-cell[data-upc="${upc}"]`)
+    .forEach((cell) => {
+      const mi = cell.dataset.month;
+      const vals = trackerHistoryCache[upc] && trackerHistoryCache[upc][mi];
+      if (!vals) {
+        const spinner = cell.querySelector(".history-spinner");
+        if (spinner) spinner.remove();
+        return;
+      }
+      const cq = parseInt(cell.dataset.caseQty) || 1;
+      const saleRounded = Math.round(vals.sale);
+      const purchaseRounded = Math.round(vals.purchase);
+      const invRounded = Math.round(vals.beginning_inventory);
 
-    const m = historyMonths[mi];
-    const href = `${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}`;
-    cell.innerHTML = `<a href="${href}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span></span></span></a>`;
-  });
+      const m = historyMonths[mi];
+      const href = `${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}`;
+      cell.innerHTML = `<a href="${href}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${saleRounded.toLocaleString()} <span class="case-count">(${Math.round(saleRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${purchaseRounded.toLocaleString()} <span class="case-count">(${Math.round(purchaseRounded / cq).toLocaleString()})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${invRounded.toLocaleString()} <span class="case-count">(${Math.round(invRounded / cq).toLocaleString()})</span></span></span></a>`;
+    });
+
+  recomputeRowFromTracker(upc);
 }
 
 async function loadTrackerHistory(products) {
@@ -820,7 +928,10 @@ async function loadTrackerHistory(products) {
         continue;
       }
       try {
-        const result = await api.post("/tracker/history", { upcs: [upc], months });
+        const result = await api.post("/tracker/history", {
+          upcs: [upc],
+          months,
+        });
         if (!result.success) throw new Error(result.error);
 
         for (const [returnedUpc, monthData] of Object.entries(result.data)) {
@@ -837,7 +948,10 @@ async function loadTrackerHistory(products) {
     }
   }
 
-  const workers = Array.from({ length: Math.min(concurrency, upcs.length) }, () => next());
+  const workers = Array.from(
+    { length: Math.min(concurrency, upcs.length) },
+    () => next(),
+  );
   await Promise.all(workers);
 }
 
@@ -1924,9 +2038,11 @@ function openBulkOverrideModal() {
     `Bulk Override — ${inventoryCheckedItems.size} product${inventoryCheckedItems.size > 1 ? "s" : ""} selected`;
 
   // Reset all apply checkboxes and fields
-  modal.querySelectorAll(".bulk-apply-toggle input[type='checkbox']").forEach((cb) => {
-    cb.checked = false;
-  });
+  modal
+    .querySelectorAll(".bulk-apply-toggle input[type='checkbox']")
+    .forEach((cb) => {
+      cb.checked = false;
+    });
   document.getElementById("bulk-exclude-dynamic").checked = false;
   document.getElementById("bulk-exclude-dynamic").disabled = true;
   document.getElementById("bulk-manual-threshold").value = "";
@@ -1967,7 +2083,9 @@ async function applyBulkOverride() {
   const fields = {};
 
   const modal = document.getElementById("bulk-override-modal");
-  const applyChecks = modal.querySelectorAll(".bulk-apply-toggle input[type='checkbox']");
+  const applyChecks = modal.querySelectorAll(
+    ".bulk-apply-toggle input[type='checkbox']",
+  );
   let anyChecked = false;
 
   applyChecks.forEach((cb) => {
@@ -1981,31 +2099,55 @@ async function applyBulkOverride() {
   }
 
   // Collect checked fields
-  if (modal.querySelector("#bulk-field-exclude-dynamic .bulk-apply-toggle input").checked) {
-    fields.exclude_from_dynamic = document.getElementById("bulk-exclude-dynamic").checked;
+  if (
+    modal.querySelector("#bulk-field-exclude-dynamic .bulk-apply-toggle input")
+      .checked
+  ) {
+    fields.exclude_from_dynamic = document.getElementById(
+      "bulk-exclude-dynamic",
+    ).checked;
   }
-  if (modal.querySelector("#bulk-field-manual-threshold .bulk-apply-toggle input").checked) {
+  if (
+    modal.querySelector("#bulk-field-manual-threshold .bulk-apply-toggle input")
+      .checked
+  ) {
     const val = document.getElementById("bulk-manual-threshold").value;
     fields.manual_threshold = val ? parseInt(val) : null;
   }
-  if (modal.querySelector("#bulk-field-manual-order-qty .bulk-apply-toggle input").checked) {
+  if (
+    modal.querySelector("#bulk-field-manual-order-qty .bulk-apply-toggle input")
+      .checked
+  ) {
     const val = document.getElementById("bulk-manual-order-qty").value;
     fields.manual_order_qty = val ? parseInt(val) : null;
   }
-  if (modal.querySelector("#bulk-field-order-period .bulk-apply-toggle input").checked) {
+  if (
+    modal.querySelector("#bulk-field-order-period .bulk-apply-toggle input")
+      .checked
+  ) {
     const val = document.getElementById("bulk-order-period").value;
     fields.manual_order_period_days = val ? parseInt(val) : null;
   }
-  if (modal.querySelector("#bulk-field-unit-cost .bulk-apply-toggle input").checked) {
+  if (
+    modal.querySelector("#bulk-field-unit-cost .bulk-apply-toggle input")
+      .checked
+  ) {
     const val = document.getElementById("bulk-unit-cost").value;
     fields.manual_unit_cost = val ? parseFloat(val) : null;
   }
-  if (modal.querySelector("#bulk-field-notes .bulk-apply-toggle input").checked) {
+  if (
+    modal.querySelector("#bulk-field-notes .bulk-apply-toggle input").checked
+  ) {
     const val = document.getElementById("bulk-notes").value;
     fields.notes = val || null;
   }
 
-  if (!confirm(`Apply overrides to ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`)) return;
+  if (
+    !confirm(
+      `Apply overrides to ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`,
+    )
+  )
+    return;
 
   try {
     const result = await api.post("/products/bulk-override", {
@@ -2015,7 +2157,10 @@ async function applyBulkOverride() {
     });
 
     if (result.success) {
-      showToast(`Override applied to ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
+      showToast(
+        `Override applied to ${result.affected} product${result.affected > 1 ? "s" : ""}`,
+        "success",
+      );
       closeBulkOverrideModal();
       loadInventory(currentPage, currentSearch);
     } else {
@@ -2030,7 +2175,12 @@ async function applyBulkOverride() {
 async function bulkClearOverrides() {
   const upcs = Array.from(inventoryCheckedItems.keys());
 
-  if (!confirm(`Clear ALL overrides for ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`)) return;
+  if (
+    !confirm(
+      `Clear ALL overrides for ${upcs.length} product${upcs.length > 1 ? "s" : ""}?`,
+    )
+  )
+    return;
 
   try {
     const result = await api.post("/products/bulk-override", {
@@ -2039,7 +2189,10 @@ async function bulkClearOverrides() {
     });
 
     if (result.success) {
-      showToast(`Overrides cleared for ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
+      showToast(
+        `Overrides cleared for ${result.affected} product${result.affected > 1 ? "s" : ""}`,
+        "success",
+      );
       closeBulkOverrideModal();
       loadInventory(currentPage, currentSearch);
     } else {
@@ -2238,20 +2391,32 @@ function renderTrackingTable(products) {
             <tr data-upc="${upc}">
                 <td>${upc ? `<a href="${trackerUrl}?tracker=${upc}&days=${salesPeriodDays}" target="_blank" rel="noopener">${upc}</a>` : "-"}</td>
                 <td>${product.ProductDescription || "-"}</td>
-                ${trackingMonths.map((m, mi) => {
-                  const cached = trackingHistoryCache[upc] && trackingHistoryCache[upc][mi];
-                  const cq = unitQty2 || 1;
-                  if (cached) {
-                    const sv = Math.round(cached.sale).toLocaleString();
-                    const sc = Math.round(Math.round(cached.sale) / cq).toLocaleString();
-                    const pv = Math.round(cached.purchase).toLocaleString();
-                    const pc = Math.round(Math.round(cached.purchase) / cq).toLocaleString();
-                    const iv = Math.round(cached.beginning_inventory).toLocaleString();
-                    const ic = Math.round(Math.round(cached.beginning_inventory) / cq).toLocaleString();
-                    return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
-                  }
-                  return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
-                }).join("")}
+                ${trackingMonths
+                  .map((m, mi) => {
+                    const cached =
+                      trackingHistoryCache[upc] &&
+                      trackingHistoryCache[upc][mi];
+                    const cq = unitQty2 || 1;
+                    if (cached) {
+                      const sv = Math.round(cached.sale).toLocaleString();
+                      const sc = Math.round(
+                        Math.round(cached.sale) / cq,
+                      ).toLocaleString();
+                      const pv = Math.round(cached.purchase).toLocaleString();
+                      const pc = Math.round(
+                        Math.round(cached.purchase) / cq,
+                      ).toLocaleString();
+                      const iv = Math.round(
+                        cached.beginning_inventory,
+                      ).toLocaleString();
+                      const ic = Math.round(
+                        Math.round(cached.beginning_inventory) / cq,
+                      ).toLocaleString();
+                      return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><a href="${trackerUrl}?tracker=${upc}&from=${m.from}&to=${m.to}" target="_blank" rel="noopener"><span class="history-line history-sale"><span class="history-label">&minus;</span><span class="history-s">${sv} <span class="case-count">(${sc})</span></span></span><span class="history-line history-purchase"><span class="history-label">+</span><span class="history-p">${pv} <span class="case-count">(${pc})</span></span></span><span class="history-line history-inv"><span class="history-s-spacer"></span><span class="history-i">${iv} <span class="case-count">(${ic})</span></span></span></a></td>`;
+                    }
+                    return `<td class="history-cell tracking-history-cell" data-upc="${upc}" data-month="${mi}" data-case-qty="${cq}"><div class="history-spinner"></div></td>`;
+                  })
+                  .join("")}
                 <td class="on-hand-qty">${qtyDisplayHtml}</td>
                 <td class="tracking-cost">$${unitCost.toFixed(2)}</td>
                 <td class="tracking-total-cost">$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -2263,7 +2428,7 @@ function renderTrackingTable(products) {
 
 function renderTrackingTotals(totalEffectiveQty, totalCost) {
   const tfoot = document.getElementById("tracking-tfoot");
-  const emptyCols = '<td></td>'.repeat(7);
+  const emptyCols = "<td></td>".repeat(7);
   const qty = parseInt(totalEffectiveQty) || 0;
   const cost = parseFloat(totalCost) || 0;
   tfoot.innerHTML = `
@@ -2304,11 +2469,12 @@ function loadTrackingNextPage() {
 function applyTrackingHistoryToRow(upc) {
   const escapedUpc = CSS.escape(upc);
   document
-    .querySelectorAll(`#tracking-table td.tracking-history-cell[data-upc="${escapedUpc}"]`)
+    .querySelectorAll(
+      `#tracking-table td.tracking-history-cell[data-upc="${escapedUpc}"]`,
+    )
     .forEach((cell) => {
       const mi = cell.dataset.month;
-      const vals =
-        trackingHistoryCache[upc] && trackingHistoryCache[upc][mi];
+      const vals = trackingHistoryCache[upc] && trackingHistoryCache[upc][mi];
       if (!vals) {
         const spinner = cell.querySelector(".history-spinner");
         if (spinner) spinner.remove();
@@ -2326,23 +2492,26 @@ function applyTrackingHistoryToRow(upc) {
 }
 
 function toggleTrackingVisibility() {
-  const sales = document.getElementById('tracking-show-sales').checked;
-  const purchases = document.getElementById('tracking-show-purchases').checked;
-  const inventory = document.getElementById('tracking-show-inventory').checked;
-  const table = document.getElementById('tracking-table');
-  table.classList.toggle('hide-sales', !sales);
-  table.classList.toggle('hide-purchases', !purchases);
-  table.classList.toggle('hide-inventory', !inventory);
-  localStorage.setItem('trackingVisibility', JSON.stringify({ sales, purchases, inventory }));
+  const sales = document.getElementById("tracking-show-sales").checked;
+  const purchases = document.getElementById("tracking-show-purchases").checked;
+  const inventory = document.getElementById("tracking-show-inventory").checked;
+  const table = document.getElementById("tracking-table");
+  table.classList.toggle("hide-sales", !sales);
+  table.classList.toggle("hide-purchases", !purchases);
+  table.classList.toggle("hide-inventory", !inventory);
+  localStorage.setItem(
+    "trackingVisibility",
+    JSON.stringify({ sales, purchases, inventory }),
+  );
 }
 
 function initTrackingVisibility() {
-  const saved = localStorage.getItem('trackingVisibility');
+  const saved = localStorage.getItem("trackingVisibility");
   if (saved) {
     const { sales, purchases, inventory } = JSON.parse(saved);
-    document.getElementById('tracking-show-sales').checked = sales;
-    document.getElementById('tracking-show-purchases').checked = purchases;
-    document.getElementById('tracking-show-inventory').checked = inventory;
+    document.getElementById("tracking-show-sales").checked = sales;
+    document.getElementById("tracking-show-purchases").checked = purchases;
+    document.getElementById("tracking-show-inventory").checked = inventory;
   }
   toggleTrackingVisibility();
 }
@@ -2580,11 +2749,13 @@ async function loadOrderPage() {
       // Restore checkbox states from localStorage
       const savedReorderOnly = localStorage.getItem("orderReorderOnly");
       if (savedReorderOnly !== null) {
-        document.getElementById("order-reorder-only").checked = savedReorderOnly === "true";
+        document.getElementById("order-reorder-only").checked =
+          savedReorderOnly === "true";
       }
       const savedShowHistorical = localStorage.getItem("orderShowHistorical");
       if (savedShowHistorical !== null) {
-        document.getElementById("order-show-historical").checked = savedShowHistorical === "true";
+        document.getElementById("order-show-historical").checked =
+          savedShowHistorical === "true";
       }
 
       // Auto-load products if requested
@@ -2606,7 +2777,9 @@ async function loadNeedsReorder() {
   const selectedSupplierName =
     supplierSelect.selectedOptions[0]?.dataset.name || null;
   const reorderOnly = document.getElementById("order-reorder-only").checked;
-  const showHistorical = document.getElementById("order-show-historical").checked;
+  const showHistorical = document.getElementById(
+    "order-show-historical",
+  ).checked;
   const filterMode = reorderOnly ? "needs_reorder" : "all";
   localStorage.setItem("orderReorderOnly", reorderOnly);
   localStorage.setItem("orderShowHistorical", showHistorical);
@@ -2670,7 +2843,9 @@ async function loadNeedsReorder() {
       let endpoint = "/analysis/needs-reorder";
       const params = [];
       if (supplierId) params.push(`supplier_id=${supplierId}`);
-      const lastOrderedMonths = document.getElementById("last-ordered-filter").value;
+      const lastOrderedMonths = document.getElementById(
+        "last-ordered-filter",
+      ).value;
       localStorage.setItem("orderLastOrderedMonths", lastOrderedMonths);
       if (lastOrderedMonths) params.push(`months=${lastOrderedMonths}`);
       params.push(`filter=${filterMode}`);
@@ -2734,7 +2909,10 @@ async function loadNeedsReorder() {
     // Count products per group for header labels
     const groupCounts = { historical: 0, sufficient: 0 };
     products.forEach((p) => {
-      const isHist = selectedSupplierName && p.last_supplier && p.last_supplier !== selectedSupplierName;
+      const isHist =
+        selectedSupplierName &&
+        p.last_supplier &&
+        p.last_supplier !== selectedSupplierName;
       if (p.status !== "needs_reorder") groupCounts.sufficient++;
       else if (isHist) groupCounts.historical++;
     });
@@ -2752,11 +2930,19 @@ async function loadNeedsReorder() {
           needsReorder && product.suggested_qty > 0 && !isHistoricalSupplier;
 
         // Determine group for visual separation
-        const group = !needsReorder ? "sufficient" : isHistoricalSupplier ? "historical" : "current";
+        const group = !needsReorder
+          ? "sufficient"
+          : isHistoricalSupplier
+            ? "historical"
+            : "current";
         let headerHtml = "";
         if (prevGroup !== null && group !== prevGroup) {
-          const label = group === "historical" ? "Historical Supplier" : "Sufficient Stock";
-          const count = group === "historical" ? groupCounts.historical : groupCounts.sufficient;
+          const label =
+            group === "historical" ? "Historical Supplier" : "Sufficient Stock";
+          const count =
+            group === "historical"
+              ? groupCounts.historical
+              : groupCounts.sufficient;
           headerHtml = `<tr class="group-header group-header-${group}"><td colspan="9"><span class="group-label">${label} <span class="group-count">(${count})</span></span></td></tr>`;
         }
         prevGroup = group;
@@ -2791,9 +2977,11 @@ async function loadNeedsReorder() {
 
     // Hide historical supplier rows when checkbox is unchecked
     if (!showHistorical) {
-      document.querySelectorAll("#order-tbody .row-historical-supplier").forEach(row => {
-        row.style.display = "none";
-      });
+      document
+        .querySelectorAll("#order-tbody .row-historical-supplier")
+        .forEach((row) => {
+          row.style.display = "none";
+        });
     }
 
     const hasSelectableItems = products.some((p) => {

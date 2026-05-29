@@ -38,7 +38,7 @@ sql_config (id, name, server, database, username, password, is_active, created_a
 
 -- Application settings (key-value)
 settings (key, value, updated_at)
--- Keys: sales_period_days, order_period_days, threshold_multiplier
+-- Keys: sales_period_days, order_period_days, threshold_multiplier, items_per_page, tracker_url, dynamic_threshold_source
 
 -- Product-specific overrides
 product_overrides (id, product_upc, exclude_from_dynamic, manual_threshold, manual_order_qty, notes, created_at, updated_at)
@@ -67,6 +67,26 @@ Sales Period: Configurable (30, 60, 90, 180 days)
 Monthly Average = Total Sales in Period ÷ (Period Days ÷ 30)
 Dynamic Threshold = Monthly Average × Multiplier (default 1.0)
 ```
+
+### Dynamic Threshold Sales Source (`dynamic_threshold_source`)
+
+Setting that selects where the dynamic threshold's sales quantities come from:
+
+- `invoices` (default): backend reads `Invoices_tbl`/`InvoicesDetails_tbl` over
+  `sales_period_days`. Used everywhere (Inventory, Order builder, Dashboard,
+  exports, product detail).
+- `tracker`: the **Inventory grid only** recomputes the dynamic threshold on the
+  client from the tracker history it already lazy-loads per row (the 3 full past
+  months from `tracker_url`), via `frontend/js/threshold-calc.js`
+  (`calcTrackerThreshold`). Same formula, different sales input. No extra
+  backend calls. Selecting this **locks `sales_period_days` to 90** (the 3-month
+  window) and disables the period control in Settings.
+
+Tracker mode affects only `threshold_type === 'dynamic'` rows (manual/system
+overrides are untouched) and falls back to the invoices value when a row's
+tracker history is unavailable. The Order builder, Dashboard, exports, and the
+product detail modal still use the invoices source. Pure-logic unit tests live
+in `frontend/js/threshold-calc.test.js` (`node --test`).
 
 ### Needs Reorder Logic
 
@@ -117,6 +137,8 @@ IL-Order/
     │   └── style.css           # Material Design 3 styles
     └── js/
         ├── app.js              # Main app logic (700+ lines)
+        ├── threshold-calc.js   # Pure tracker-threshold math (calcTrackerThreshold)
+        ├── threshold-calc.test.js # node:test unit tests for threshold math
         └── settings.js         # Settings page logic
 ```
 

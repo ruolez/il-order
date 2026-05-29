@@ -718,17 +718,38 @@
           </div>
         </div>
 
-        <div class="tracking-visibility-options" style="display: flex; gap: 4px; margin-bottom: 8px; align-items: center;">
+        <div
+          class="tracking-visibility-options"
+          style="
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+            align-items: center;
+          "
+        >
           <label class="checkbox-label">
-            <input type="checkbox" id="tracking-show-sales" checked onchange="toggleTrackingVisibility()" />
+            <input
+              type="checkbox"
+              id="tracking-show-sales"
+              checked
+              onchange="toggleTrackingVisibility()"
+            />
             Sales
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" id="tracking-show-purchases" onchange="toggleTrackingVisibility()" />
+            <input
+              type="checkbox"
+              id="tracking-show-purchases"
+              onchange="toggleTrackingVisibility()"
+            />
             Purchases
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" id="tracking-show-inventory" onchange="toggleTrackingVisibility()" />
+            <input
+              type="checkbox"
+              id="tracking-show-inventory"
+              onchange="toggleTrackingVisibility()"
+            />
             Inventory
           </label>
         </div>
@@ -754,13 +775,62 @@
                 >
                   Description<span class="sort-indicator"></span>
                 </th>
-                <th id="tracking-month-1" class="sortable" data-sort="month_0" onclick="sortTracking('month_0')">Month 1<span class="sort-indicator"></span></th>
-                <th id="tracking-month-2" class="sortable" data-sort="month_1" onclick="sortTracking('month_1')">Month 2<span class="sort-indicator"></span></th>
-                <th id="tracking-month-3" class="sortable" data-sort="month_2" onclick="sortTracking('month_2')">Month 3<span class="sort-indicator"></span></th>
-                <th id="tracking-month-4" class="sortable" data-sort="month_3" onclick="sortTracking('month_3')">Month 4<span class="sort-indicator"></span></th>
-                <th id="tracking-month-5" class="sortable" data-sort="month_4" onclick="sortTracking('month_4')">Month 5<span class="sort-indicator"></span></th>
-                <th id="tracking-month-6" class="sortable" data-sort="month_5" onclick="sortTracking('month_5')">Month 6<span class="sort-indicator"></span></th>
-                <th id="tracking-month-7" class="sortable" data-sort="month_6" onclick="sortTracking('month_6')">Current<span class="sort-indicator"></span></th>
+                <th
+                  id="tracking-month-1"
+                  class="sortable"
+                  data-sort="month_0"
+                  onclick="sortTracking('month_0')"
+                >
+                  Month 1<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-2"
+                  class="sortable"
+                  data-sort="month_1"
+                  onclick="sortTracking('month_1')"
+                >
+                  Month 2<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-3"
+                  class="sortable"
+                  data-sort="month_2"
+                  onclick="sortTracking('month_2')"
+                >
+                  Month 3<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-4"
+                  class="sortable"
+                  data-sort="month_3"
+                  onclick="sortTracking('month_3')"
+                >
+                  Month 4<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-5"
+                  class="sortable"
+                  data-sort="month_4"
+                  onclick="sortTracking('month_4')"
+                >
+                  Month 5<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-6"
+                  class="sortable"
+                  data-sort="month_5"
+                  onclick="sortTracking('month_5')"
+                >
+                  Month 6<span class="sort-indicator"></span>
+                </th>
+                <th
+                  id="tracking-month-7"
+                  class="sortable"
+                  data-sort="month_6"
+                  onclick="sortTracking('month_6')"
+                >
+                  Current<span class="sort-indicator"></span>
+                </th>
                 <th
                   class="sortable"
                   data-sort="on_hand"
@@ -899,6 +969,20 @@
             <h2>Analysis Settings</h2>
             <form id="analysis-settings-form">
               <div class="form-group">
+                <label for="threshold-source">Dynamic Threshold Source</label>
+                <select id="threshold-source">
+                  <option value="invoices" selected>
+                    Invoices (BackOffice)
+                  </option>
+                  <option value="tracker">Tracker history</option>
+                </select>
+                <small
+                  >Where the dynamic threshold's sales come from. Tracker mode
+                  reuses the on-screen 3-month history (Inventory grid only) and
+                  fixes the analysis period at 90 days.</small
+                >
+              </div>
+              <div class="form-group">
                 <label for="sales-period">Sales Analysis Period</label>
                 <select id="sales-period">
                   <option value="30">Last 30 Days</option>
@@ -1010,7 +1094,12 @@
               <span class="card-label">On Order (PO)</span>
             </div>
             <div class="info-card-small">
-              <span class="card-value" id="modal-qip-qty" style="color: var(--error);">0</span>
+              <span
+                class="card-value"
+                id="modal-qip-qty"
+                style="color: var(--error)"
+                >0</span
+              >
               <span class="card-label">In Progress (QIP)</span>
             </div>
             <div class="info-card-small highlight">
@@ -1171,11 +1260,7 @@
             </label>
             <div class="bulk-field-input">
               <label>
-                <input
-                  type="checkbox"
-                  id="bulk-exclude-dynamic"
-                  disabled
-                />
+                <input type="checkbox" id="bulk-exclude-dynamic" disabled />
                 Exclude from dynamic threshold
               </label>
             </div>
@@ -1306,6 +1391,7 @@
     <div id="toast-container"></div>
 
     <!-- Scripts -->
+    <script src="js/threshold-calc.js"></script>
     <script src="js/app.js"></script>
     <script src="js/settings.js"></script>
   </body>

@@ -130,10 +130,15 @@ async function loadAnalysisSettings() {
     if (result.success && result.settings) {
       const settings = result.settings;
 
+      if (settings.dynamic_threshold_source) {
+        document.getElementById("threshold-source").value =
+          settings.dynamic_threshold_source;
+      }
       if (settings.sales_period_days) {
         document.getElementById("sales-period").value =
           settings.sales_period_days;
       }
+      applyThresholdSourceLock();
       if (settings.order_period_days) {
         document.getElementById("order-period").value =
           settings.order_period_days;
@@ -155,11 +160,29 @@ async function loadAnalysisSettings() {
   }
 }
 
+// When the tracker source is selected the analysis period is fixed at 90 days
+// (the tracker recompute always uses the 3 full past months), so lock the field.
+function applyThresholdSourceLock() {
+  const source = document.getElementById("threshold-source").value;
+  const salesPeriod = document.getElementById("sales-period");
+  if (source === "tracker") {
+    salesPeriod.value = "90";
+    salesPeriod.disabled = true;
+  } else {
+    salesPeriod.disabled = false;
+  }
+}
+
 async function saveAnalysisSettings(e) {
   e.preventDefault();
 
+  const source = document.getElementById("threshold-source").value;
   const settings = {
-    sales_period_days: document.getElementById("sales-period").value,
+    dynamic_threshold_source: source,
+    sales_period_days:
+      source === "tracker"
+        ? "90"
+        : document.getElementById("sales-period").value,
     order_period_days: document.getElementById("order-period").value,
     threshold_multiplier: document.getElementById("threshold-multiplier").value,
     items_per_page: document.getElementById("items-per-page").value,
@@ -259,5 +282,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const analysisForm = document.getElementById("analysis-settings-form");
   if (analysisForm) {
     analysisForm.addEventListener("submit", saveAnalysisSettings);
+  }
+
+  const thresholdSource = document.getElementById("threshold-source");
+  if (thresholdSource) {
+    thresholdSource.addEventListener("change", applyThresholdSourceLock);
   }
 });
