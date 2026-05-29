@@ -1872,8 +1872,8 @@ async function saveOverride(e) {
     if (result.success) {
       showToast("Override saved successfully", "success");
       closeProductModal();
-      // Reload inventory to reflect changes
-      loadInventory();
+      // Reload inventory to reflect changes, preserving search/filter state
+      loadInventory(currentPage, currentSearch);
     } else {
       throw new Error(result.error);
     }
@@ -1901,7 +1901,7 @@ async function clearOverride() {
     if (result.success) {
       showToast("Override cleared", "success");
       closeProductModal();
-      loadInventory();
+      loadInventory(currentPage, currentSearch);
     } else {
       throw new Error(result.error);
     }
@@ -2017,7 +2017,7 @@ async function applyBulkOverride() {
     if (result.success) {
       showToast(`Override applied to ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
       closeBulkOverrideModal();
-      loadInventory();
+      loadInventory(currentPage, currentSearch);
     } else {
       throw new Error(result.error);
     }
@@ -2041,7 +2041,7 @@ async function bulkClearOverrides() {
     if (result.success) {
       showToast(`Overrides cleared for ${result.affected} product${result.affected > 1 ? "s" : ""}`, "success");
       closeBulkOverrideModal();
-      loadInventory();
+      loadInventory(currentPage, currentSearch);
     } else {
       throw new Error(result.error);
     }
