@@ -2319,7 +2319,7 @@ async function loadTracking(page = 1, search = "") {
 
   try {
     const offset = (page - 1) * itemsPerPage;
-    let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}&include_totals=true`;
+    let endpoint = `/products?limit=${itemsPerPage}&offset=${offset}&filter=${currentFilter}&include_totals=true&show_excluded=true`;
     if (search) {
       endpoint += `&search=${encodeURIComponent(search)}`;
     }

@@ -1807,7 +1807,6 @@ def _get_tracking_products(data):
     sales_period = int(settings.get('sales_period_days', 60))
     order_period_days = int(settings.get('order_period_days', 28))
     overrides = {o['product_upc']: o for o in pg.get_all_product_overrides()}
-    excluded_upcs = pg.get_excluded_upcs()
     last_suppliers = mssql.get_last_suppliers_for_products()
     admin_db_name = get_admin_db_name()
     qip_data = mssql.get_qip_quantities(admin_db_name) if admin_db_name else {}
@@ -1822,10 +1821,6 @@ def _get_tracking_products(data):
     products = []
     for product in result['products']:
         upc = product['ProductUPC']
-        is_excluded = upc in excluded_upcs
-        if is_excluded:
-            continue
-
         override = overrides.get(upc)
         monthly_avg = float(product.get('monthly_average') or 0)
         daily_avg = float(product.get('daily_average') or 0)
